@@ -1,6 +1,6 @@
 # Hearts of Iron IV - Code Studio
 
-一个基于 **Tauri + Vue 3 + Rust** 的 Hearts of Iron IV GUI Mod 编辑器桌面应用程序。
+一个基于 Tauri + Vue 3 + Rust 的类Vscode的Hearts of Iron IV Mod 编辑器桌面应用程序。
 
 ## 🎯 项目特点
 
@@ -66,13 +66,17 @@ npm run tauri build
 - ✅ 创建/打开 HOI4 Mod 项目
 - ✅ 最近项目列表
 - ✅ 项目配置管理
+- ✅ 文件树节点选中功能
+- ✅ 智能创建文件/文件夹
 
 ### 代码编辑器
 - ✅ 语法高亮（JSON、YAML、MOD、TXT）
 - ✅ 自动缩进和括号匹配
 - ✅ 撤销/重做功能
 - ✅ 水平/垂直滚动支持
-- ✅ 底部固定回弹（防止滚动过度）
+- ✅ 底部固定回弹
+- ✅ 分级括号高亮
+- ✅ 多文件标签管理
 
 ### 智能搜索（Rust多线程）
 - ✅ 项目文件搜索（支持所有文件，包括未展开的文件夹）
@@ -89,14 +93,6 @@ npm run tauri build
 - ✅ 游戏目录配置
 - ✅ 自动保存
 - ✅ 语法高亮开关
-
-## 🎨 主题
-
-项目使用 HOI4 风格的深色主题：
-- 背景色: `#0a0a0a` (hoi4-dark)
-- 卡片背景: `#1a1a1a` (hoi4-gray)
-- 边框: `#2a2a2a` (hoi4-border)
-- 文字: `#e0e0e0` (hoi4-text)
 
 ## 📄 许可证
 

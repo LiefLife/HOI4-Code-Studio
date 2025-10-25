@@ -223,33 +223,99 @@ export async function openSettings(): Promise<any> {
 // ==================== 搜索功能 ====================
 
 export interface SearchResult {
-  file_path: string
   file_name: string
+  file_path: string
   line: number
   content: string
   match_start: number
   match_end: number
 }
 
-export interface SearchFilesResult {
+export interface SearchResponse {
   success: boolean
   message: string
   results: SearchResult[]
 }
 
-/**
- * 搜索文件内容（多线程）
- */
 export async function searchFiles(
-  directoryPath: string,
+  directory: string,
   query: string,
-  caseSensitive: boolean = false,
-  useRegex: boolean = false
-): Promise<SearchFilesResult> {
+  case_sensitive: boolean,
+  use_regex: boolean
+): Promise<SearchResponse> {
   return await invoke('search_files', {
-    directoryPath,
+    directoryPath: directory,
     query,
-    caseSensitive,
-    useRegex
+    caseSensitive: case_sensitive,
+    useRegex: use_regex
   })
+}
+
+// ==================== 文件树构建 ====================
+
+export interface FileNode {
+  name: string
+  path: string
+  is_directory: boolean
+  children?: FileNode[]
+  size?: number
+  expanded: boolean
+}
+
+export interface FileTreeResult {
+  success: boolean
+  message: string
+  tree?: FileNode[]
+}
+
+export async function buildDirectoryTree(
+  path: string,
+  maxDepth: number = 0
+): Promise<FileTreeResult> {
+  return await invoke('build_directory_tree', { path, maxDepth })
+}
+
+export async function buildDirectoryTreeFast(
+  path: string,
+  maxDepth: number = 0
+): Promise<FileTreeResult> {
+  return await invoke('build_directory_tree_fast', { path, maxDepth })
+}
+
+// ==================== 括号匹配 ====================
+
+export enum BracketType {
+  Round = 'Round',
+  Square = 'Square',
+  Curly = 'Curly'
+}
+
+export interface BracketInfo {
+  bracket_type: BracketType
+  start: number
+  end: number
+  depth: number
+  matched: boolean
+}
+
+export interface BracketMatchResult {
+  success: boolean
+  message: string
+  brackets: BracketInfo[]
+  unmatched: number[]
+}
+
+export async function matchBrackets(content: string): Promise<BracketMatchResult> {
+  return await invoke('match_brackets', { content })
+}
+
+export async function findBracketPair(
+  content: string,
+  cursorPos: number
+): Promise<number | null> {
+  return await invoke('find_bracket_pair', { content, cursorPos })
+}
+
+export async function getBracketDepths(content: string): Promise<number[]> {
+  return await invoke('get_bracket_depths', { content })
 }

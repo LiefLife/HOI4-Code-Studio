@@ -12,6 +12,7 @@ interface FileNode {
 const props = defineProps<{
   node: FileNode
   level: number
+  selectedPath?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -65,6 +66,7 @@ function getFileIcon(node: FileNode): string {
         :key="child.path"
         :node="child"
         :level="level + 1"
+        :selected-path="selectedPath"
         @toggle="(n) => emit('toggle', n)"
         @open-file="(n) => emit('openFile', n)"
         @contextmenu="(e, n) => emit('contextmenu', e, n)"

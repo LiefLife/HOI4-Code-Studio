@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { readDirectory, readJsonFile, readFileContent, writeFileContent, createFile, createFolder, loadSettings, searchFiles, type SearchResult as ApiSearchResult } from '../api/tauri'
+import { readJsonFile, readFileContent, writeFileContent, createFile, createFolder, loadSettings, searchFiles, type SearchResult as ApiSearchResult, buildDirectoryTreeFast, getBracketDepths } from '../api/tauri'
 import FileTreeNode from '../components/FileTreeNode.vue'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
@@ -93,6 +93,7 @@ interface OpenFile {
 
 const openFiles = ref<OpenFile[]>([])
 const activeFileIndex = ref<number>(-1)
+const fileTabsRef = ref<HTMLElement | null>(null)
 
 // 当前活动文件（计算属性）
 const currentFile = ref<FileNode | null>(null)
@@ -147,6 +148,8 @@ interface FileNode {
 }
 
 const fileTree = ref<FileNode[]>([])
+// 选中的文件树节点
+const selectedNode = ref<FileNode | null>(null)
 
 // 游戏目录树
 const gameDirectory = ref('')
@@ -214,15 +217,27 @@ async function loadGameDirectory() {
   }
 }
 
-// 加载游戏目录文件树
+// 转换Rust FileNode到本地FileNode
+function convertRustFileNode(node: any): FileNode {
+  return {
+    name: node.name,
+    path: node.path,
+    isDirectory: node.is_directory,
+    children: node.children?.map(convertRustFileNode),
+    expanded: node.expanded || false
+  }
+}
+
+// 加载游戏目录文件树（使用Rust多线程构建）
 async function loadGameFileTree() {
   if (!gameDirectory.value) return
   
   isLoadingGameTree.value = true
   try {
-    const result = await readDirectory(gameDirectory.value)
-    if (result.success && result.files) {
-      gameFileTree.value = buildFileTree(result.files)
+    // 使用Rust多线程快速构建文件树，最大深度3层
+    const result = await buildDirectoryTreeFast(gameDirectory.value, 3)
+    if (result.success && result.tree) {
+      gameFileTree.value = result.tree.map(convertRustFileNode)
     }
   } catch (error) {
     console.error('加载游戏目录文件树失败:', error)
@@ -237,12 +252,12 @@ async function toggleGameFolder(node: FileNode) {
   
   node.expanded = !node.expanded
   
-  // 如果是第一次展开，加载子文件
+  // 如果是第一次展开，加载子文件（使用Rust快速构建）
   if (node.expanded && (!node.children || node.children.length === 0)) {
     try {
-      const result = await readDirectory(node.path)
-      if (result.success && result.files) {
-        node.children = buildFileTree(result.files)
+      const result = await buildDirectoryTreeFast(node.path, 2)
+      if (result.success && result.tree) {
+        node.children = result.tree.map(convertRustFileNode)
       }
     } catch (error) {
       console.error('加载游戏目录子目录失败:', error)
@@ -379,15 +394,16 @@ async function jumpToSearchResult(result: SearchResult) {
   }
 }
 
-// 加载文件树
+// 加载文件树（使用Rust多线程构建）
 async function loadFileTree() {
   if (!projectPath.value) return
   
   try {
-    const result = await readDirectory(projectPath.value)
+    // 使用Rust多线程快速构建文件树，最大深度3层
+    const result = await buildDirectoryTreeFast(projectPath.value, 3)
     console.log('读取目录结果:', result)
-    if (result.success && result.files) {
-      fileTree.value = buildFileTree(result.files)
+    if (result.success && result.tree) {
+      fileTree.value = result.tree.map(convertRustFileNode)
     }
   } catch (error) {
     console.error('加载文件树失败:', error)
@@ -396,35 +412,29 @@ async function loadFileTree() {
   }
 }
 
-// 构建文件树结构
-function buildFileTree(entries: any[]): FileNode[] {
-  return entries.map(entry => ({
-    name: entry.name,
-    path: entry.path,
-    isDirectory: entry.is_directory,
-    children: entry.is_directory ? [] : undefined,
-    expanded: false
-  })).sort((a, b) => {
-    // 文件夹排在前面
-    if (a.isDirectory && !b.isDirectory) return -1
-    if (!a.isDirectory && b.isDirectory) return 1
-    return a.name.localeCompare(b.name)
-  })
+// 旧的buildFileTree函数已删除，现在使用Rust的buildDirectoryTreeFast
+
+// 选中文件树节点
+function selectNode(node: FileNode) {
+  selectedNode.value = node
 }
 
-// 切换文件夹展开状态
+// 切换文件夹展开状态（使用Rust快速构建）
 async function toggleFolder(node: FileNode) {
   if (!node.isDirectory) return
+  
+  // 选中当前节点
+  selectNode(node)
   
   node.expanded = !node.expanded
   
   // 如果是第一次展开，加载子文件
   if (node.expanded && (!node.children || node.children.length === 0)) {
     try {
-      const result = await readDirectory(node.path)
+      const result = await buildDirectoryTreeFast(node.path, 2)
       console.log('读取子目录结果:', result)
-      if (result.success && result.files) {
-        node.children = buildFileTree(result.files)
+      if (result.success && result.tree) {
+        node.children = result.tree.map(convertRustFileNode)
       }
     } catch (error) {
       console.error('加载子目录失败:', error)
@@ -468,35 +478,38 @@ function toggleRightPanel() {
 async function openFile(node: FileNode) {
   if (node.isDirectory) return
   
+  // 选中当前节点
+  selectNode(node)
+  
   // 检查文件是否已经打开
   const existingIndex = openFiles.value.findIndex(f => f.node.path === node.path)
   if (existingIndex !== -1) {
-    // 文件已打开，切换到该标签
-    switchToFile(existingIndex)
+    activeFileIndex.value = existingIndex
+    updateCurrentFileState()
     return
   }
   
-  isLoadingFile.value = true
-  
+  // 读取文件内容
   try {
     const result = await readFileContent(node.path)
     if (result.success) {
-      // 清理仅含空白字符的行
-      const cleanedContent = result.content
-        .split('\n')
-        .map((line: string) => line.trim().length === 0 ? '' : line)
-        .join('\n')
+      // 显示编码信息
+      if (result.encoding && result.encoding !== 'UTF-8') {
+        console.log(`文件编码: ${result.encoding}`)
+      }
       
-      // 添加到打开文件列表
+      // 检查是否为二进制文件
+      if (result.is_binary) {
+        alert(`${result.message}\n文件可能包含二进制数据，显示可能不正确。`)
+      }
+      
       openFiles.value.push({
-        node: node,
-        content: cleanedContent,
+        node,
+        content: result.content,
         hasUnsavedChanges: false,
         cursorLine: 1,
         cursorColumn: 1
       })
-      fileContent.value = cleanedContent
-      // 切换到新打开的文件
       activeFileIndex.value = openFiles.value.length - 1
       updateCurrentFileState()
       
@@ -516,7 +529,12 @@ async function openFile(node: FileNode) {
         }
       })
     } else {
-      alert(`打开文件失败: ${result.message}`)
+      // 检查是否为图片文件
+      if (result.is_image) {
+        alert(`${result.message}\n请使用图片查看器打开此文件。`)
+      } else {
+        alert(`打开文件失败: ${result.message}`)
+      }
     }
   } catch (error) {
     console.error('打开文件失败:', error)
@@ -531,11 +549,45 @@ function switchToFile(index: number) {
   if (index < 0 || index >= openFiles.value.length) return
   
   // 保存当前文件状态
-  saveCurrentFileState()
+  if (activeFileIndex.value >= 0 && activeFileIndex.value < openFiles.value.length) {
+    const currentFile = openFiles.value[activeFileIndex.value]
+    currentFile.content = fileContent.value
+    currentFile.hasUnsavedChanges = hasUnsavedChanges.value
+  }
   
-  // 切换到新文件
   activeFileIndex.value = index
   updateCurrentFileState()
+}
+
+// 处理文件标签栏的滚轮事件
+function handleTabsWheel(event: WheelEvent) {
+  if (!fileTabsRef.value) return
+  
+  // 阻止默认的垂直滚动
+  event.preventDefault()
+  
+  // 将垂直滚动转换为水平滚动
+  fileTabsRef.value.scrollLeft += event.deltaY
+}
+
+// 处理编辑器滚轮事件 - 增加滚动力度
+function handleEditorWheel(event: WheelEvent) {
+  if (!textareaRef.value) return
+  
+  // 阻止默认滚动行为
+  event.preventDefault()
+  
+  // 滚动力度倍数（可调整，2.5 表示 2.5 倍速度）
+  const scrollMultiplier = 10
+  
+  // 计算新的滚动位置
+  const newScrollTop = textareaRef.value.scrollTop + (event.deltaY * scrollMultiplier)
+  
+  // 应用滚动
+  textareaRef.value.scrollTop = newScrollTop
+  
+  // 触发同步滚动
+  syncScroll()
 }
 
 // 更新当前文件状态到界面
@@ -559,17 +611,6 @@ function updateCurrentFileState() {
   // 切换文件时重置撤销/重做堆栈
   undoStack.value = []
   redoStack.value = []
-}
-
-// 保存当前文件状态
-function saveCurrentFileState() {
-  if (activeFileIndex.value === -1 || !openFiles.value[activeFileIndex.value]) return
-  
-  const file = openFiles.value[activeFileIndex.value]
-  file.content = fileContent.value
-  file.hasUnsavedChanges = hasUnsavedChanges.value
-  file.cursorLine = currentLine.value
-  file.cursorColumn = currentColumn.value
 }
 
 // 保存文件
@@ -837,7 +878,7 @@ function highlightCode() {
   }
 }
 
-// 同步滚动
+// 同步滚动 - 使用平滑过渡效果
 function syncScroll() {
   if (textareaRef.value && highlightRef.value) {
     requestAnimationFrame(() => {
@@ -850,12 +891,24 @@ function syncScroll() {
         const currentScroll = textarea.scrollTop
         const bottomThreshold = 50 // 距离底部50px时触发回弹
         
-        // 如果滚动到接近底部，自动回弹到固定位置
+        // 如果滚动到接近底部，使用平滑滚动回弹到固定位置
         if (maxScroll - currentScroll < bottomThreshold) {
           const bouncePosition = maxScroll - 100 // 回弹到距离底部100px的位置
-          textarea.scrollTop = bouncePosition
-          highlight.scrollTop = bouncePosition
+          
+          // 使用 scrollTo 的平滑滚动选项
+          textarea.scrollTo({
+            top: bouncePosition,
+            behavior: 'smooth'
+          })
+          
+          // 高亮层同步平滑滚动
+          highlight.scrollTo({
+            top: bouncePosition,
+            left: textarea.scrollLeft,
+            behavior: 'smooth'
+          })
         } else {
+          // 正常滚动时直接同步，不使用平滑效果以保持即时响应
           highlight.scrollTop = textarea.scrollTop
           highlight.scrollLeft = textarea.scrollLeft
         }
@@ -879,58 +932,58 @@ function clearBraceHighlight(codeEl: HTMLElement) {
   })
 }
 
-// 应用括号分级高亮
-function applyBraceHighlight() {
+// 应用括号分级高亮（使用Rust后端算法）
+async function applyBraceHighlight() {
   if (!showHighlight.value || !highlightRef.value) return
   const codeEl = highlightRef.value.querySelector('code')
   if (!codeEl) return
 
   clearBraceHighlight(codeEl)
 
-  const walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT)
-  const textNodes: Text[] = []
+  try {
+    // 使用Rust后端获取括号深度映射
+    const depthMap = await getBracketDepths(fileContent.value)
+    
+    const walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT)
+    const textNodes: Text[] = []
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text
-    if (node.nodeValue && (node.nodeValue.includes('{') || node.nodeValue.includes('}'))) {
-      textNodes.push(node)
-    }
-  }
-
-  let depth = 0
-
-  textNodes.forEach((node) => {
-    const parentElement = node.parentElement
-    if (parentElement && (parentElement.closest('.token.string') || parentElement.closest('.token.comment'))) {
-      return
-    }
-
-    const text = node.nodeValue ?? ''
-    const fragment = document.createDocumentFragment()
-
-    for (const char of text) {
-      if (char === '{') {
-        depth += 1
-        const span = document.createElement('span')
-        span.className = `brace-bracket ${getBraceClass(depth)}`
-        span.textContent = '{'
-        fragment.appendChild(span)
-      } else if (char === '}') {
-        const span = document.createElement('span')
-        const currentDepth = depth > 0 ? depth : 1
-        span.className = `brace-bracket ${getBraceClass(currentDepth)}`
-        span.textContent = '}'
-        fragment.appendChild(span)
-        if (depth > 0) {
-          depth -= 1
-        }
-      } else {
-        fragment.appendChild(document.createTextNode(char))
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text
+      if (node.nodeValue && (node.nodeValue.includes('{') || node.nodeValue.includes('}'))) {
+        textNodes.push(node)
       }
     }
 
-    node.replaceWith(fragment)
-  })
+    let charIndex = 0
+
+    textNodes.forEach((node) => {
+      const parentElement = node.parentElement
+      if (parentElement && (parentElement.closest('.token.string') || parentElement.closest('.token.comment'))) {
+        charIndex += node.nodeValue?.length || 0
+        return
+      }
+
+      const text = node.nodeValue ?? ''
+      const fragment = document.createDocumentFragment()
+
+      for (const char of text) {
+        if (char === '{' || char === '}') {
+          const depth = depthMap[charIndex] || 1
+          const span = document.createElement('span')
+          span.className = `brace-bracket ${getBraceClass(depth)}`
+          span.textContent = char
+          fragment.appendChild(span)
+        } else {
+          fragment.appendChild(document.createTextNode(char))
+        }
+        charIndex++
+      }
+
+      node.replaceWith(fragment)
+    })
+  } catch (error) {
+    console.error('括号高亮失败:', error)
+  }
 }
 
 // 监听文件切换时更新高亮
@@ -1006,8 +1059,8 @@ function closeOtherFiles(keepIndex: number) {
   hideContextMenu()
 }
 
-// 显示右键菜单
-function showContextMenu(event: MouseEvent, index: number) {
+// 显示文件标签右键菜单
+function showFileTabContextMenu(event: MouseEvent, index: number) {
   event.preventDefault()
   contextMenuFileIndex.value = index
   contextMenuX.value = event.clientX
@@ -1092,13 +1145,20 @@ async function confirmCreate() {
   }
   
   // 确定父路径
+  // 优先级：右键菜单节点 > 选中的节点 > 项目根目录
   let parentPath: string
   if (treeContextMenuNode.value) {
+    // 如果有右键菜单节点，使用它
     parentPath = treeContextMenuNode.value.isDirectory 
       ? treeContextMenuNode.value.path 
       : treeContextMenuNode.value.path.substring(0, treeContextMenuNode.value.path.lastIndexOf('\\'))
+  } else if (selectedNode.value) {
+    // 如果有选中的节点，使用它
+    parentPath = selectedNode.value.isDirectory 
+      ? selectedNode.value.path 
+      : selectedNode.value.path.substring(0, selectedNode.value.path.lastIndexOf('\\'))
   } else {
-    // 在空白区域右键，使用项目根目录
+    // 否则使用项目根目录
     parentPath = projectPath.value
   }
   
@@ -1134,17 +1194,17 @@ function handleDialogKeydown(event: KeyboardEvent) {
   }
 }
 
-// 刷新文件树指定路径
+// 刷新文件树指定路径（使用Rust快速构建）
 async function refreshFileTree(path: string) {
   try {
-    const result = await readDirectory(path)
-    if (result.success && result.files) {
+    const result = await buildDirectoryTreeFast(path, 3)
+    if (result.success && result.tree) {
       // 如果是根目录，更新整个树
       if (path === projectPath.value) {
-        fileTree.value = buildFileTree(result.files)
+        fileTree.value = result.tree.map(convertRustFileNode)
       } else {
         // 否则找到对应节点并更新其子节点
-        updateNodeChildren(fileTree.value, path, result.files)
+        updateNodeChildren(fileTree.value, path, result.tree)
       }
     }
   } catch (error) {
@@ -1152,18 +1212,16 @@ async function refreshFileTree(path: string) {
   }
 }
 
-// 更新节点的子节点
+// 递归更新节点的子节点
 function updateNodeChildren(nodes: FileNode[], targetPath: string, newFiles: any[]) {
   for (const node of nodes) {
     if (node.path === targetPath && node.isDirectory) {
-      node.children = buildFileTree(newFiles)
+      node.children = newFiles.map(convertRustFileNode)
       node.expanded = true
       return true
     }
-    if (node.children && node.expanded) {
-      if (updateNodeChildren(node.children, targetPath, newFiles)) {
-        return true
-      }
+    if (node.children && updateNodeChildren(node.children, targetPath, newFiles)) {
+      return true
     }
   }
   return false
@@ -1181,22 +1239,25 @@ function undo() {
   }
   
   redoStack.value.push(currentState)
-  const prevState = undoStack.value.pop()!
   
-  isApplyingHistory.value = true
-  fileContent.value = prevState.content
-  textarea.value = prevState.content
-  textarea.selectionStart = prevState.cursorStart
-  textarea.selectionEnd = prevState.cursorEnd
-  
-  if (activeFileIndex.value >= 0 && openFiles.value[activeFileIndex.value]) {
-    openFiles.value[activeFileIndex.value].content = fileContent.value
+  const previousState = undoStack.value.pop()
+  if (previousState) {
+    isApplyingHistory.value = true
+    fileContent.value = previousState.content
+    
+    // 立即更新打开文件的内容
+    if (activeFileIndex.value >= 0 && openFiles.value[activeFileIndex.value]) {
+      openFiles.value[activeFileIndex.value].content = previousState.content
+    }
+    
+    nextTick(() => {
+      textarea.setSelectionRange(previousState.cursorStart, previousState.cursorEnd)
+      textarea.focus()
+      isApplyingHistory.value = false
+      highlightCode()
+      updateCursorPosition()
+    })
   }
-  
-  nextTick(() => {
-    isApplyingHistory.value = false
-    updateCursorPosition()
-  })
 }
 
 // 重做
@@ -1216,15 +1277,17 @@ function redo() {
   isApplyingHistory.value = true
   fileContent.value = nextState.content
   textarea.value = nextState.content
-  textarea.selectionStart = nextState.cursorStart
-  textarea.selectionEnd = nextState.cursorEnd
   
+  // 立即更新打开文件的内容
   if (activeFileIndex.value >= 0 && openFiles.value[activeFileIndex.value]) {
-    openFiles.value[activeFileIndex.value].content = fileContent.value
+    openFiles.value[activeFileIndex.value].content = nextState.content
   }
   
   nextTick(() => {
+    textarea.setSelectionRange(nextState.cursorStart, nextState.cursorEnd)
+    textarea.focus()
     isApplyingHistory.value = false
+    highlightCode()
     updateCursorPosition()
   })
 }
@@ -1317,7 +1380,7 @@ onBeforeUnmount(() => {
         <svg class="w-4 h-4 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span class="text-hoi4-text text-sm">{{ rightPanelExpanded ? '隐藏' : '显示' }}项目信息</span>
+        <span class="text-hoi4-text text-sm">{{ rightPanelExpanded ? '隐藏' : '显示' }}侧边栏</span>
       </button>
     </div>
 
@@ -1339,6 +1402,7 @@ onBeforeUnmount(() => {
               :key="node.path"
               :node="node"
               :level="0"
+              :selected-path="selectedNode?.path"
               @toggle="toggleFolder"
               @open-file="openFile"
               @contextmenu="showTreeContextMenu"
@@ -1358,17 +1422,20 @@ onBeforeUnmount(() => {
         <!-- 文件标签栏 -->
         <div v-if="openFiles.length > 0" class="bg-hoi4-gray border-b-2 border-hoi4-border">
           <!-- 多文件标签 -->
-          <div class="flex items-center overflow-x-auto border-b border-hoi4-border">
+          <div 
+            v-if="openFiles.length > 0" 
+            ref="fileTabsRef"
+            @wheel="handleTabsWheel"
+            class="flex items-center bg-hoi4-gray border-b border-hoi4-border overflow-x-auto scroll-smooth"
+            style="scrollbar-width: none; -ms-overflow-style: none;"
+          >
             <div
               v-for="(file, index) in openFiles"
               :key="file.node.path"
               @click="switchToFile(index)"
-              @contextmenu="(e) => showContextMenu(e, index)"
-              class="flex items-center space-x-2 px-4 py-2 border-r border-hoi4-border cursor-pointer transition-colors"
-              :class="{
-                'bg-hoi4-accent': index === activeFileIndex,
-                'hover:bg-hoi4-accent': index !== activeFileIndex
-              }"
+              @contextmenu.prevent="showFileTabContextMenu($event, index)"
+              class="flex items-center px-4 py-2 border-r border-hoi4-border cursor-pointer hover:bg-hoi4-accent transition-colors whitespace-nowrap"
+              :class="{ 'bg-hoi4-accent': index === activeFileIndex }"
             >
               <span class="text-hoi4-text text-sm whitespace-nowrap">{{ file.node.name }}</span>
               <span v-if="file.hasUnsavedChanges" class="text-red-400 text-xs">●</span>
@@ -1453,6 +1520,7 @@ onBeforeUnmount(() => {
             @click="updateCursorPosition"
             @keydown="handleEditorKeydown"
             @scroll="syncScroll"
+            @wheel="handleEditorWheel"
             @mouseup="updateCursorPosition"
             class="w-full h-full p-4 bg-transparent text-hoi4-text font-mono resize-none outline-none relative z-10"
             :class="{ 'text-transparent caret-white': showHighlight }"
@@ -1706,7 +1774,7 @@ onBeforeUnmount(() => {
                   :node="node"
                   :level="0"
                   @toggle="toggleGameFolder"
-                  @open-file="(node) => copyToClipboard(node.path)"
+                  @open-file="openFile"
                 />
               </div>
             </template>
@@ -1859,6 +1927,11 @@ onBeforeUnmount(() => {
 /* 右键菜单项悬停效果 */
 .context-menu-item {
   background-color: transparent;
+}
+
+/* 隐藏文件标签栏的滚动条 */
+.scroll-smooth::-webkit-scrollbar {
+  display: none;
 }
 
 .context-menu-item:hover {

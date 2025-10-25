@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex};
 
 // 本地模块
 mod json_decoder;
+mod file_tree;
+mod bracket_matcher;
 
 use json_decoder::{
     get_json_path,
@@ -20,6 +22,19 @@ use json_decoder::{
     validate_json,
     write_json_file,
     JsonResult,
+};
+
+use file_tree::{
+    build_file_tree,
+    build_file_tree_parallel,
+    FileTreeResult,
+};
+
+use bracket_matcher::{
+    find_bracket_matches,
+    find_matching_bracket,
+    get_bracket_depth_map,
+    BracketMatchResult,
 };
 
 // 创建项目的返回结果结构体
@@ -680,7 +695,7 @@ fn read_directory(dir_path: String) -> serde_json::Value {
     })
 }
 
-/// 读取文件内容
+/// Tauri 命令：读取文件内容（支持多种编码）
 /// 参数:
 /// - file_path: 文件路径
 /// 返回: JSON 对象，包含 success, message, content 字段
@@ -692,27 +707,94 @@ fn read_file_content(file_path: String) -> serde_json::Value {
     println!("读取文件: {}", file_path);
 
     let path = Path::new(&file_path);
-    
-    // 验证文件是否存在
-    if !path.exists() || !path.is_file() {
+
+    if !path.exists() {
         return serde_json::json!({
             "success": false,
-            "message": "文件不存在或不是文件"
+            "message": "文件不存在"
         });
     }
 
-    // 读取文件内容
-    match fs::read_to_string(path) {
-        Ok(content) => serde_json::json!({
-            "success": true,
-            "message": "读取成功",
-            "content": content
-        }),
-        Err(e) => serde_json::json!({
+    // 检查是否为图片文件
+    if let Some(ext) = path.extension() {
+        let ext_str = ext.to_string_lossy().to_lowercase();
+        if matches!(ext_str.as_str(), "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "svg" | "dds" | "tga") {
+            return serde_json::json!({
+                "success": false,
+                "message": "图片文件无法预览",
+                "is_image": true
+            });
+        }
+    }
+
+    // 读取文件字节
+    let bytes = match fs::read(&file_path) {
+        Ok(b) => b,
+        Err(e) => return serde_json::json!({
             "success": false,
             "message": format!("读取文件失败: {}", e)
         })
+    };
+
+    // 1. 尝试UTF-8
+    if let Ok(content) = String::from_utf8(bytes.clone()) {
+        return serde_json::json!({
+            "success": true,
+            "message": "读取成功 (UTF-8)",
+            "content": content,
+            "encoding": "UTF-8"
+        });
     }
+
+    // 2. 使用chardetng检测编码
+    let mut detector = chardetng::EncodingDetector::new();
+    detector.feed(&bytes, true);
+    let detected_encoding = detector.guess(None, true);
+    
+    println!("检测到编码: {}", detected_encoding.name());
+
+    // 3. 尝试使用检测到的编码解码
+    let (decoded, encoding_used, had_errors) = detected_encoding.decode(&bytes);
+    
+    if !had_errors {
+        return serde_json::json!({
+            "success": true,
+            "message": format!("读取成功 ({})", encoding_used.name()),
+            "content": decoded.to_string(),
+            "encoding": encoding_used.name()
+        });
+    }
+
+    // 4. 如果仍然有错误，尝试常见编码
+    let encodings_to_try = [
+        encoding_rs::GBK,      // 简体中文
+        encoding_rs::BIG5,     // 繁体中文
+        encoding_rs::SHIFT_JIS, // 日文
+        encoding_rs::EUC_KR,   // 韩文
+        encoding_rs::WINDOWS_1252, // 西欧
+    ];
+
+    for encoding in encodings_to_try {
+        let (decoded, _, had_errors) = encoding.decode(&bytes);
+        if !had_errors {
+            return serde_json::json!({
+                "success": true,
+                "message": format!("读取成功 ({})", encoding.name()),
+                "content": decoded.to_string(),
+                "encoding": encoding.name()
+            });
+        }
+    }
+
+    // 5. 最后使用lossy转换
+    let content = String::from_utf8_lossy(&bytes).to_string();
+    serde_json::json!({
+        "success": true,
+        "message": "读取成功（使用UTF-8 Lossy转换，部分字符可能显示为�）",
+        "content": content,
+        "encoding": "UTF-8 (Lossy)",
+        "is_binary": true
+    })
 }
 
 /// 写入文件内容
@@ -1049,6 +1131,60 @@ fn search_files(
     })
 }
 
+// ==================== 文件树构建命令 ====================
+
+/// Tauri命令：构建文件树（单线程版本）
+/// 
+/// # 参数
+/// * `path` - 目录路径
+/// * `max_depth` - 最大递归深度（0表示无限制）
+#[tauri::command]
+fn build_directory_tree(path: String, max_depth: usize) -> FileTreeResult {
+    println!("构建文件树: {}, 最大深度: {}", path, max_depth);
+    build_file_tree(&path, max_depth)
+}
+
+/// Tauri命令：构建文件树（多线程版本）
+/// 
+/// # 参数
+/// * `path` - 目录路径
+/// * `max_depth` - 最大递归深度
+#[tauri::command]
+fn build_directory_tree_fast(path: String, max_depth: usize) -> FileTreeResult {
+    println!("快速构建文件树（多线程）: {}, 最大深度: {}", path, max_depth);
+    build_file_tree_parallel(&path, max_depth)
+}
+
+// ==================== 括号匹配命令 ====================
+
+/// Tauri命令：查找所有括号匹配
+/// 
+/// # 参数
+/// * `content` - 文本内容
+#[tauri::command]
+fn match_brackets(content: String) -> BracketMatchResult {
+    find_bracket_matches(&content)
+}
+
+/// Tauri命令：查找光标位置的匹配括号
+/// 
+/// # 参数
+/// * `content` - 文本内容
+/// * `cursor_pos` - 光标位置
+#[tauri::command]
+fn find_bracket_pair(content: String, cursor_pos: usize) -> Option<usize> {
+    find_matching_bracket(&content, cursor_pos)
+}
+
+/// Tauri命令：获取括号深度映射
+/// 
+/// # 参数
+/// * `content` - 文本内容
+#[tauri::command]
+fn get_bracket_depths(content: String) -> Vec<usize> {
+    get_bracket_depth_map(&content)
+}
+
 // ==================== 应用入口 ====================
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1080,6 +1216,11 @@ pub fn run() {
             read_file_content,
             write_file_content,
             search_files,
+            build_directory_tree,
+            build_directory_tree_fast,
+            match_brackets,
+            find_bracket_pair,
+            get_bracket_depths,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
