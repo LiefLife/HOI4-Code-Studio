@@ -370,15 +370,15 @@ async function toggleGameFolder(node: FileNode) {
 }
 
 // 复制文本到剪贴板
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    alert('已复制到剪贴板')
-  } catch (error) {
-    console.error('复制失败:', error)
-    alert('复制失败')
-  }
-}
+// async function copyToClipboard(text: string) {
+//   try {
+//     await navigator.clipboard.writeText(text)
+//     alert('已复制到剪贴板')
+//   } catch (error) {
+//     console.error('复制失败:', error)
+//     alert('复制失败')
+//   }
+// }
 
 // 将API搜索结果转换为本地SearchResult格式
 function convertApiSearchResult(apiResult: ApiSearchResult): SearchResult {
