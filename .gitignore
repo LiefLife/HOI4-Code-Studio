@@ -39,3 +39,6 @@ oldT
 oldTH
 
 src-tauri/target/*
+
+prd.md
+todo-list.md

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { readJsonFile, readFileContent, writeFileContent, createFile, createFolder, loadSettings, searchFiles, type SearchResult as ApiSearchResult, buildDirectoryTreeFast, getBracketDepths } from '../api/tauri'
+import { readJsonFile, readFileContent, writeFileContent, createFile, createFolder, loadSettings, searchFiles, type SearchResult as ApiSearchResult, buildDirectoryTreeFast, getBracketDepths, writeJsonFile } from '../api/tauri'
 import FileTreeNode from '../components/FileTreeNode.vue'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
@@ -110,6 +110,24 @@ const highlightedCode = ref('')
 const showHighlight = ref(false)
 const indentSize = 4 // TAB默认 4 个空格缩进
 
+// 行数栏
+const lineNumbers = ref<number[]>([])
+const lineNumbersRef = ref<HTMLDivElement | null>(null)
+
+// 计算总行数
+function calculateLineCount(content: string): number {
+  if (!content) return 1
+  return content.split('\n').length
+}
+
+// 更新行数显示
+function updateLineNumbers() {
+  const lineCount = calculateLineCount(fileContent.value)
+  lineNumbers.value = Array.from({ length: lineCount }, (_, i) => i + 1)
+  // 更新行数后同步滚动
+  nextTick(() => syncScroll())
+}
+
 // 撤销/重做堆栈
 interface HistoryState {
   content: string
@@ -187,20 +205,100 @@ const isResizingRight = ref(false)
 const rightPanelExpanded = ref(true)
 const rightPanelTab = ref<'info' | 'game'>('info') // 'info' 项目信息, 'game' 游戏目录
 
-// 加载项目信息
+// 加载项目信息并检查项目初始化状态，优先询问用户是否要初始化项目而不是显示错误
 async function loadProjectInfo() {
   if (!projectPath.value) return
   
   try {
-    // 读取 project.json 文件
+    // 首先检查是否存在 project.json 文件，如果不存在直接询问用户是否初始化
+    // 如果存在但读取失败，也询问用户是否要重新初始化
     const projectJsonPath = `${projectPath.value}/project.json`
     const result = await readJsonFile(projectJsonPath)
     
     if (result.success && result.data) {
+      // 成功读取项目配置
       projectInfo.value = result.data
+      return
     }
+    
+    // project.json 不存在或读取失败，询问用户是否初始化项目
+    const shouldInitialize = confirm('检测到此文件夹不是HOI4 Code Studio项目，是否要将其初始化为项目？')
+    
+    if (shouldInitialize) {
+      try {
+        // 读取 descriptor.mod 文件
+        const descriptorPath = `${projectPath.value}/descriptor.mod`
+        const descriptorResult = await readFileContent(descriptorPath)
+        
+        if (descriptorResult.success) {
+          // 解析 descriptor.mod 中的 name 属性
+          const content = descriptorResult.content
+          const nameMatch = content.match(/^name\s*=\s*"([^"]+)"/m)
+          const modName = nameMatch ? nameMatch[1] : 'Unknown Mod'
+          
+          // 创建 project.json
+          const projectData = {
+            name: modName,
+            version: '1.0.0',
+            created_at: new Date().toISOString()
+          }
+          
+          const writeResult = await writeJsonFile(projectJsonPath, projectData)
+          if (writeResult.success) {
+            projectInfo.value = projectData
+            alert(`项目初始化成功！项目名称: ${modName}`)
+          } else {
+            alert(`项目初始化失败: ${writeResult.message}`)
+          }
+        } else {
+          alert(`无法读取 descriptor.mod 文件: ${descriptorResult.message}\n请确保项目根目录包含有效的 descriptor.mod 文件。`)
+        }
+      } catch (error) {
+        console.error('项目初始化失败:', error)
+        alert(`项目初始化失败: ${error}`)
+      }
+    }
+    // 如果用户选择不初始化，不做任何操作
   } catch (error) {
     console.error('加载项目信息失败:', error)
+    const projectJsonPath = `${projectPath.value}/project.json`
+    // 即使出现异常也不显示错误给用户，而是询问是否初始化
+    const shouldInitialize = confirm('检测到此文件夹不是HOI4 Code Studio项目，是否要将其初始化为项目？')
+    
+    if (shouldInitialize) {
+      try {
+        // 读取 descriptor.mod 文件
+        const descriptorPath = `${projectPath.value}/descriptor.mod`
+        const descriptorResult = await readFileContent(descriptorPath)
+        
+        if (descriptorResult.success) {
+          // 解析 descriptor.mod 中的 name 属性
+          const content = descriptorResult.content
+          const nameMatch = content.match(/^name\s*=\s*"([^"]+)"/m)
+          const modName = nameMatch ? nameMatch[1] : 'Unknown Mod'
+          
+          // 创建 project.json
+          const projectData = {
+            name: modName,
+            version: '1.0.0',
+            created_at: new Date().toISOString()
+          }
+          
+          const writeResult = await writeJsonFile(projectJsonPath, projectData)
+          if (writeResult.success) {
+            projectInfo.value = projectData
+            alert(`项目初始化成功！项目名称: ${modName}`)
+          } else {
+            alert(`项目初始化失败: ${writeResult.message}`)
+          }
+        } else {
+          alert(`无法读取 descriptor.mod 文件: ${descriptorResult.message}\n请确保项目根目录包含有效的 descriptor.mod 文件。`)
+        }
+      } catch (initError) {
+        console.error('项目初始化失败:', initError)
+        alert(`项目初始化失败: ${initError}`)
+      }
+    }
   }
 }
 
@@ -578,12 +676,32 @@ function handleEditorWheel(event: WheelEvent) {
   event.preventDefault()
   
   // 滚动力度倍数（可调整，2.5 表示 2.5 倍速度）
-  const scrollMultiplier = 10
+  const scrollMultiplier = 2.5
   
   // 计算新的滚动位置
   const newScrollTop = textareaRef.value.scrollTop + (event.deltaY * scrollMultiplier)
   
   // 应用滚动
+  textareaRef.value.scrollTop = newScrollTop
+  
+  // 触发同步滚动
+  syncScroll()
+}
+
+// 处理行数栏滚轮事件
+function handleLineNumbersWheel(event: WheelEvent) {
+  if (!textareaRef.value) return
+  
+  // 阻止默认滚动行为
+  event.preventDefault()
+  
+  // 滚动力度倍数（与编辑器保持一致）
+  const scrollMultiplier = 2.5
+  
+  // 计算新的滚动位置
+  const newScrollTop = textareaRef.value.scrollTop + (event.deltaY * scrollMultiplier)
+  
+  // 应用滚动到textarea
   textareaRef.value.scrollTop = newScrollTop
   
   // 触发同步滚动
@@ -607,6 +725,9 @@ function updateCurrentFileState() {
   hasUnsavedChanges.value = file.hasUnsavedChanges
   currentLine.value = file.cursorLine
   currentColumn.value = file.cursorColumn
+  
+  // 更新行数显示
+  updateLineNumbers()
   
   // 切换文件时重置撤销/重做堆栈
   undoStack.value = []
@@ -653,9 +774,6 @@ function saveHistory() {
   redoStack.value = []
 }
 
-// 防抖定时器
-let highlightDebounceTimer: number | null = null
-
 // 监听内容变化
 function onContentChange(event: Event) {
   const target = event.target as HTMLTextAreaElement
@@ -673,13 +791,14 @@ function onContentChange(event: Event) {
     openFiles.value[activeFileIndex.value].hasUnsavedChanges = true
   }
   
-  // 使用防抖优化高亮更新，避免频繁重绘
-  if (highlightDebounceTimer) {
-    clearTimeout(highlightDebounceTimer)
-  }
-  highlightDebounceTimer = window.setTimeout(() => {
-    highlightCode()
-  }, 150)
+  // 更新行数
+  updateLineNumbers()
+  
+  // 同步滚动
+  syncScroll()
+  
+  // 直接更新高亮
+  highlightCode()
 }
 
 function handleEditorKeydown(event: KeyboardEvent) {
@@ -880,11 +999,12 @@ function highlightCode() {
 
 // 同步滚动 - 使用平滑过渡效果
 function syncScroll() {
-  if (textareaRef.value && highlightRef.value) {
+  if (textareaRef.value) {
     requestAnimationFrame(() => {
-      if (textareaRef.value && highlightRef.value) {
+      if (textareaRef.value) {
         const textarea = textareaRef.value
         const highlight = highlightRef.value
+        const lineNumbers = lineNumbersRef.value
         
         // 检查是否滚动到底部
         const maxScroll = textarea.scrollHeight - textarea.clientHeight
@@ -902,15 +1022,32 @@ function syncScroll() {
           })
           
           // 高亮层同步平滑滚动
-          highlight.scrollTo({
-            top: bouncePosition,
-            left: textarea.scrollLeft,
-            behavior: 'smooth'
-          })
+          if (highlight) {
+            highlight.scrollTo({
+              top: bouncePosition,
+              left: textarea.scrollLeft,
+              behavior: 'smooth'
+            })
+          }
+
+          // 行数栏同步平滑滚动
+          if (lineNumbers) {
+            lineNumbers.scrollTo({
+              top: bouncePosition,
+              behavior: 'smooth'
+            })
+          }
         } else {
           // 正常滚动时直接同步，不使用平滑效果以保持即时响应
-          highlight.scrollTop = textarea.scrollTop
-          highlight.scrollLeft = textarea.scrollLeft
+          if (highlight) {
+            highlight.scrollTop = textarea.scrollTop
+            highlight.scrollLeft = textarea.scrollLeft
+          }
+          
+          // 行数栏同步滚动
+          if (lineNumbers) {
+            lineNumbers.scrollTop = textarea.scrollTop
+          }
         }
       }
     })
@@ -1256,6 +1393,12 @@ function undo() {
       isApplyingHistory.value = false
       highlightCode()
       updateCursorPosition()
+      // 更新行数显示
+      updateLineNumbers()
+      // 同步滚动
+      syncScroll()
+      // 同步滚动
+      syncScroll()
     })
   }
 }
@@ -1289,6 +1432,10 @@ function redo() {
     isApplyingHistory.value = false
     highlightCode()
     updateCursorPosition()
+    // 更新行数显示
+    updateLineNumbers()
+    // 同步滚动
+    syncScroll()
   })
 }
 
@@ -1468,29 +1615,6 @@ onBeforeUnmount(() => {
                 <span>保存</span>
               </button>
               
-              <!-- 撤销按钮 -->
-              <button
-                @click="undo"
-                class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
-                title="撤销 (Ctrl+Z)"
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
-                </svg>
-                <span>撤销</span>
-              </button>
-              
-              <!-- 重做按钮 -->
-              <button
-                @click="redo"
-                class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
-                title="重做 (Ctrl+Y)"
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path>
-                </svg>
-                <span>重做</span>
-              </button>
             </div>
             
             <!-- 文件信息 -->
@@ -1504,12 +1628,30 @@ onBeforeUnmount(() => {
 
         <!-- 编辑器 -->
         <div v-if="currentFile" class="flex-1 overflow-hidden relative">
+          <!-- 行数栏 -->
+          <div
+            ref="lineNumbersRef"
+            class="absolute left-0 top-0 bottom-0 z-5 overflow-y-auto line-numbers"
+            style="width: 60px; background-color: #1a1a1a; border-right: 1px solid #2a2a2a; padding: 16px 8px 50vh 8px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.5; color: #6a6a6a; user-select: none;"
+            @wheel="handleLineNumbersWheel"
+          >
+            <div
+              v-for="lineNumber in lineNumbers"
+              :key="lineNumber"
+              class="line-number"
+              :class="{ 'current-line': lineNumber === currentLine }"
+              style="height: 1.5em; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;"
+            >
+              {{ lineNumber }}
+            </div>
+          </div>
+          
           <!-- 语法高亮层 -->
           <pre
             v-if="showHighlight"
             ref="highlightRef"
             class="absolute inset-0 p-4 bg-hoi4-dark text-hoi4-text font-mono overflow-auto pointer-events-none highlight-layer"
-            style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; margin: 0; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-y: auto; letter-spacing: 0; word-spacing: 0; font-feature-settings: normal; font-variant-ligatures: none; padding-bottom: 50vh;"
+            style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; margin: 0; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-y: auto; letter-spacing: 0; word-spacing: 0; font-feature-settings: normal; font-variant-ligatures: none; padding-bottom: 50vh; left: 60px;"
           ><code v-html="highlightedCode" class="language-code" style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; white-space: pre; letter-spacing: 0; word-spacing: 0; display: block; font-feature-settings: normal; font-variant-ligatures: none; line-height: 1.5;"></code></pre>
           
           <!-- 文本编辑区 -->
@@ -1524,7 +1666,7 @@ onBeforeUnmount(() => {
             @mouseup="updateCursorPosition"
             class="w-full h-full p-4 bg-transparent text-hoi4-text font-mono resize-none outline-none relative z-10"
             :class="{ 'text-transparent caret-white': showHighlight }"
-            style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-y: auto; letter-spacing: 0; word-spacing: 0; font-feature-settings: normal; font-variant-ligatures: none; padding-bottom: 50vh;"
+            style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.875rem; line-height: 1.5; white-space: pre; overflow-x: auto; overflow-y: auto; letter-spacing: 0; word-spacing: 0; font-feature-settings: normal; font-variant-ligatures: none; padding-bottom: 50vh; padding-left: 76px;"
             spellcheck="false"
             wrap="off"
           ></textarea>
@@ -1911,6 +2053,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 行数栏样式 */
+.line-numbers {
+  scrollbar-width: none; /* Firefox */
+  /* 禁用平滑滚动，确保立即同步 */
+  scroll-behavior: auto;
+}
+
+.line-numbers::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.line-number:hover {
+  color: #a0a0a0;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.line-number.current-line {
+  color: #e0e0e0;
+  background-color: rgba(56, 189, 248, 0.1);
+  border-right: 2px solid #38bdf8;
+}
+
 /* YAML语法高亮CSS变量 */
 :root {
   --yaml-comment: #6a9955;

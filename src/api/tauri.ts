@@ -68,6 +68,13 @@ export async function openProject(projectPath: string): Promise<OpenProjectResul
 }
 
 /**
+ * 初始化项目
+ */
+export async function initializeProject(projectPath: string): Promise<OpenProjectResult> {
+  return await invoke('initialize_project', { projectPath })
+}
+
+/**
  * 获取最近打开的项目列表
  */
 export async function getRecentProjects(): Promise<RecentProjectsResult> {

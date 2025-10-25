@@ -208,6 +208,111 @@ name="{}"
     }
 }
 
+/// 初始化项目（为非HOICS项目创建配置文件）
+#[tauri::command]
+fn initialize_project(project_path: String) -> OpenProjectResult {
+    use std::fs;
+    use std::path::Path;
+
+    println!("初始化项目: {}", project_path);
+
+    // 验证项目路径是否存在
+    let project_dir = Path::new(&project_path);
+    if !project_dir.exists() || !project_dir.is_dir() {
+        return OpenProjectResult {
+            success: false,
+            message: "项目目录不存在".to_string(),
+            project_data: None,
+        };
+    }
+
+    // 检查是否已经存在配置文件
+    let config_path = project_dir.join("project.json");
+    if config_path.exists() {
+        return OpenProjectResult {
+            success: false,
+            message: "项目已存在配置文件".to_string(),
+            project_data: None,
+        };
+    }
+
+    // 读取descriptor.mod文件
+    let descriptor_path = project_dir.join("descriptor.mod");
+    let mod_name = if descriptor_path.exists() {
+        match fs::read_to_string(&descriptor_path) {
+            Ok(content) => {
+                // 解析name属性
+                if let Some(name_match) = content.lines()
+                    .find(|line| line.trim().starts_with("name="))
+                    .and_then(|line| {
+                        let line = line.trim();
+                        if line.starts_with("name=\"") && line.ends_with('\"') && line.len() > 7 {
+                            Some(line[6..line.len()-1].to_string())
+                        } else {
+                            None
+                        }
+                    }) {
+                    name_match
+                } else {
+                    "Unknown Mod".to_string()
+                }
+            }
+            Err(_) => "Unknown Mod".to_string(),
+        }
+    } else {
+        "Unknown Mod".to_string()
+    };
+
+    // 创建项目配置
+    let mut config = serde_json::json!({
+        "name": mod_name,
+        "version": "1.0.0",
+        "created_at": chrono::Utc::now().to_rfc3339(),
+    });
+
+    // 添加项目路径到配置
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("path".to_string(), serde_json::json!(project_path.clone()));
+    }
+
+    // // 扫描项目文件
+    // let files = scan_project_files(&project_path);
+    // if let Some(obj) = config.as_object_mut() {
+    //     obj.insert("files".to_string(), serde_json::json!(files));
+    // }
+
+    // 保存配置文件
+    let config_str = match serde_json::to_string_pretty(&config) {
+        Ok(s) => s,
+        Err(e) => {
+            return OpenProjectResult {
+                success: false,
+                message: format!("序列化配置失败: {}", e),
+                project_data: None,
+            };
+        }
+    };
+
+    if let Err(e) = fs::write(&config_path, config_str) {
+        return OpenProjectResult {
+            success: false,
+            message: format!("创建配置文件失败: {}", e),
+            project_data: None,
+        };
+    }
+
+    // 更新最近项目列表
+    if let Err(e) = update_recent_projects(&project_path, &mod_name) {
+        println!("更新最近项目失败: {}", e);
+    }
+
+    OpenProjectResult {
+        success: true,
+        message: format!("项目 '{}' 初始化成功", mod_name),
+        project_data: Some(config),
+    }
+}
+
 /// 打开现有项目
 #[tauri::command]
 fn open_project(project_path: String) -> OpenProjectResult {
@@ -231,7 +336,7 @@ fn open_project(project_path: String) -> OpenProjectResult {
     if !config_path.exists() {
         return OpenProjectResult {
             success: false,
-            message: "项目配置文件不存在".to_string(),
+            message: "检测到此文件夹不是HOI4 Code Studio项目，是否要将其初始化为项目？".to_string(),
             project_data: None,
         };
     }
@@ -1193,6 +1298,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             create_new_project,
+            initialize_project,
             open_project,
             get_recent_projects,
             open_file_dialog,

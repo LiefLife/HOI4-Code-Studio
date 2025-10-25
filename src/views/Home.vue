@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { openFileDialog, openProject } from '../api/tauri'
+import { openFileDialog, openProject, initializeProject } from '../api/tauri'
 
 const router = useRouter()
 const statusMessage = ref('')
@@ -35,7 +35,26 @@ async function handleOpenProject() {
         router.push({ name: 'editor', query: { path: dialogResult.path } })
       }, 500)
     } else {
-      displayStatus(`错误: ${result.message}`, 3000)
+      // 检查是否是需要初始化的项目
+      if (result.message.includes('检测到此文件夹不是HOI4 Code Studio项目')) {
+        const shouldInitialize = confirm(result.message)
+        
+        if (shouldInitialize) {
+          const initResult = await initializeProject(dialogResult.path)
+          
+          if (initResult.success) {
+            displayStatus(initResult.message, 2000)
+            setTimeout(() => {
+              router.push({ name: 'editor', query: { path: dialogResult.path } })
+            }, 500)
+          } else {
+            displayStatus(`项目初始化失败: ${initResult.message}`, 3000)
+          }
+        }
+        // 如果用户选择不初始化，不做任何操作
+      } else {
+        displayStatus(`错误: ${result.message}`, 3000)
+      }
     }
   }
 }
