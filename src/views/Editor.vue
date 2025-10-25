@@ -7,6 +7,8 @@ import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
 import 'prismjs/components/prism-yaml'
+// @ts-ignore
+import { parseTxtErrors } from '../utils/txtParser'
 
 // 定义 MOD 文件语法规则
 Prism.languages.mod = {
@@ -100,6 +102,7 @@ const currentFile = ref<FileNode | null>(null)
 const fileContent = ref('')
 const isLoadingFile = ref(false)
 const hasUnsavedChanges = ref(false)
+const isReadOnly = ref(false)
 
 // 编辑器状态
 const currentLine = ref(1)
@@ -109,6 +112,9 @@ const highlightRef = ref<HTMLPreElement | null>(null)
 const highlightedCode = ref('')
 const showHighlight = ref(false)
 const indentSize = 4 // TAB默认 4 个空格缩进
+
+// txt文件错误
+const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
 
 // 行数栏
 const lineNumbers = ref<number[]>([])
@@ -203,7 +209,7 @@ const isResizingRight = ref(false)
 
 // 右侧面板展开状态
 const rightPanelExpanded = ref(true)
-const rightPanelTab = ref<'info' | 'game'>('info') // 'info' 项目信息, 'game' 游戏目录
+const rightPanelTab = ref<'info' | 'game' | 'errors'>('info') // 'info' 项目信息, 'game' 游戏目录, 'errors' 错误列表
 
 // 加载项目信息并检查项目初始化状态，优先询问用户是否要初始化项目而不是显示错误
 async function loadProjectInfo() {
@@ -380,7 +386,9 @@ function convertApiSearchResult(apiResult: ApiSearchResult): SearchResult {
     file: {
       name: apiResult.file_name,
       path: apiResult.file_path,
-      isDirectory: false
+      isDirectory: false,
+      children: [],
+      expanded: false
     },
     line: apiResult.line,
     content: apiResult.content,
@@ -425,6 +433,37 @@ async function performSearch() {
   }
 }
 
+// 跳转到项目搜索结果
+async function jumpToSearchResult(result: SearchResult) {
+  await openFile(result.file)
+
+  await nextTick()
+
+  if (!textareaRef.value) return
+
+  const lines = fileContent.value.split('\n')
+  const targetLineIndex = Math.max(Math.min(result.line - 1, lines.length - 1), 0)
+
+  let position = 0
+  for (let i = 0; i < targetLineIndex && i < lines.length; i++) {
+    position += (lines[i]?.length ?? 0) + 1
+  }
+
+  const targetLine = lines[targetLineIndex] ?? ''
+  const safeMatchStart = Math.min(Math.max(result.matchStart, 0), targetLine.length)
+  position += safeMatchStart
+
+  const rawMatchLength = Math.max(result.matchEnd - result.matchStart, 0)
+  const fallbackLength = searchQuery.value.length || 1
+  const selectionLength = rawMatchLength > 0 ? rawMatchLength : fallbackLength
+  const selectionEnd = position + selectionLength
+
+  textareaRef.value.focus()
+  textareaRef.value.setSelectionRange(position, selectionEnd)
+  textareaRef.value.scrollTop = targetLineIndex * 20
+  updateCursorPosition()
+}
+
 // 搜索游戏目录文件内容（使用Rust后端多线程搜索）
 async function performGameSearch() {
   if (!gameSearchQuery.value.trim()) {
@@ -463,14 +502,7 @@ async function performGameSearch() {
 
 // 跳转到游戏目录搜索结果
 async function jumpToGameSearchResult(result: SearchResult) {
-  // 复制文件路径和行号信息
-  const info = `${result.file.path}:${result.line}`
-  await copyToClipboard(info)
-}
-
-// 跳转到搜索结果
-async function jumpToSearchResult(result: SearchResult) {
-  // 打开文件
+  // 打开文件（游戏文件只读）
   await openFile(result.file)
   
   // 等待文件加载完成
@@ -486,8 +518,25 @@ async function jumpToSearchResult(result: SearchResult) {
     position += result.matchStart
     
     textareaRef.value.focus()
-    textareaRef.value.setSelectionRange(position, position + searchQuery.value.length)
+    textareaRef.value.setSelectionRange(position, position + gameSearchQuery.value.length)
     textareaRef.value.scrollTop = (result.line - 1) * 20 // 粗略估计行高
+    updateCursorPosition()
+  }
+}
+
+// 跳转到错误行
+async function jumpToError(error: {line: number, msg: string, type: string}) {
+  // 滚动到指定行
+  if (textareaRef.value) {
+    const lines = fileContent.value.split('\n')
+    let position = 0
+    for (let i = 0; i < error.line - 1; i++) {
+      position += lines[i].length + 1 // +1 for newline
+    }
+    
+    textareaRef.value.focus()
+    textareaRef.value.setSelectionRange(position, position)
+    textareaRef.value.scrollTop = (error.line - 1) * 20 // 粗略估计行高
     updateCursorPosition()
   }
 }
@@ -725,6 +774,9 @@ function updateCurrentFileState() {
   hasUnsavedChanges.value = file.hasUnsavedChanges
   currentLine.value = file.cursorLine
   currentColumn.value = file.cursorColumn
+  
+  // 设置只读状态
+  isReadOnly.value = !!gameDirectory.value && file.node.path.startsWith(gameDirectory.value)
   
   // 更新行数显示
   updateLineNumbers()
@@ -975,12 +1027,27 @@ function highlightCode() {
       const contentLines = fileContent.value.split('\n')
       const highlightLines = highlighted.split('\n')
       const normalized = contentLines.map((_, index) => {
-        const line = highlightLines[index] ?? ''
-        if (line.length === 0) {
-          return '<span class="line-placeholder">&nbsp;</span>'
+        let lineHtml = highlightLines[index] ?? ''
+        if (lineHtml.length === 0) {
+          lineHtml = '<span class="line-placeholder">&nbsp;</span>'
         }
-        return line
+        return lineHtml
       })
+
+      // 检测txt文件错误
+      if (language === 'hoi4') {
+        txtErrors.value = parseTxtErrors(fileContent.value)
+        // 为有错误的行添加错误高亮
+        txtErrors.value.forEach(error => {
+          const lineIndex = error.line - 1
+          if (normalized[lineIndex]) {
+            normalized[lineIndex] = `<div class="error-line">${normalized[lineIndex]}</div>`
+          }
+        })
+      } else {
+        txtErrors.value = []
+      }
+
       // 若 highlight 多出行（如 Prism 自动附加换行），截断以保持与文本一致
       highlightedCode.value = normalized.join('\n')
       showHighlight.value = true
@@ -1605,8 +1672,8 @@ onBeforeUnmount(() => {
               <button
                 @click="saveFile"
                 class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
-                :disabled="!hasUnsavedChanges"
-                :class="{ 'opacity-50 cursor-not-allowed': !hasUnsavedChanges }"
+                :disabled="!hasUnsavedChanges || isReadOnly"
+                :class="{ 'opacity-50 cursor-not-allowed': !hasUnsavedChanges || isReadOnly }"
                 title="保存 (Ctrl+S)"
               >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1619,6 +1686,7 @@ onBeforeUnmount(() => {
             
             <!-- 文件信息 -->
             <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
+              <span v-if="isReadOnly" class="text-red-400 font-semibold">只读</span>
               <span>行: {{ currentLine }}</span>
               <span>列: {{ currentColumn }}</span>
               <span>字符: {{ fileContent.length }}</span>
@@ -1707,6 +1775,13 @@ onBeforeUnmount(() => {
             >
               显示游戏目录
             </button>
+            <button
+              @click="rightPanelTab = 'errors'"
+              class="px-4 py-2 text-sm transition-colors"
+              :class="rightPanelTab === 'errors' ? 'bg-hoi4-gray text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text'"
+            >
+              错误列表
+            </button>
           </div>
           <button
             @click="toggleRightPanel"
@@ -1770,7 +1845,7 @@ onBeforeUnmount(() => {
                 <div
                   v-for="(result, index) in searchResults"
                   :key="index"
-                  @click="jumpToSearchResult(result)"
+                  @click="() => jumpToSearchResult(result)"
                   class="bg-hoi4-accent p-2 rounded cursor-pointer hover:bg-hoi4-border transition-colors"
                 >
                   <div class="text-hoi4-text text-xs font-semibold mb-1">
@@ -1920,6 +1995,33 @@ onBeforeUnmount(() => {
                 />
               </div>
             </template>
+          </div>
+
+          <!-- 错误列表标签内容 -->
+          <div v-else-if="rightPanelTab === 'errors'" class="h-full flex flex-col">
+            <div v-if="txtErrors.length === 0" class="text-hoi4-text-dim text-sm p-2">
+              无错误
+            </div>
+            <div v-else class="flex-1 overflow-y-auto p-2">
+              <div class="text-hoi4-text text-xs mb-2 font-semibold">
+                找到 {{ txtErrors.length }} 个错误
+              </div>
+              <div class="space-y-1">
+                <div
+                  v-for="(error, index) in txtErrors"
+                  :key="index"
+                  @click="jumpToError(error)"
+                  class="bg-hoi4-accent p-2 rounded cursor-pointer hover:bg-hoi4-border transition-colors"
+                >
+                  <div class="text-hoi4-text text-xs font-semibold mb-1">
+                    第 {{ error.line }} 行: {{ error.msg }}
+                  </div>
+                  <div class="text-hoi4-text-dim text-xs">
+                    类型: {{ error.type }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2314,6 +2416,11 @@ textarea {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.error-line {
+  border-bottom: 2px solid #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 </style>
 
