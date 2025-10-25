@@ -1,6 +1,6 @@
 # Hearts of Iron IV - Code Studio
 
-一个基于 **Tauri + Vue 3 + Rust** 的 Hearts of Iron IV GUI Mod 编辑器桌面应用程序。
+一个基于 **Tauri + Vue 3 + Rust** 的类Vscode的Hearts of Iron IV Mod 编辑器桌面应用程序。
 
 ## 🎯 项目特点
 
