@@ -78,16 +78,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col items-center justify-center p-[2vh] bg-hoi4-dark">
+  <div class="h-full w-full flex flex-col items-center justify-center p-[2vh] bg-onedark-bg">
     <!-- 标题区域 -->
     <div class="text-center mb-[3vh]">
-      <h1 class="font-bold text-hoi4-text text-shadow mb-[1vh]" style="font-size: clamp(1.5rem, 4vw, 3rem);">
+      <h1 class="font-bold text-onedark-fg text-shadow mb-[1vh]" style="font-size: clamp(1.5rem, 4vw, 3rem);">
         Hearts of Iron IV
       </h1>
-      <h2 class="font-light text-hoi4-text-dim text-shadow" style="font-size: clamp(1rem, 2.5vw, 1.875rem);">
+      <h2 class="font-light text-onedark-comment text-shadow" style="font-size: clamp(1rem, 2.5vw, 1.875rem);">
         GUI Mod Editor
       </h2>
-      <div class="mt-[1vh] text-hoi4-text-dim" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
+      <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
         v0.1.0
       </div>
     </div>
@@ -137,7 +137,7 @@ onMounted(() => {
       </button>
 
       <!-- 分隔线 -->
-      <div class="border-t border-hoi4-border my-4"></div>
+      <div class="border-t border-onedark-border my-4"></div>
 
       <!-- 设置按钮 -->
       <button 
@@ -156,7 +156,7 @@ onMounted(() => {
     </div>
 
     <!-- 底部信息 -->
-    <div class="mt-[3vh] text-center text-hoi4-text-dim" style="font-size: clamp(0.625rem, 1vw, 0.875rem);">
+    <div class="mt-[3vh] text-center text-onedark-comment" style="font-size: clamp(0.625rem, 1vw, 0.875rem);">
       <p class="mt-[0.5vh]">基于 Tauri + Vue 3 构建</p>
     </div>
 
@@ -165,8 +165,8 @@ onMounted(() => {
       v-if="showStatus"
       class="fixed bottom-[2vh] right-[2vw] z-50"
     >
-      <div class="bg-hoi4-gray border-2 border-hoi4-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
-        <p class="text-hoi4-text" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
+      <div class="bg-onedark-bg-secondary border-2 border-onedark-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
+        <p class="text-onedark-fg" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
       </div>
     </div>
   </div>

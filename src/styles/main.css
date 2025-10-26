@@ -1,64 +1,81 @@
 @import "tailwindcss";
 
-/* HOI4 主题全局样式 */
+/* OneDark 主题 CSS 变量 */
+:root {
+  --onedark-bg: #282c34;
+  --onedark-bg-secondary: #21252b;
+  --onedark-fg: #abb2bf;
+  --onedark-comment: #5c6370;
+  --onedark-border: #181a1f;
+  --onedark-selection: #3e4451;
+  --onedark-accent: #61afef;
+  --onedark-success: #98c379;
+  --onedark-warning: #e5c07b;
+  --onedark-error: #e06c75;
+  --onedark-keyword: #c678dd;
+}
+
+/* OneDark 主题全局样式 */
 body {
-  background-color: #0a0a0a;
-  color: #e0e0e0;
+  background-color: var(--onedark-bg);
+  color: var(--onedark-fg);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* 卡片样式 */
 .card {
-  background-color: #1a1a1a;
-  border: 2px solid #2a2a2a;
+  background-color: var(--onedark-bg-secondary);
+  border: 2px solid var(--onedark-border);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   padding: 1.5rem;
 }
 
 /* 主按钮样式 */
 .btn-primary {
-  background-color: #3a3a3a;
-  color: #e0e0e0;
+  background-color: var(--onedark-accent);
+  color: var(--onedark-bg);
   font-weight: bold;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  border: 2px solid #2a2a2a;
-  transition: background-color 0.2s;
+  border: 2px solid var(--onedark-accent);
+  transition: all 0.2s;
 }
 
 .btn-primary:hover {
-  background-color: #2a2a2a;
+  background-color: var(--onedark-keyword);
+  border-color: var(--onedark-keyword);
 }
 
 /* 次要按钮样式 */
 .btn-secondary {
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: var(--onedark-bg-secondary);
+  color: var(--onedark-fg);
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  border: 2px solid #2a2a2a;
-  transition: background-color 0.2s;
+  border: 2px solid var(--onedark-border);
+  transition: all 0.2s;
 }
 
 .btn-secondary:hover {
-  background-color: #3a3a3a;
+  background-color: var(--onedark-selection);
+  border-color: var(--onedark-accent);
 }
 
 /* 输入框样式 */
 .input-field {
-  background-color: #1a1a1a;
-  border: 2px solid #2a2a2a;
+  background-color: var(--onedark-bg-secondary);
+  border: 2px solid var(--onedark-border);
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
-  color: #e0e0e0;
+  color: var(--onedark-fg);
   outline: none;
   transition: border-color 0.2s;
 }
 
 .input-field:focus {
-  border-color: #3a3a3a;
+  border-color: var(--onedark-accent);
 }
 
 /* 文本阴影效果 */
@@ -73,14 +90,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #0a0a0a;
+  background-color: var(--onedark-bg);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #2a2a2a;
+  background-color: var(--onedark-selection);
   border-radius: 0.25rem;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #3a3a3a;
+  background-color: var(--onedark-accent);
 }

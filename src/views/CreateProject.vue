@@ -143,7 +143,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col p-[2vh] bg-hoi4-dark">
+  <div class="h-full w-full flex flex-col p-[2vh] bg-onedark-bg">
     <!-- 顶部栏 -->
     <div class="flex items-center mb-[3vh]">
       <button
@@ -157,7 +157,7 @@ onMounted(() => {
         </svg>
         <span>返回</span>
       </button>
-      <h1 class="ml-[3vw] font-bold text-hoi4-text" style="font-size: clamp(1.25rem, 2.5vw, 2rem)">
+      <h1 class="ml-[3vw] font-bold text-onedark-fg" style="font-size: clamp(1.25rem, 2.5vw, 2rem)">
         创建新项目
       </h1>
     </div>
@@ -168,7 +168,7 @@ onMounted(() => {
         <form @submit.prevent="handleSubmit" class="space-y-[2vh]">
           <!-- 项目名称 -->
           <div>
-            <label for="project-name" class="block text-hoi4-text mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+            <label for="project-name" class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
               项目名称 <span class="text-red-400">*</span>
             </label>
             <input
@@ -184,7 +184,7 @@ onMounted(() => {
 
           <!-- 项目版本 -->
           <div>
-            <label for="project-version" class="block text-hoi4-text mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+            <label for="project-version" class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
               版本 <span class="text-red-400">*</span>
             </label>
             <input
@@ -200,7 +200,7 @@ onMounted(() => {
 
           <!-- 项目路径 -->
           <div>
-            <label class="block text-hoi4-text mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+            <label class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
               项目路径 <span class="text-red-400">*</span>
             </label>
             <div class="flex space-x-2">
@@ -225,21 +225,21 @@ onMounted(() => {
 
           <!-- Replace Path 选项 -->
           <div>
-            <label class="block text-hoi4-text mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+            <label class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
               Replace Path 目录替换
-              <span class="text-hoi4-text-dim text-xs ml-2">(可选，用于大型 Mod)</span>
+              <span class="text-onedark-comment text-xs ml-2">(可选，用于大型 Mod)</span>
             </label>
-            <div class="space-y-[1vh] bg-hoi4-gray p-[1.5vh] rounded-lg border-2 border-hoi4-border">
+            <div class="space-y-[1vh] bg-onedark-bg-secondary p-[1.5vh] rounded-lg border-2 border-onedark-border">
               <label
                 v-for="option in replacePathOptions"
                 :key="option.value"
-                class="flex items-center space-x-3 cursor-pointer hover:bg-hoi4-accent p-[1vh] rounded transition-colors"
+                class="flex items-center space-x-3 cursor-pointer hover:bg-onedark-selection p-[1vh] rounded transition-colors">
               >
                 <input
                   type="checkbox"
                   :value="option.value"
                   v-model="selectedReplacePaths"
-                  class="w-4 h-4 accent-hoi4-text-dim"
+                  class="w-4 h-4 accent-onedark-accent">
                 />
                 <span style="font-size: clamp(0.75rem, 1vw, 0.875rem)">{{ option.label }}</span>
               </label>
@@ -272,21 +272,21 @@ onMounted(() => {
 
     <!-- 状态提示 -->
     <div v-if="showStatus" class="fixed bottom-[2vh] right-[2vw] z-50">
-      <div class="bg-hoi4-gray border-2 border-hoi4-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
-        <p class="text-hoi4-text" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
+      <div class="bg-onedark-bg-secondary border-2 border-onedark-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
+        <p class="text-onedark-fg" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
       </div>
     </div>
 
     <!-- 错误对话框 -->
     <div v-if="showErrorDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closeErrorDialog">
-      <div class="bg-hoi4-gray border-4 border-red-600 rounded-lg shadow-2xl max-w-md w-full mx-4" style="padding: clamp(1.5rem, 3vh, 2rem);" @click.stop>
+      <div class="bg-onedark-bg-secondary border-4 border-red-600 rounded-lg shadow-2xl max-w-md w-full mx-4" style="padding: clamp(1.5rem, 3vh, 2rem);" @click.stop>
         <div class="flex items-center mb-4">
           <svg class="w-8 h-8 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <h2 class="text-hoi4-text font-bold" style="font-size: clamp(1.25rem, 2vw, 1.5rem);">{{ errorTitle }}</h2>
+          <h2 class="text-onedark-fg font-bold" style="font-size: clamp(1.25rem, 2vw, 1.5rem);">{{ errorTitle }}</h2>
         </div>
-        <p class="text-hoi4-text-dim mb-6" style="font-size: clamp(0.875rem, 1.2vw, 1rem); line-height: 1.6;">{{ errorMessage }}</p>
+        <p class="text-onedark-comment mb-6" style="font-size: clamp(0.875rem, 1.2vw, 1rem); line-height: 1.6;">{{ errorMessage }}</p>
         <button 
           @click="closeErrorDialog"
           class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors" 
