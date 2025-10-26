@@ -85,10 +85,10 @@ onMounted(() => {
         Hearts of Iron IV
       </h1>
       <h2 class="font-light text-onedark-comment text-shadow" style="font-size: clamp(1rem, 2.5vw, 1.875rem);">
-        GUI Mod Editor
+        Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.1.0
+        v0.0.1-dev
       </div>
     </div>
 
