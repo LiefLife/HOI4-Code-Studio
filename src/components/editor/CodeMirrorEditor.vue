@@ -11,6 +11,7 @@ import { yaml } from '@codemirror/lang-yaml'
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { hoi4 } from '../../lang/hoi4'
+import { createLinter } from '../../utils/ErrorTip'
 
 const props = defineProps<{
   content: string
@@ -44,7 +45,7 @@ function getLanguageExtension() {
       return [javascript()]
     case 'txt':
       // HOI4 脚本
-      return [hoi4()]
+      return [hoi4(), ...createLinter()]
     default:
       return []
   }

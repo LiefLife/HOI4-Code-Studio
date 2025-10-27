@@ -2,8 +2,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile } from '../api/tauri'
-// @ts-ignore
-import { parseTxtErrors } from '../utils/txtParser.js'
+import { collectErrors } from '../utils/ErrorTip'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
@@ -293,7 +292,7 @@ async function handleOpenFile(node: FileNode) {
       if (currentFile.value) {
         const language = getLanguage(currentFile.value.name)
         if (language === 'hoi4') {
-          txtErrors.value = parseTxtErrors(content)
+          txtErrors.value = collectErrors(content)
         } else {
           txtErrors.value = []
         }
@@ -320,7 +319,7 @@ function handleSwitchFile(index: number) {
       if (currentFile.value) {
         const language = getLanguage(currentFile.value.name)
         if (language === 'hoi4') {
-          txtErrors.value = parseTxtErrors(fileContent.value)
+          txtErrors.value = collectErrors(fileContent.value)
         } else {
           txtErrors.value = []
         }
@@ -362,7 +361,7 @@ function handleContentChange(content: string) {
   if (currentFile.value) {
     const language = getLanguage(currentFile.value.name)
     if (language === 'hoi4') {
-      txtErrors.value = parseTxtErrors(content)
+      txtErrors.value = collectErrors(content)
     }
     highlightCode(content, currentFile.value.name, txtErrors.value)
   }
