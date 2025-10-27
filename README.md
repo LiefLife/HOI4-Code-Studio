@@ -2,6 +2,7 @@
 
 一个基于 **Tauri + Vue 3 + Rust** 的类Vscode的Hearts of Iron IV Mod 编辑器桌面应用程序。
 
+## 主页
 ![Start Page](./picture/start-page.png)
 
 ## 🚀 快速开始
@@ -71,6 +72,8 @@ npm run tauri build
 - ✅ 行号显示
 - ✅ 部分错误提示
 - TODO... 代码提示/错误提示
+
+## 编辑器展示
 ![Editor](./picture/editor.png)
 ![Editor Search](./picture/editor_s.png)
 
