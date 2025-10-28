@@ -2,7 +2,7 @@
  * 规则：关键字 if / else / limit 后必须出现 = {（可换行），并且存在匹配的 }。
  * 若缺失任一条件则报错。
  */
-import type { Rule, RuleResult } from '../types'
+import type { Rule, RuleResult, RuleContext } from '../types'
 
 function findEqAndOpenCurly(doc: string, start: number): number {
   // 从 start 开始向后查找 '=' 与后续的 '{'，允许跨行和空白
@@ -63,7 +63,7 @@ function findMatchingClose(doc: string, openIndex: number): number {
 
 export const controlRule: Rule = {
   name: 'control',
-  apply(content, lines, lineStarts): RuleResult {
+  apply(content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
     const errors = [] as RuleResult['errors']
     const ranges = [] as RuleResult['ranges']
 

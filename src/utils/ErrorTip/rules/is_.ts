@@ -2,11 +2,11 @@
  * 规则：is_* = yes|no
  * 但若 * 中包含 with / for / of 任意字样（大小写不敏感），则忽略该条（不计入计算）。
  */
-import type { Rule, RuleResult } from '../types'
+import type { Rule, RuleResult, RuleContext } from '../types'
 
 export const isRule: Rule = {
   name: 'is',
-  apply(_content, lines, lineStarts): RuleResult {
+  apply(_content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
     const errors = [] as RuleResult['errors']
     const ranges = [] as RuleResult['ranges']
 

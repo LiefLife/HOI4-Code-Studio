@@ -2,11 +2,11 @@
  * 规则：always = yes|no
  * 若值不是 yes/no，则报错。
  */
-import type { Rule, RuleResult } from '../types'
+import type { Rule, RuleResult, RuleContext } from '../types'
 
 export const alwaysRule: Rule = {
   name: 'always',
-  apply(_content, lines, lineStarts): RuleResult {
+  apply(_content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
     const errors = [] as RuleResult['errors']
     const ranges = [] as RuleResult['ranges']
 

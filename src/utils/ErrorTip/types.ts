@@ -38,8 +38,19 @@ export interface Rule {
    * @param content 原始全文字符串
    * @param lines 按 \n 切分后的行
    * @param lineStarts 每行起始在全文中的偏移（包含行末换行的累加）
+   * @param ctx 可选上下文（如文件路径、项目根目录）
    */
-  apply(content: string, lines: string[], lineStarts: number[]): RuleResult
+  apply(content: string, lines: string[], lineStarts: number[], ctx?: RuleContext): RuleResult
+}
+
+/**
+ * 规则执行上下文
+ */
+export interface RuleContext {
+  /** 当前文件的绝对路径 */
+  filePath?: string
+  /** 项目根目录绝对路径，用于严格限定路径规则（如 ./events） */
+  projectRoot?: string
 }
 
 /**

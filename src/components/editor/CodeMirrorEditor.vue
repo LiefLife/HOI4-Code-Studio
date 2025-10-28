@@ -17,6 +17,8 @@ const props = defineProps<{
   content: string
   isReadOnly: boolean
   fileName?: string
+  filePath?: string
+  projectRoot?: string
 }>()
 
 const emit = defineEmits<{
@@ -45,7 +47,12 @@ function getLanguageExtension() {
       return [javascript()]
     case 'txt':
       // HOI4 脚本
-      return [hoi4(), ...createLinter()]
+      return [
+        hoi4(),
+        ...createLinter({
+          contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot })
+        })
+      ]
     default:
       return []
   }
@@ -128,6 +135,23 @@ watch(() => props.fileName, () => {
   if (!editorView) return
   
   // 重新初始化编辑器以应用新的语言扩展
+  editorView.destroy()
+  nextTick(() => {
+    initEditor()
+  })
+})
+
+// 监听文件路径或项目根变化（刷新 Linter 上下文）
+watch(() => props.filePath, () => {
+  if (!editorView) return
+  editorView.destroy()
+  nextTick(() => {
+    initEditor()
+  })
+})
+
+watch(() => props.projectRoot, () => {
+  if (!editorView) return
   editorView.destroy()
   nextTick(() => {
     initEditor()
