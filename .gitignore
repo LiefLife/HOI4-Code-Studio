@@ -44,3 +44,5 @@ prd.md
 todo-list.md
 target/rust-analyzer/flycheck0/stderr
 target/rust-analyzer/flycheck0/stdout
+
+mission.txt

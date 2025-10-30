@@ -5,7 +5,12 @@
 
 // 程序入口函数
 // main() 是 Rust 程序的入口点
+/// 主函数，作为 Tauri 应用的入口点
+/// 
+/// 该函数负责初始化并启动 Tauri 应用程序。它通过调用库中的 run() 函数来完成这一任务。
+/// 在 Tauri 应用中，main() 函数是必需的，它是程序执行的起点。
 fn main() {
     // 调用库中的 run() 函数启动 Tauri 应用
+    // hoi4_code_studio_lib 是一个自定义库，提供了运行应用所需的核心功能
     hoi4_code_studio_lib::run()
 }
