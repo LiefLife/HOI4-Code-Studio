@@ -12,6 +12,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { hoi4 } from '../../lang/hoi4'
 import { createLinter } from '../../utils/ErrorTip'
+import { setRoots as setIdeaRoots, ensureRefreshed as ensureIdeaRefreshed } from '../../utils/IdeaRegistry'
 
 const props = defineProps<{
   content: string
@@ -19,6 +20,7 @@ const props = defineProps<{
   fileName?: string
   filePath?: string
   projectRoot?: string
+  gameDirectory?: string
 }>()
 
 const emit = defineEmits<{
@@ -47,10 +49,13 @@ function getLanguageExtension() {
       return [javascript()]
     case 'txt':
       // HOI4 脚本
+      // 设置 Idea 注册表根并触发扫描
+      setIdeaRoots(props.projectRoot, props.gameDirectory)
+      ensureIdeaRefreshed()
       return [
         hoi4(),
         ...createLinter({
-          contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot })
+          contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
         })
       ]
     default:
@@ -151,6 +156,14 @@ watch(() => props.filePath, () => {
 })
 
 watch(() => props.projectRoot, () => {
+  if (!editorView) return
+  editorView.destroy()
+  nextTick(() => {
+    initEditor()
+  })
+})
+
+watch(() => props.gameDirectory, () => {
   if (!editorView) return
   editorView.destroy()
   nextTick(() => {

@@ -292,7 +292,7 @@ async function handleOpenFile(node: FileNode) {
       if (currentFile.value) {
         const language = getLanguage(currentFile.value.name)
         if (language === 'hoi4') {
-          txtErrors.value = collectErrors(content, { filePath: node.path, projectRoot: projectPath.value })
+          txtErrors.value = collectErrors(content, { filePath: node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
         } else {
           txtErrors.value = []
         }
@@ -319,7 +319,7 @@ function handleSwitchFile(index: number) {
       if (currentFile.value) {
         const language = getLanguage(currentFile.value.name)
         if (language === 'hoi4') {
-          txtErrors.value = collectErrors(fileContent.value, { filePath: file.node.path, projectRoot: projectPath.value })
+          txtErrors.value = collectErrors(fileContent.value, { filePath: file.node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
         } else {
           txtErrors.value = []
         }
@@ -361,7 +361,7 @@ function handleContentChange(content: string) {
   if (currentFile.value) {
     const language = getLanguage(currentFile.value.name)
     if (language === 'hoi4') {
-      txtErrors.value = collectErrors(content, { filePath: currentFile.value.path, projectRoot: projectPath.value })
+      txtErrors.value = collectErrors(content, { filePath: currentFile.value.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
     }
     highlightCode(content, currentFile.value.name, txtErrors.value)
   }
@@ -645,6 +645,7 @@ onMounted(() => {
             :file-name="currentFile?.name"
             :file-path="currentFile?.path"
             :project-root="projectPath"
+            :game-directory="gameDirectory"
             @update:content="handleContentChange"
             @cursor-change="handleCursorChange"
             @scroll="handleScroll"

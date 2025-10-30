@@ -51,6 +51,8 @@ export interface RuleContext {
   filePath?: string
   /** 项目根目录绝对路径，用于严格限定路径规则（如 ./events） */
   projectRoot?: string
+  /** 游戏目录绝对路径，用于扫描 ./common/ideas 等跨根路径 */
+  gameDirectory?: string
 }
 
 /**
