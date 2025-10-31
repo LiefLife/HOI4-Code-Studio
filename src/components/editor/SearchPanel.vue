@@ -42,11 +42,17 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
-// 监听搜索参数变化
+// 监听搜索参数变化（1 秒防抖）
+const debounceTimer = ref<number | null>(null)
 watch([() => props.searchQuery, () => props.searchCaseSensitive, () => props.searchRegex, () => props.searchScope], () => {
-  if (props.searchQuery.trim()) {
-    emit('performSearch')
+  if (debounceTimer.value) {
+    clearTimeout(debounceTimer.value)
+    debounceTimer.value = null
   }
+  if (!props.searchQuery.trim()) return
+  debounceTimer.value = window.setTimeout(() => {
+    emit('performSearch')
+  }, 1000)
 }, { flush: 'post' })
 
 // 当面板打开时聚焦输入框

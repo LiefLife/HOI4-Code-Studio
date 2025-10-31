@@ -66,6 +66,8 @@ function getLanguageExtension() {
 // 初始化编辑器
 function initEditor() {
   if (!editorContainer.value) return
+  // 清空容器，避免残留的旧编辑器 DOM 节点导致多个滚动条/多实例叠加
+  editorContainer.value.innerHTML = ''
   
   const startState = EditorState.create({
     doc: props.content,
@@ -197,7 +199,7 @@ defineExpose({
 <style>
 .codemirror-editor {
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .codemirror-editor .cm-editor {

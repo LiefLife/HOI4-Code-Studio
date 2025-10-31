@@ -519,11 +519,36 @@ function handlePerformSearch() {
   }
 }
 
-function handleJumpToSearchResult(result: any) {
+async function handleJumpToSearchResult(result: any) {
+  const targetPath = result?.file?.path
+  if (!targetPath) return
+
+  // 若未打开或未激活目标文件，则先打开
+  if (!currentFile.value || currentFile.value.path !== targetPath) {
+    const name = (result?.file?.name as string) || (targetPath.split(/[\\\/]/).pop() || targetPath)
+    const node: FileNode = { name, path: targetPath, isDirectory: false }
+    await openFile(node, (content) => {
+      fileContent.value = content
+      hasUnsavedChanges.value = false
+      setReadOnly(isFileReadOnly(node.path))
+      nextTick(() => {
+        const language = getLanguage(name)
+        if (language === 'hoi4') {
+          txtErrors.value = collectErrors(content, { filePath: node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
+        } else {
+          txtErrors.value = []
+        }
+        highlightCode(content, name, txtErrors.value)
+      })
+    })
+    updateCurrentFile()
+    await nextTick()
+  }
+
   const view = editorRef.value?.editorView
-  if (!view) return
-  
-  jumpToResult(result, view)
+  if (view) {
+    jumpToResult(result, view)
+  }
   searchPanelVisible.value = false
 }
 

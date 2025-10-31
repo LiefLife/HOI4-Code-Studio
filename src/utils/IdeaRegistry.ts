@@ -84,55 +84,67 @@ function findBlockRangeByKey(doc: string, key: string): [number, number] | null 
   return null
 }
 
-function collectCountryIdeasFromContent(content: string): string[] {
+function collectIdeasFromContent(content: string): string[] {
+  // 去除行内注释，避免 # 干扰
   const noComments = stripLineComments(content)
+  // 找到 ideas = { ... } 的主体
   const ideasRange = findBlockRangeByKey(noComments, 'ideas')
   if (!ideasRange) return []
   const [ideasOpen, ideasClose] = ideasRange
   const ideasBody = noComments.slice(ideasOpen + 1, ideasClose)
-  const countryRange = findBlockRangeByKey(ideasBody, 'country')
-  if (!countryRange) return []
-  const [countryOpen, countryClose] = countryRange
-  const body = ideasBody.slice(countryOpen + 1, countryClose)
 
-  // 在 country 块内提取 depth==1 的 key = { ... } 的 key 名称
-  const list: string[] = []
-  let i = 0
-  let depth = 0
-  while (i < body.length) {
-    const ch = body[i]
-    if (ch === '{') { depth++; i++; continue }
-    if (ch === '}') { depth--; i++; continue }
-    if (depth === 0) {
-      // 解析 identifier = {
-      // 读取标识符
-      const idStart = i
-      // 跳过空白
-      while (i < body.length && /\s/.test(body[i])) i++
-      let j = i
-      while (j < body.length && /[A-Za-z0-9_\.-]/.test(body[j])) j++
-      if (j > i) {
-        const ident = body.slice(i, j)
-        // 跳过空白
-        let k = j
-        while (k < body.length && /\s/.test(body[k])) k++
-        if (body[k] === '=') {
-          k++
+  // 扫描 ideasBody 的一级分类块（如 country、economy 等）
+  function scanTopLevelBlocks(body: string): Array<{ key: string; open: number; close: number }> {
+    const blocks: Array<{ key: string; open: number; close: number }> = []
+    let i = 0
+    let depth = 0
+    let inLineComment = false
+    while (i < body.length) {
+      const ch = body[i]
+      if (inLineComment) { if (ch === '\n') inLineComment = false; i++; continue }
+      if (ch === '#') { inLineComment = true; i++; continue }
+      if (ch === '{') { depth++; i++; continue }
+      if (ch === '}') { depth--; i++; continue }
+      if (depth === 0) {
+        // 尝试读取标识符 key
+        while (i < body.length && /\s/.test(body[i])) i++
+        let j = i
+        while (j < body.length && /[A-Za-z0-9_\.-]/.test(body[j])) j++
+        if (j > i) {
+          const ident = body.slice(i, j)
+          let k = j
           while (k < body.length && /\s/.test(body[k])) k++
-          if (body[k] === '{') {
-            // 命中一个 idea 定义
-            list.push(ident)
+          if (body[k] === '=') {
+            k++
+            while (k < body.length && /\s/.test(body[k])) k++
+            if (body[k] === '{') {
+              const open = k
+              const close = findMatchingClose(body, open)
+              if (close > open) {
+                blocks.push({ key: ident, open, close })
+                i = close + 1
+                continue
+              }
+            }
           }
         }
-        i = j
-        continue
       }
-      i = idStart + 1
-    } else {
       i++
     }
+    return blocks
   }
-  return list
+
+  // 在每个分类块的顶层收集 idea = { ... } 的 key
+  const ideas: string[] = []
+  const categories = scanTopLevelBlocks(ideasBody)
+  for (const cat of categories) {
+    const catBody = ideasBody.slice(cat.open + 1, cat.close)
+    const ideaBlocks = scanTopLevelBlocks(catBody)
+    for (const ib of ideaBlocks) {
+      ideas.push(ib.key)
+    }
+  }
+  return ideas
 }
 
 async function scanIdeasUnder(dirPath: string): Promise<Set<string>> {
@@ -147,7 +159,7 @@ async function scanIdeasUnder(dirPath: string): Promise<Set<string>> {
       if (!/\.txt$/i.test(p)) continue
       const file = await readFileContent(p as any)
       if (file && (file as any).success && typeof (file as any).content === 'string') {
-        const ideas = collectCountryIdeasFromContent((file as any).content)
+        const ideas = collectIdeasFromContent((file as any).content)
         for (const id of ideas) out.add(id)
       }
     }

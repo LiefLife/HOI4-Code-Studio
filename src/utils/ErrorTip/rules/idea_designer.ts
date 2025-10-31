@@ -63,6 +63,31 @@ export const ideaDesignerRule: Rule = {
       }
     }
 
+    // 1.1) add_ideas = { idea1 idea2 ... }（支持多行）
+    {
+      const re = /\badd_ideas\s*=\s*\{[^{}]*?\}/gs
+      let m: RegExpExecArray | null
+      while ((m = re.exec(content)) !== null) {
+        const block = m[0]
+        const openIdx = block.indexOf('{')
+        const closeIdx = block.lastIndexOf('}')
+        if (openIdx < 0 || closeIdx <= openIdx) continue
+        const inner = block.slice(openIdx + 1, closeIdx)
+        // 在花括号内部提取可能的 idea id 标识符
+        const ids = inner.match(/[A-Za-z0-9_\.-]+/g) || []
+        for (const ideaId of ids) {
+          if (!reg.has(ideaId)) {
+            const absPos = m.index
+            const lineNumber = findLineNumber(lineStarts, absPos)
+            const from = lineStarts[lineNumber - 1]
+            const to = from + lines[lineNumber - 1].length
+            errors.push({ line: lineNumber, msg: '未定义的idea', type: 'idea_designer' })
+            ranges.push({ from, to, message: '未定义的idea', type: 'idea_designer', line: lineNumber })
+          }
+        }
+      }
+    }
+
     // 2) add_timed_idea = { ... idea = X ... }
     {
       const re = /\badd_timed_idea\s*=\s*\{[^{}]*?\bidea\s*=\s*([A-Za-z0-9_\.-]+)[^{}]*?\}/gs
@@ -80,6 +105,28 @@ export const ideaDesignerRule: Rule = {
         if (!reg.has(ideaId)) {
           errors.push({ line: lineNumber, msg: '未定义的idea', type: 'idea_designer' })
           ranges.push({ from, to, message: '未定义的idea', type: 'idea_designer', line: lineNumber })
+        }
+      }
+    }
+
+    // 3) swap_ideas = { remove_idea = X  add_idea = Y }
+    {
+      const re = /\bswap_ideas\s*=\s*\{[^{}]*?\}/gs
+      let m: RegExpExecArray | null
+      while ((m = re.exec(content)) !== null) {
+        const block = m[0]
+        const localRe = /\b(remove_idea|add_idea)\s*=\s*([A-Za-z0-9_\.-]+)/g
+        let mm: RegExpExecArray | null
+        while ((mm = localRe.exec(block)) !== null) {
+          const ideaId = mm[2]
+          const absPos = m.index + mm.index
+          const lineNumber = findLineNumber(lineStarts, absPos)
+          const from = lineStarts[lineNumber - 1]
+          const to = from + lines[lineNumber - 1].length
+          if (!reg.has(ideaId)) {
+            errors.push({ line: lineNumber, msg: '未定义的idea', type: 'idea_designer' })
+            ranges.push({ from, to, message: '未定义的idea', type: 'idea_designer', line: lineNumber })
+          }
         }
       }
     }
