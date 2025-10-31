@@ -15,7 +15,6 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
 .DS_Store
 *.suo
 *.ntvs*
@@ -46,3 +45,4 @@ target/rust-analyzer/flycheck0/stderr
 target/rust-analyzer/flycheck0/stdout
 
 mission.txt
+events
