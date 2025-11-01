@@ -13,7 +13,7 @@
  *  - 仅忽略行内注释 #...，不处理复杂嵌套（足以覆盖常见写法）。
  */
 import type { Rule, RuleResult, RuleContext } from '../types'
-import { getRegistry } from '../../IdeaRegistry'
+import { getRegistry, ensureRefreshed } from '../../IdeaRegistry'
 
 function findLineNumber(lineStarts: number[], pos: number): number {
   // 基于 lineStarts 二分查找定位行号（1-based）
@@ -37,6 +37,7 @@ export const ideaDesignerRule: Rule = {
     const ranges = [] as RuleResult['ranges']
 
     // 若注册表为空（扫描未完成），避免误报
+    ensureRefreshed().catch(() => {})
     const reg = getRegistry()
     if (!reg || reg.size === 0) {
       return { errors, ranges }

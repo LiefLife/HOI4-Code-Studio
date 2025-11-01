@@ -25,6 +25,8 @@ import { useSearch } from '../composables/useSearch'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
 import SearchPanel from '../components/editor/SearchPanel.vue'
+import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
+import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
 
 // Prism 语法定义
 Prism.languages.mod = {
@@ -145,6 +147,20 @@ const {
 
 const searchPanelVisible = ref(false)
 
+// 标签状态
+const { isLoading: tagLoading, statusMessage: tagStatus, refresh: refreshTags } = useTagRegistry()
+
+// idea状态
+const { isLoading: ideaLoading, statusMessage: ideaStatus, refresh: refreshIdeas } = useIdeaRegistry()
+
+async function handleRefreshTags() {
+  await refreshTags()
+}
+
+async function handleRefreshIdeas() {
+  await refreshIdeas()
+}
+
 // 计算行数
 const lineCount = ref(1)
 watch(fileContent, (content) => {
@@ -212,6 +228,10 @@ async function loadFileTree() {
     if (result.success && result.tree) {
       fileTree.value = result.tree.map(convertRustFileNode)
     }
+    setTagRoots(projectPath.value, gameDirectory.value)
+    await refreshTags()
+    setIdeaRoots(projectPath.value, gameDirectory.value)
+    await refreshIdeas()
   } catch (error) {
     console.error('加载文件树失败:', error)
   } finally {
@@ -225,7 +245,16 @@ async function loadGameDirectory() {
     const result = await loadSettings()
     if (result.success && result.data && result.data.gameDirectory) {
       gameDirectory.value = result.data.gameDirectory
+      setTagRoots(projectPath.value, gameDirectory.value)
       await loadGameFileTree()
+      await refreshTags()
+      setIdeaRoots(projectPath.value, gameDirectory.value)
+      await ensureIdeaRegistry()
+    } else {
+      setTagRoots(projectPath.value, undefined)
+      await refreshTags()
+      setIdeaRoots(projectPath.value, undefined)
+      await ensureIdeaRegistry()
     }
   } catch (error) {
     console.error('加载游戏目录设置失败:', error)
@@ -600,6 +629,32 @@ onMounted(() => {
       >
         <div class="p-2">
           <h3 class="text-hoi4-text font-bold mb-2 text-sm">文件目录</h3>
+          <div
+            v-if="tagLoading || tagStatus"
+            class="text-hoi4-text-dim text-xs mb-2 px-2 py-1 bg-hoi4-border/30 rounded flex items-center justify-between"
+          >
+            <span>{{ tagLoading ? '国家标签加载中...' : tagStatus }}</span>
+          <button
+            class="ml-2 px-2 py-0.5 bg-hoi4-accent text-hoi4-text text-xs rounded hover:bg-hoi4-border transition-colors"
+            @click="handleRefreshTags"
+            :disabled="tagLoading"
+          >
+            刷新
+          </button>
+        </div>
+        <div
+          v-if="ideaLoading || ideaStatus"
+          class="text-hoi4-text-dim text-xs mb-2 px-2 py-1 bg-hoi4-border/30 rounded flex items-center justify-between"
+        >
+          <span>{{ ideaLoading ? 'idea数据加载中...' : ideaStatus }}</span>
+          <button
+            class="ml-2 px-2 py-0.5 bg-hoi4-accent text-hoi4-text text-xs rounded hover:bg-hoi4-border transition-colors"
+            @click="handleRefreshIdeas"
+            :disabled="ideaLoading"
+          >
+            刷新
+          </button>
+        </div>
           <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
           <div v-else-if="fileTree.length === 0" class="text-hoi4-text-dim text-sm p-2">无文件</div>
           <div v-else>

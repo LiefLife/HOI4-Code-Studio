@@ -289,6 +289,70 @@ export async function buildDirectoryTreeFast(
   return await invoke('build_directory_tree_fast', { path, maxDepth })
 }
 
+// ==================== 国家标签 ====================
+
+export interface TagEntry {
+  code: string
+  name?: string
+  source: 'project' | 'game'
+}
+
+export interface TagLoadResponse {
+  success: boolean
+  message: string
+  tags?: TagEntry[]
+}
+
+export async function loadCountryTags(
+  projectRoot?: string,
+  gameRoot?: string
+): Promise<TagLoadResponse> {
+  return await invoke('load_country_tags', { projectRoot, gameRoot })
+}
+
+export interface TagValidationError {
+  line: number
+  message: string
+}
+
+export interface TagValidationResponse {
+  success: boolean
+  message: string
+  errors: TagValidationError[]
+}
+
+export async function validateTags(
+  content: string,
+  projectRoot?: string,
+  gameRoot?: string
+): Promise<TagValidationResponse> {
+  return await invoke('validate_tags', { content, projectRoot, gameRoot })
+}
+
+// ==================== idea ====================
+
+export interface IdeaEntry {
+  id: string
+  source: 'project' | 'game'
+}
+
+export interface IdeaLoadResponse {
+  success: boolean
+  message: string
+  ideas?: IdeaEntry[]
+}
+
+export async function loadIdeas(
+  projectRoot?: string,
+  gameRoot?: string
+): Promise<IdeaLoadResponse> {
+  return await invoke('load_ideas', { projectRoot, gameRoot })
+}
+
+export async function resetIdeaCache(): Promise<boolean> {
+  return await invoke('reset_idea_cache')
+}
+
 // ==================== 括号匹配 ====================
 
 export enum BracketType {

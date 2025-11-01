@@ -12,7 +12,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { hoi4 } from '../../lang/hoi4'
 import { createLinter } from '../../utils/ErrorTip'
-import { setRoots as setIdeaRoots, ensureRefreshed as ensureIdeaRefreshed } from '../../utils/IdeaRegistry'
+import { setIdeaRoots, ensureIdeaRegistry } from '../../composables/useIdeaRegistry'
 
 const props = defineProps<{
   content: string
@@ -51,7 +51,7 @@ function getLanguageExtension() {
       // HOI4 脚本
       // 设置 Idea 注册表根并触发扫描
       setIdeaRoots(props.projectRoot, props.gameDirectory)
-      ensureIdeaRefreshed()
+      ensureIdeaRegistry()
       return [
         hoi4(),
         ...createLinter({

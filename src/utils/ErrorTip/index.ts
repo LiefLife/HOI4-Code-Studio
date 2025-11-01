@@ -13,6 +13,7 @@ import { bracesRule } from './rules/braces'
 import { namespaceRule } from './rules/namespace'
 import { eventRule } from './rules/event'
 import { ideaDesignerRule } from './rules/idea_designer'
+import { tagDesignerRule } from './rules/tag_designer'
 
 // 按需导入 Lint（避免强耦合，但此处直接提供便捷工厂）
 import type { Diagnostic } from '@codemirror/lint'
@@ -29,7 +30,8 @@ const RULES: Rule[] = [
   bracesRule,
   namespaceRule,
   eventRule,
-  ideaDesignerRule
+  ideaDesignerRule,
+  tagDesignerRule
 ]
 
 /**

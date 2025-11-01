@@ -11,6 +11,9 @@ use std::sync::{Arc, Mutex};
 mod json_decoder;
 mod file_tree;
 mod bracket_matcher;
+mod country_tags;
+mod idea_registry;
+mod tag_validator;
 
 use json_decoder::{
     get_json_path,
@@ -36,6 +39,11 @@ use bracket_matcher::{
     get_bracket_depth_map,
     BracketMatchResult,
 };
+
+use tag_validator::validate_tags;
+use idea_registry::{load_ideas, reset_idea_cache};
+
+use country_tags::load_country_tags;
 
 // 创建项目的返回结果结构体
 #[derive(Debug, Serialize, Deserialize)]
@@ -1327,6 +1335,10 @@ pub fn run() {
             match_brackets,
             find_bracket_pair,
             get_bracket_depths,
+            country_tags::load_country_tags,
+            validate_tags,
+            load_ideas,
+            reset_idea_cache
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
