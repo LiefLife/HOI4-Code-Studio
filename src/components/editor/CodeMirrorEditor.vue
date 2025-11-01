@@ -4,7 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language'
-import { closeBrackets } from '@codemirror/autocomplete'
+import { closeBrackets, autocompletion, type CompletionContext } from '@codemirror/autocomplete'
 import { indentWithTab } from '@codemirror/commands'
 import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
@@ -13,6 +13,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { hoi4 } from '../../lang/hoi4'
 import { createLinter } from '../../utils/ErrorTip'
 import { setIdeaRoots, ensureIdeaRegistry } from '../../composables/useIdeaRegistry'
+import { useGrammarCompletion } from '../../composables/useGrammarCompletion'
 
 const props = defineProps<{
   content: string
@@ -31,6 +32,38 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLDivElement | null>(null)
 let editorView: EditorView | null = null
+
+// GrammarCompletion 组合式，提供统一的补全项视图
+const { allItems } = useGrammarCompletion()
+
+/**
+ * 基于 CodeMirror CompletionContext 的补全源
+ * 通过匹配前缀筛选 GrammarCompletion 项目，并在显式触发时展示全集
+ */
+function grammarCompletionSource(context: CompletionContext) {
+  const word = context.matchBefore(/[A-Za-z0-9_\.\-]+/)
+  if (!word) {
+    if (!context.explicit) {
+      return null
+    }
+    return {
+      from: context.pos,
+      options: allItems.value
+    }
+  }
+
+  const prefix = word.text.toUpperCase()
+  const filtered = allItems.value.filter((item) => item.label.toUpperCase().startsWith(prefix))
+
+  if (filtered.length === 0 && !context.explicit) {
+    return null
+  }
+
+  return {
+    from: word.from,
+    options: filtered.length > 0 ? filtered : allItems.value
+  }
+}
 
 // 根据文件名获取语言扩展
 function getLanguageExtension() {
@@ -54,6 +87,9 @@ function getLanguageExtension() {
       ensureIdeaRegistry()
       return [
         hoi4(),
+        autocompletion({
+          override: [grammarCompletionSource]
+        }),
         ...createLinter({
           contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
         })

@@ -88,7 +88,7 @@ pub fn load_ideas(project_root: Option<String>, game_root: Option<String>) -> Id
 
     if let Some(ideas) = try_use_cache(&cache_key, &files) {
         let count = ideas.len();
-        println!("[idea_registry] cache hit with {} entries", count);
+        // println!("[idea_registry] cache hit with {} entries", count);
         return IdeaLoadResponse {
             success: true,
             message: format!("命中缓存，共 {} 个idea", count),
