@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use crate::country_tags::{load_country_tags, TagEntry, TagLoadResponse};
 
-/// 中文结构体注释：单个标签引用的错误信息。
+/// ：单个标签引用的错误信息。
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TagValidationError {
@@ -13,7 +13,7 @@ pub struct TagValidationError {
     pub message: String,
 }
 
-/// 中文结构体注释：校验结果，包含是否成功、消息和错误列表。
+/// ：校验结果，包含是否成功、消息和错误列表。
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TagValidationResponse {
@@ -22,22 +22,22 @@ pub struct TagValidationResponse {
     pub errors: Vec<TagValidationError>,
 }
 
-/// 中文结构体注释：缓存数据结构，存储标签集合及版本。
+/// ：缓存数据结构，存储标签集合及版本。
 #[derive(Debug, Clone)]
 struct TagCache {
     tags: HashSet<String>,
     version: u64,
 }
 
-/// 中文说明：共享标签缓存，版本号用于判断是否需要刷新。
+/// ：共享标签缓存，版本号用于判断是否需要刷新。
 static TAG_CACHE: Lazy<RwLock<Option<TagCache>>> = Lazy::new(|| RwLock::new(None));
 
-/// 中文常量注释：匹配各种需要检查的模式。
+/// ：匹配各种需要检查的模式。
 static TARGET_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?is)\b[a-zA-Z0-9_\.]+\s*=\s*\{[^{}]*?target\s*=\s*([A-Za-z0-9]{2,4})").unwrap()
 });
 
-/// 中文常量注释：匹配原始等号形式。
+/// ：匹配原始等号形式。
 static DIRECT_ASSIGN_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?i)\b(original_tag|tag|add_core_of|owner|ROOT/[A-Za-z0-9_]+|FROM/[A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9]{2,4})",
@@ -45,7 +45,7 @@ static DIRECT_ASSIGN_REGEX: Lazy<Regex> = Lazy::new(|| {
     .unwrap()
 });
 
-/// 中文常量注释：匹配作用域块 `ROOT/X = {` 或 `FROM/X = {`。
+/// ：匹配作用域块 `ROOT/X = {` 或 `FROM/X = {`。
 static SCOPE_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\b(ROOT|FROM)/([A-Za-z0-9]{2,4})\s*=\s*\{").unwrap()
 });
@@ -157,7 +157,7 @@ fn validate_tags_internal(content: &str, tags: &HashSet<String>) -> Vec<TagValid
     errors
 }
 
-/// 中文方法注释：对给定文本执行标签校验。
+/// ：对给定文本执行标签校验。
 pub fn validate_tags_content(content: &str, project_root: Option<String>, game_root: Option<String>) -> TagValidationResponse {
     let tag_set = ensure_tag_cache(project_root, game_root);
     if tag_set.is_empty() {
@@ -184,7 +184,7 @@ pub fn validate_tags_content(content: &str, project_root: Option<String>, game_r
     }
 }
 
-/// 中文方法注释：Tauri 命令入口，供前端调用。
+/// ：Tauri 命令入口，供前端调用。
 #[tauri::command]
 pub fn validate_tags(
     content: String,

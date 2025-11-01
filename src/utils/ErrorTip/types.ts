@@ -1,12 +1,12 @@
 /*
- * 错误提示类型与规则接口定义（中文注释）
+ * 错误提示类型与规则接口定义
  * 目标：为 ErrorTip 规则系统提供统一的类型，便于扩展与复用。
  */
 
 export interface ErrorItem {
   /** 错误所在行（1-based） */
   line: number
-  /** 错误消息（中文说明） */
+  /** 错误消息 */
   msg: string
   /** 错误类型（如 always / is / control 等） */
   type: string

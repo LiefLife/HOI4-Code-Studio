@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::time::SystemTime;
 
-/// 中文结构体注释：标记点位的来源，区分项目与游戏目录，便于前端显示覆盖关系。
+/// ：标记点位的来源，区分项目与游戏目录，便于前端显示覆盖关系。
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum IdeaSource {
@@ -16,7 +16,7 @@ pub enum IdeaSource {
     Game,
 }
 
-/// 中文结构体注释：单个idea条目，仅包含标识符与来源信息。
+/// ：单个idea条目，仅包含标识符与来源信息。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdeaEntry {
@@ -24,7 +24,7 @@ pub struct IdeaEntry {
     pub source: IdeaSource,
 }
 
-/// 中文结构体注释：命令返回值，附带加载说明与idea列表。
+/// ：命令返回值，附带加载说明与idea列表。
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdeaLoadResponse {
@@ -33,18 +33,18 @@ pub struct IdeaLoadResponse {
     pub ideas: Option<Vec<IdeaEntry>>,
 }
 
-/// 中文结构体注释：缓存条目，记录idea集合及文件时间戳，便于判断缓存是否失效。
+/// ：缓存条目，记录idea集合及文件时间戳，便于判断缓存是否失效。
 #[derive(Debug, Clone)]
 struct IdeaCacheEntry {
     ideas: Vec<IdeaEntry>,
     timestamps: HashMap<String, Option<SystemTime>>,
 }
 
-/// 中文常量注释：全局缓存容器，key 为“项目路径||游戏路径”。
+/// ：全局缓存容器，key 为“项目路径||游戏路径”。
 static IDEA_CACHE: Lazy<RwLock<HashMap<String, IdeaCacheEntry>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
-/// 中文结构体注释：描述单个候选文件与来源及修改时间。
+/// ：描述单个候选文件与来源及修改时间。
 #[derive(Debug, Clone)]
 struct IdeaFileInfo {
     path: PathBuf,
@@ -52,7 +52,7 @@ struct IdeaFileInfo {
     modified: Option<SystemTime>,
 }
 
-/// 中文命令注释：对外暴露的清理接口，可在调试时手动失效缓存。
+/// ：对外暴露的清理接口，可在调试时手动失效缓存。
 #[tauri::command]
 pub fn reset_idea_cache() -> bool {
     if let Ok(mut cache) = IDEA_CACHE.write() {
@@ -64,7 +64,7 @@ pub fn reset_idea_cache() -> bool {
     }
 }
 
-/// 中文命令注释：加载idea列表，必要时重新扫描文件。
+/// ：加载idea列表，必要时重新扫描文件。
 #[tauri::command]
 pub fn load_ideas(project_root: Option<String>, game_root: Option<String>) -> IdeaLoadResponse {
     let normalized_project = normalize_root(project_root.as_deref());
@@ -115,7 +115,7 @@ pub fn load_ideas(project_root: Option<String>, game_root: Option<String>) -> Id
     }
 }
 
-/// 中文函数注释：路径标准化，统一分隔符并剔除尾部分隔。
+/// 路径标准化，统一分隔符并剔除尾部分隔。
 fn normalize_root(path: Option<&str>) -> Option<String> {
     let raw = path?.trim();
     if raw.is_empty() {
@@ -130,7 +130,7 @@ fn normalize_root(path: Option<&str>) -> Option<String> {
     }
 }
 
-/// 中文函数注释：收集项目与游戏目录下的idea定义文件。
+/// 收集项目与游戏目录下的idea定义文件。
 fn collect_file_infos(
     project_root: Option<&str>,
     game_root: Option<&str>,
@@ -141,7 +141,7 @@ fn collect_file_infos(
     Ok(files)
 }
 
-/// 中文函数注释：遍历某根目录下 `common/ideas` 中的所有 `.txt` 文件。
+/// 遍历某根目录下 `common/ideas` 中的所有 `.txt` 文件。
 fn add_files_under_root(
     root: Option<&str>,
     source: IdeaSource,
@@ -168,7 +168,7 @@ fn add_files_under_root(
     Ok(())
 }
 
-/// 中文函数注释：判断是否为idea脚本文件。
+/// 判断是否为idea脚本文件。
 fn is_script_file(path: &Path) -> bool {
     match path.extension().and_then(|s| s.to_str()) {
         Some(ext) => ext.eq_ignore_ascii_case("txt"),
@@ -176,7 +176,7 @@ fn is_script_file(path: &Path) -> bool {
     }
 }
 
-/// 中文函数注释：尝试读取缓存，若文件时间戳均一致则返回克隆数据。
+/// 尝试读取缓存，若文件时间戳均一致则返回克隆数据。
 fn try_use_cache(cache_key: &str, files: &[IdeaFileInfo]) -> Option<Vec<IdeaEntry>> {
     let cache_map = IDEA_CACHE.read().ok()?;
     let cached = cache_map.get(cache_key)?;
@@ -186,7 +186,7 @@ fn try_use_cache(cache_key: &str, files: &[IdeaFileInfo]) -> Option<Vec<IdeaEntr
     Some(cached.ideas.clone())
 }
 
-/// 中文函数注释：校验缓存内的时间戳是否与当前文件列表一致。
+/// 校验缓存内的时间戳是否与当前文件列表一致。
 fn is_cache_valid(entry: &IdeaCacheEntry, files: &[IdeaFileInfo]) -> bool {
     if entry.timestamps.len() != files.len() {
         return false;
@@ -205,7 +205,7 @@ fn is_cache_valid(entry: &IdeaCacheEntry, files: &[IdeaFileInfo]) -> bool {
     true
 }
 
-/// 中文函数注释：将最新扫描的idea列表写入缓存。
+/// 将最新扫描的idea列表写入缓存。
 fn store_cache(cache_key: &str, ideas: &[IdeaEntry], files: &[IdeaFileInfo]) {
     if let Ok(mut cache) = IDEA_CACHE.write() {
         let mut timestamps = HashMap::new();
@@ -224,7 +224,7 @@ fn store_cache(cache_key: &str, ideas: &[IdeaEntry], files: &[IdeaFileInfo]) {
     }
 }
 
-/// 中文函数注释：并行解析所有文件的idea定义。
+/// 并行解析所有文件的idea定义。
 fn parse_ideas(files: &[IdeaFileInfo]) -> io::Result<Vec<IdeaEntry>> {
     let parsed: Result<Vec<Vec<(String, IdeaSource)>>, io::Error> = files
         .par_iter()
@@ -265,7 +265,7 @@ fn parse_ideas(files: &[IdeaFileInfo]) -> io::Result<Vec<IdeaEntry>> {
     Ok(ideas)
 }
 
-/// 中文函数注释：从单个脚本内容中提取idea标识符。
+/// 从单个脚本内容中提取idea标识符。
 fn extract_ideas(content: &str) -> Vec<String> {
     let mut ideas = Vec::new();
     let mut chars = content.chars().peekable();
@@ -333,7 +333,7 @@ fn extract_ideas(content: &str) -> Vec<String> {
     ideas
 }
 
-/// 中文函数注释：判断字符是否属于idea标识符。
+/// 判断字符是否属于idea标识符。
 fn is_ident_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | '-')
 }
