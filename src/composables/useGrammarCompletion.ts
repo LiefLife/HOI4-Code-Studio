@@ -993,7 +993,7 @@ function createTagCompletions(tags: TagEntry[]): GrammarCompletionItem[] {
   return tags.map((tag) => ({
     label: tag.code,
     type: 'variable',
-    detail: `【Tag -> (${tag.source === 'game' ? '游戏内置' : '项目自定义'})]`,
+    detail: `[Tag -> (${tag.source === 'game' ? '游戏内置' : '项目自定义'})]`,
     boost: 30,
     source: 'tag'
   }))
