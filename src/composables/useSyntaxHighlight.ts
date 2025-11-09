@@ -1,6 +1,7 @@
 import { ref, nextTick } from 'vue'
 import Prism from 'prismjs'
 import { getBracketDepths } from '../api/tauri'
+import { logger } from '../utils/logger'
 
 /**
  * 语法高亮 Composable
@@ -96,7 +97,7 @@ export function useSyntaxHighlight() {
         node.replaceWith(fragment)
       })
     } catch (error) {
-      console.error('括号高亮失败:', error)
+      logger.error('括号高亮失败:', error)
     }
   }
   
@@ -153,7 +154,7 @@ export function useSyntaxHighlight() {
         showHighlight.value = false
       }
     } catch (error) {
-      console.error('语法高亮失败:', error)
+      logger.error('语法高亮失败:', error)
       showHighlight.value = false
     }
   }

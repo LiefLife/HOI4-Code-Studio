@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { searchFiles, type SearchResult as ApiSearchResult } from '../api/tauri'
+import { logger } from '../utils/logger'
 
 /**
  * 搜索结果接口
@@ -57,7 +58,7 @@ export function useSearch() {
     }
     
     if (!searchPath) {
-      console.error('搜索路径未设置')
+      logger.error('搜索路径未设置')
       return
     }
     
@@ -75,10 +76,10 @@ export function useSearch() {
       if (result.success) {
         searchResults.value = result.results.map(convertApiSearchResult)
       } else {
-        console.error(`搜索失败: ${result.message}`)
+        logger.error(`搜索失败: ${result.message}`)
       }
     } catch (error) {
-      console.error('搜索失败:', error)
+      logger.error('搜索失败:', error)
     } finally {
       isSearching.value = false
     }
@@ -108,7 +109,7 @@ export function useSearch() {
       })
       editorView.focus()
     } catch (error) {
-      console.error('跳转到搜索结果失败:', error)
+      logger.error('跳转到搜索结果失败:', error)
     }
   }
   

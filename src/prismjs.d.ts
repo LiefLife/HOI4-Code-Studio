@@ -1,6 +1,17 @@
 declare module 'prismjs' {
+  /**
+   * Prism 语法规则类型
+   */
+  export type GrammarToken = RegExp | string | {
+    pattern: RegExp
+    lookbehind?: boolean
+    greedy?: boolean
+    alias?: string | string[]
+    inside?: Grammar
+  }
+
   export interface Grammar {
-    [key: string]: any
+    [key: string]: GrammarToken | GrammarToken[] | Grammar
   }
 
   export const languages: {

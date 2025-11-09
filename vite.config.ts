@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+// Tauri 开发环境主机配置
+const host = process.env.TAURI_DEV_HOST as string | undefined;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({

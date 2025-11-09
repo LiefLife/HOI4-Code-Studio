@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { createNewProject, openFileDialog, loadSettings, saveSettings } from '../api/tauri'
+import { logger } from '../utils/logger'
 
 const router = useRouter()
 
@@ -59,11 +60,11 @@ function closeErrorDialog() {
 async function loadLastProjectPath() {
   try {
     const result = await loadSettings()
-    if (result.success && result.data && result.data.lastProjectPath) {
-      projectPath.value = result.data.lastProjectPath
+    if (result.success && result.data && typeof result.data === 'object' && 'lastProjectPath' in result.data) {
+      projectPath.value = result.data.lastProjectPath as string
     }
   } catch (error) {
-    console.error('加载上次路径失败:', error)
+    logger.error('加载上次路径失败:', error)
   }
 }
 
@@ -71,11 +72,11 @@ async function loadLastProjectPath() {
 async function saveLastProjectPath(path: string) {
   try {
     const loadResult = await loadSettings()
-    const settings = loadResult.data || {}
+    const settings = (loadResult.data as Record<string, unknown>) || {}
     settings.lastProjectPath = path
-    await saveSettings(settings)
+    await saveSettings(settings as any)
   } catch (error) {
-    console.error('保存路径失败:', error)
+    logger.error('保存路径失败:', error)
   }
 }
 

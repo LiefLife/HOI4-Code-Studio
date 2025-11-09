@@ -95,7 +95,7 @@ function createErrorLineField(getCtx: () => RuleContext | undefined) {
       const text = state.doc.toString()
       const diags = toDiagnostics(text, getCtx())
       const seenLines = new Set<number>()
-      const deco: any[] = []
+      const deco: ReturnType<typeof errorLineMark.range>[] = []
       for (const d of diags) {
         const line = state.doc.lineAt(d.from)
         if (!seenLines.has(line.number)) {
@@ -113,7 +113,7 @@ function createErrorLineField(getCtx: () => RuleContext | undefined) {
         const text = tr.state.doc.toString()
         const diags = toDiagnostics(text, getCtx())
         const seenLines = new Set<number>()
-        const deco: any[] = []
+        const deco: ReturnType<typeof errorLineMark.range>[] = []
         for (const d of diags) {
           const line = tr.state.doc.lineAt(d.from)
           if (!seenLines.has(line.number)) {
@@ -154,7 +154,7 @@ function createErrorLensField(getCtx: () => RuleContext | undefined) {
         arr.push(d.message)
         byLine.set(line.number, arr)
       }
-      const deco: any[] = []
+      const deco: ReturnType<ReturnType<typeof Decoration.widget>['range']>[] = []
       for (const [lineNo, messages] of byLine) {
         const line = state.doc.line(lineNo)
         const msg = messages.slice(0, 3).join(' • ') + (messages.length > 3 ? ` (+${messages.length - 3})` : '')
@@ -175,7 +175,7 @@ function createErrorLensField(getCtx: () => RuleContext | undefined) {
           arr.push(d.message)
           byLine.set(line.number, arr)
         }
-        const deco: any[] = []
+        const deco: ReturnType<ReturnType<typeof Decoration.widget>['range']>[] = []
         for (const [lineNo, messages] of byLine) {
           const line = tr.state.doc.line(lineNo)
           const msg = messages.slice(0, 3).join(' • ') + (messages.length > 3 ? ` (+${messages.length - 3})` : '')

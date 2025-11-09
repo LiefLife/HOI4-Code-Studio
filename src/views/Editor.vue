@@ -27,6 +27,7 @@ import { usePanelResize } from '../composables/usePanelResize'
 import SearchPanel from '../components/editor/SearchPanel.vue'
 import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
 import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
+import { logger } from '../utils/logger'
 
 // Prism 语法定义
 Prism.languages.mod = {
@@ -211,12 +212,12 @@ async function loadProjectInfo() {
           alert(`无法读取 descriptor.mod 文件: ${descriptorResult.message}\n请确保项目根目录包含有效的 descriptor.mod 文件。`)
         }
       } catch (error) {
-        console.error('项目初始化失败:', error)
+        logger.error('项目初始化失败:', error)
         alert(`项目初始化失败: ${error}`)
       }
     }
   } catch (error) {
-    console.error('加载项目信息失败:', error)
+    logger.error('加载项目信息失败:', error)
   }
 }
 
@@ -233,7 +234,7 @@ async function loadFileTree() {
     setIdeaRoots(projectPath.value, gameDirectory.value)
     await refreshIdeas()
   } catch (error) {
-    console.error('加载文件树失败:', error)
+    logger.error('加载文件树失败:', error)
   } finally {
     loading.value = false
   }
@@ -243,8 +244,8 @@ async function loadFileTree() {
 async function loadGameDirectory() {
   try {
     const result = await loadSettings()
-    if (result.success && result.data && result.data.gameDirectory) {
-      gameDirectory.value = result.data.gameDirectory
+    if (result.success && result.data && typeof result.data === 'object' && 'gameDirectory' in result.data) {
+      gameDirectory.value = result.data.gameDirectory as string
       setTagRoots(projectPath.value, gameDirectory.value)
       await loadGameFileTree()
       await refreshTags()
@@ -257,7 +258,7 @@ async function loadGameDirectory() {
       await ensureIdeaRegistry()
     }
   } catch (error) {
-    console.error('加载游戏目录设置失败:', error)
+    logger.error('加载游戏目录设置失败:', error)
   }
 }
 
@@ -271,7 +272,7 @@ async function loadGameFileTree() {
       gameFileTree.value = result.tree.map(convertRustFileNode)
     }
   } catch (error) {
-    console.error('加载游戏目录文件树失败:', error)
+    logger.error('加载游戏目录文件树失败:', error)
   } finally {
     isLoadingGameTree.value = false
   }
@@ -289,7 +290,7 @@ async function toggleFolder(node: FileNode) {
         node.children = result.tree.map(convertRustFileNode)
       }
     } catch (error) {
-      console.error('加载子目录失败:', error)
+      logger.error('加载子目录失败:', error)
     }
   }
 }
@@ -305,7 +306,7 @@ async function toggleGameFolder(node: FileNode) {
         node.children = result.tree.map(convertRustFileNode)
       }
     } catch (error) {
-      console.error('加载游戏目录子目录失败:', error)
+      logger.error('加载游戏目录子目录失败:', error)
     }
   }
 }
@@ -499,7 +500,7 @@ async function handleCreateConfirm(name: string) {
       alert(result.message || '创建失败')
     }
   } catch (error) {
-    console.error('创建失败:', error)
+    logger.error('创建失败:', error)
     alert(`创建失败: ${error}`)
   }
 }
@@ -536,7 +537,7 @@ async function jumpToError(error: {line: number, msg: string, type: string}) {
     })
     view.focus()
   } catch (error) {
-    console.error('Jump to error failed:', error)
+    logger.error('Jump to error failed:', error)
   }
 }
 

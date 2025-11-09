@@ -1,5 +1,6 @@
 import type { IdeaEntry, IdeaLoadResponse } from '../api/tauri'
 import { loadIdeas, resetIdeaCache } from '../api/tauri'
+import { logger } from './logger'
 
 let projectRootPath: string | undefined
 let gameRootPath: string | undefined
@@ -94,7 +95,7 @@ export async function clearIdeaCache() {
   try {
     await resetIdeaCache()
   } catch (error) {
-    console.error('重置idea缓存失败:', error)
+    logger.error('重置idea缓存失败:', error)
   }
   ideaEntries = []
   ideaSet = new Set()

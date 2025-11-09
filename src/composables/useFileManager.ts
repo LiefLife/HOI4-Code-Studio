@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { readFileContent, writeFileContent } from '../api/tauri'
+import { logger } from '../utils/logger'
 
 /**
  * 文件节点接口
@@ -57,7 +58,7 @@ export function useFileManager(gameDirectory: string = '') {
       if (result.success) {
         // 显示编码信息
         if (result.encoding && result.encoding !== 'UTF-8') {
-          console.log(`文件编码: ${result.encoding}`)
+          logger.info(`文件编码: ${result.encoding}`)
         }
         
         // 检查是否为二进制文件
@@ -89,7 +90,7 @@ export function useFileManager(gameDirectory: string = '') {
         return false
       }
     } catch (error) {
-      console.error('打开文件失败:', error)
+      logger.error('打开文件失败:', error)
       alert(`打开文件失败: ${error}`)
       return false
     } finally {

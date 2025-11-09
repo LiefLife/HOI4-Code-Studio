@@ -8,10 +8,20 @@ export interface CreateProjectResult {
   project_path?: string
 }
 
+/**
+ * 项目数据接口
+ */
+export interface ProjectData {
+  name: string
+  version: string
+  path: string
+  [key: string]: unknown
+}
+
 export interface OpenProjectResult {
   success: boolean
   message: string
-  project_data?: any
+  project_data?: ProjectData
 }
 
 export interface RecentProject {
@@ -30,10 +40,10 @@ export interface FileDialogResult {
   path?: string
 }
 
-export interface JsonResult {
+export interface JsonResult<T = unknown> {
   success: boolean
   message: string
-  data?: any
+  data?: T
 }
 
 export interface JsonValidationResult {
@@ -91,42 +101,72 @@ export async function openFileDialog(mode: 'directory' | 'file'): Promise<FileDi
 /**
  * 读取目录内容
  */
-export async function readDirectory(dirPath: string): Promise<any> {
+/**
+ * 目录条目接口
+ */
+export interface DirectoryEntry {
+  name: string
+  path: string
+  is_directory: boolean
+  size?: number
+}
+
+export interface DirectoryResult {
+  success: boolean
+  message: string
+  entries?: DirectoryEntry[]
+}
+
+export async function readDirectory(dirPath: string): Promise<DirectoryResult> {
   return await invoke('read_directory', { dirPath })
 }
 
 /**
  * 创建文件
  */
-export async function createFile(filePath: string, content: string, useBom: boolean = false): Promise<any> {
+export interface FileOperationResult {
+  success: boolean
+  message: string
+}
+
+export async function createFile(filePath: string, content: string, useBom: boolean = false): Promise<FileOperationResult> {
   return await invoke('create_file', { filePath, content, useBom })
 }
 
 /**
  * 创建文件夹
  */
-export async function createFolder(folderPath: string): Promise<any> {
+export async function createFolder(folderPath: string): Promise<FileOperationResult> {
   return await invoke('create_folder', { folderPath })
 }
 
 /**
  * 打开文件夹
  */
-export async function openFolder(path: string): Promise<any> {
+export async function openFolder(path: string): Promise<FileOperationResult> {
   return await invoke('open_folder', { path })
 }
 
 /**
  * 读取文件内容
  */
-export async function readFileContent(filePath: string): Promise<any> {
+export interface FileContentResult {
+  success: boolean
+  message: string
+  content: string
+  encoding?: string
+  is_binary?: boolean
+  is_image?: boolean
+}
+
+export async function readFileContent(filePath: string): Promise<FileContentResult> {
   return await invoke('read_file_content', { filePath })
 }
 
 /**
  * 写入文件内容
  */
-export async function writeFileContent(filePath: string, content: string): Promise<any> {
+export async function writeFileContent(filePath: string, content: string): Promise<FileOperationResult> {
   return await invoke('write_file_content', { filePath, content })
 }
 
@@ -142,7 +182,12 @@ export async function loadSettings(): Promise<JsonResult> {
 /**
  * 保存设置
  */
-export async function saveSettings(settings: any): Promise<JsonResult> {
+export interface Settings {
+  gameDirectory?: string
+  [key: string]: unknown
+}
+
+export async function saveSettings(settings: Settings): Promise<JsonResult> {
   return await invoke('save_settings', { settings })
 }
 
@@ -165,7 +210,7 @@ export async function parseJson(jsonStr: string): Promise<JsonResult> {
 /**
  * 序列化 JSON 对象
  */
-export async function stringifyJson(value: any, pretty: boolean = true): Promise<JsonResult> {
+export async function stringifyJson(value: unknown, pretty: boolean = true): Promise<JsonResult<string>> {
   return await invoke('stringify_json', { value, pretty })
 }
 
@@ -179,21 +224,21 @@ export async function validateJson(jsonStr: string): Promise<JsonValidationResul
 /**
  * 合并 JSON 对象
  */
-export async function mergeJson(base: any, overlay: any, deep: boolean = false): Promise<JsonResult> {
+export async function mergeJson(base: unknown, overlay: unknown, deep: boolean = false): Promise<JsonResult> {
   return await invoke('merge_json', { base, overlay, deep })
 }
 
 /**
  * 获取 JSON 路径值
  */
-export async function getJsonPath(value: any, path: string): Promise<JsonResult> {
+export async function getJsonPath(value: unknown, path: string): Promise<JsonResult> {
   return await invoke('get_json_path', { value, path })
 }
 
 /**
  * 设置 JSON 路径值
  */
-export async function setJsonPath(value: any, path: string, newValue: any): Promise<JsonResult> {
+export async function setJsonPath(value: unknown, path: string, newValue: unknown): Promise<JsonResult> {
   return await invoke('set_json_path', { value, path, newValue })
 }
 
@@ -207,7 +252,7 @@ export async function readJsonFile(filePath: string): Promise<JsonResult> {
 /**
  * 写入 JSON 文件
  */
-export async function writeJsonFile(filePath: string, value: any, pretty: boolean = true): Promise<JsonResult> {
+export async function writeJsonFile(filePath: string, value: unknown, pretty: boolean = true): Promise<JsonResult> {
   return await invoke('write_json_file', { filePath, value, pretty })
 }
 
@@ -223,7 +268,7 @@ export async function exitApplication(): Promise<void> {
 /**
  * 打开设置页面
  */
-export async function openSettings(): Promise<any> {
+export async function openSettings(): Promise<FileOperationResult> {
   return await invoke('open_settings')
 }
 
