@@ -3,7 +3,6 @@ import { ref, computed, watch, nextTick } from 'vue'
 import EditorTabs from './EditorTabs.vue'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
-import type { FileNode } from '../../composables/useFileManager'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
 

@@ -30,10 +30,11 @@ function displayStatus(message: string, duration: number = 3000) {
 async function loadUserSettings() {
   const result = await loadSettings()
   if (result.success && result.data) {
-    gameDirectory.value = result.data.gameDirectory || ''
-    autoSave.value = result.data.autoSave !== false
-    showGrid.value = result.data.showGrid === true
-    syntaxHighlight.value = result.data.syntaxHighlight !== false
+    const data = result.data as any
+    gameDirectory.value = data.gameDirectory || ''
+    autoSave.value = data.autoSave !== false
+    showGrid.value = data.showGrid === true
+    syntaxHighlight.value = data.syntaxHighlight !== false
   }
 }
 
