@@ -88,7 +88,7 @@ onMounted(() => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.0.1-dev
+        v0.1.0-dev
       </div>
     </div>
 
