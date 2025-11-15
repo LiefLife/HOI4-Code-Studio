@@ -204,7 +204,7 @@ defineExpose({
     <template v-for="(pane, index) in panes" :key="pane.id">
       <!-- 编辑器窗格 -->
       <div 
-        class="editor-pane-wrapper relative"
+        class="editor-pane-wrapper relative px-1 py-1"
         :style="{ width: pane.width + '%' }"
       >
         <!-- 关闭按钮（当有多个窗格时显示） -->
@@ -239,7 +239,7 @@ defineExpose({
       <!-- 拖动分隔条 -->
       <div
         v-if="index < panes.length - 1"
-        class="w-1 bg-hoi4-border hover:bg-hoi4-accent cursor-col-resize flex-shrink-0"
+        class="w-1 bg-hoi4-border/60 hover:bg-hoi4-accent/80 cursor-col-resize flex-shrink-0 transition-colors"
         @mousedown="startResize(index, $event)"
       ></div>
     </template>
@@ -253,6 +253,6 @@ defineExpose({
 
 .editor-pane-wrapper {
   min-width: 10%;
-  max-width: 90%;
+  max-width: 100%;
 }
 </style>

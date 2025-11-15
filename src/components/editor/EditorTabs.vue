@@ -39,7 +39,7 @@ function handleTabsWheel(event: WheelEvent) {
     v-if="openFiles.length > 0" 
     ref="fileTabsRef"
     @wheel="handleTabsWheel"
-    class="flex items-center bg-hoi4-gray border-b border-hoi4-border overflow-x-auto scroll-smooth"
+    class="flex items-center space-x-2 px-2 py-1 overflow-x-auto scroll-smooth"
     style="scrollbar-width: none; -ms-overflow-style: none;"
   >
     <div
@@ -47,8 +47,8 @@ function handleTabsWheel(event: WheelEvent) {
       :key="file.node.path"
       @click="emit('switchFile', index)"
       @contextmenu.prevent="emit('contextMenu', $event, index)"
-      class="flex items-center px-4 py-2 border-r border-hoi4-border cursor-pointer hover:bg-hoi4-accent transition-colors whitespace-nowrap"
-      :class="{ 'bg-hoi4-accent': index === activeFileIndex }"
+      class="flex items-center px-3 py-1 rounded-xl border border-hoi4-border/50 bg-hoi4-gray/80 cursor-pointer hover:bg-hoi4-accent/70 hover:border-hoi4-selected/70 transition-all duration-150 whitespace-nowrap shadow-sm"
+      :class="{ 'bg-hoi4-accent/90 border-hoi4-selected shadow-md': index === activeFileIndex }"
     >
       <span class="text-hoi4-text text-sm whitespace-nowrap">{{ file.node.name }}</span>
       <span v-if="file.hasUnsavedChanges" class="text-red-400 text-xs ml-1">●</span>

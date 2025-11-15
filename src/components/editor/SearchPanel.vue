@@ -70,14 +70,14 @@ watch(() => props.visible, (visible) => {
   <!-- 遮罩层 -->
   <div
     v-if="visible"
-    class="fixed inset-0 bg-black/50 z-40"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
     @click="emit('close')"
   ></div>
   
   <!-- 搜索面板 -->
   <div
     v-if="visible"
-    class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] max-h-[70vh] bg-onedark-bg border-2 border-onedark-border rounded-lg shadow-2xl flex flex-col z-50"
+    class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] max-h-[70vh] bg-onedark-bg border border-onedark-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden backdrop-blur-md"
     @keydown="handleKeyDown"
     @click.stop
   >

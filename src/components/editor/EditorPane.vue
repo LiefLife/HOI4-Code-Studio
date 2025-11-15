@@ -123,12 +123,12 @@ function handleSplitPane() {
 
 <template>
   <div 
-    class="h-full flex flex-col bg-hoi4-dark border-r-2 border-hoi4-border overflow-hidden"
-    :class="{ 'ring-2 ring-hoi4-accent': isActive }"
+    class="h-full flex flex-col bg-hoi4-gray/70 border border-hoi4-border/60 rounded-2xl shadow-lg overflow-hidden transition-all duration-200"
+    :class="{ 'ring-2 ring-hoi4-selected/80 shadow-xl': isActive }"
     @click="handleActivate"
   >
     <!-- 文件标签栏 -->
-    <div v-if="pane.openFiles.length > 0" class="bg-hoi4-gray border-b-2 border-hoi4-border">
+    <div v-if="pane.openFiles.length > 0" class="bg-hoi4-gray/80 border-b border-hoi4-border/60 backdrop-blur-sm">
       <EditorTabs
         :open-files="pane.openFiles"
         :active-file-index="pane.activeFileIndex"
@@ -138,7 +138,7 @@ function handleSplitPane() {
       />
       
       <!-- 编辑器工具栏 -->
-      <div class="px-4 py-2 flex items-center justify-between bg-hoi4-accent">
+      <div class="px-4 py-2 flex items-center justify-between bg-hoi4-accent/70 border-t border-hoi4-border/40 backdrop-blur-sm">
         <div class="flex items-center space-x-2">
           <button
             @click="handleSaveFile"

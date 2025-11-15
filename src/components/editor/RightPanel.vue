@@ -27,37 +27,37 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
 
 <template>
   <div
-    class="bg-hoi4-gray border-l-2 border-hoi4-border flex-shrink-0 overflow-hidden flex flex-col"
+    class="bg-hoi4-gray/80 border border-hoi4-border/60 flex-shrink-0 overflow-hidden flex flex-col shadow-lg rounded-2xl my-2 mr-2"
     :style="{ width: width + 'px' }"
   >
     <!-- 标签栏 -->
-    <div class="bg-hoi4-accent border-b border-hoi4-border flex items-center justify-between">
-      <div class="flex">
+    <div class="bg-hoi4-gray/90 border-b border-hoi4-border/60 flex items-center justify-between backdrop-blur-sm rounded-t-2xl">
+      <div class="flex gap-1 p-1">
         <button
           @click="activeTab = 'info'"
-          class="px-4 py-2 text-sm transition-colors border-r border-hoi4-border"
-          :class="activeTab === 'info' ? 'bg-hoi4-gray text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text'"
+          class="px-3 py-1.5 text-xs transition-all rounded-lg"
+          :class="activeTab === 'info' ? 'bg-hoi4-accent text-hoi4-text shadow-md font-semibold' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         >
           项目信息
         </button>
         <button
           @click="activeTab = 'game'"
-          class="px-4 py-2 text-sm transition-colors"
-          :class="activeTab === 'game' ? 'bg-hoi4-gray text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text'"
+          class="px-3 py-1.5 text-xs transition-all rounded-lg"
+          :class="activeTab === 'game' ? 'bg-hoi4-accent text-hoi4-text shadow-md font-semibold' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         >
           游戏目录
         </button>
         <button
           @click="activeTab = 'errors'"
-          class="px-4 py-2 text-sm transition-colors"
-          :class="activeTab === 'errors' ? 'bg-hoi4-gray text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text'"
+          class="px-3 py-1.5 text-xs transition-all rounded-lg"
+          :class="activeTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text shadow-md font-semibold' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         >
           错误列表
         </button>
       </div>
       <button
         @click="emit('close')"
-        class="px-3 text-hoi4-text-dim hover:text-hoi4-text"
+        class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-full hover:bg-hoi4-border/60 transition-colors"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>

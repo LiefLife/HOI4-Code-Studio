@@ -21,12 +21,12 @@ function handleAction(action: string) {
   <!-- 文件标签右键菜单 -->
   <div
     v-if="visible && menuType === 'file'"
-    class="fixed border-2 rounded shadow-lg z-50"
+    class="fixed border rounded-xl shadow-2xl z-50 backdrop-blur-sm"
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: '#1a1a1a',
-      borderColor: '#2a2a2a'
+      backgroundColor: 'rgba(10, 10, 10, 0.96)',
+      borderColor: 'rgba(58, 58, 58, 0.95)'
     }"
     @click.stop
   >
@@ -49,12 +49,12 @@ function handleAction(action: string) {
   <!-- 文件树右键菜单 -->
   <div
     v-if="visible && menuType === 'tree'"
-    class="fixed border-2 rounded shadow-lg z-50"
+    class="fixed border rounded-xl shadow-2xl z-50 backdrop-blur-sm"
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: '#1a1a1a',
-      borderColor: '#2a2a2a'
+      backgroundColor: 'rgba(10, 10, 10, 0.96)',
+      borderColor: 'rgba(58, 58, 58, 0.95)'
     }"
     @click.stop
   >
@@ -77,12 +77,12 @@ function handleAction(action: string) {
   <!-- 编辑器窗格右键菜单 -->
   <div
     v-if="visible && menuType === 'pane'"
-    class="fixed border-2 rounded shadow-lg z-50"
+    class="fixed border rounded-xl shadow-2xl z-50 backdrop-blur-sm"
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: '#1a1a1a',
-      borderColor: '#2a2a2a'
+      backgroundColor: 'rgba(10, 10, 10, 0.96)',
+      borderColor: 'rgba(58, 58, 58, 0.95)'
     }"
     @click.stop
   >
@@ -118,6 +118,6 @@ function handleAction(action: string) {
 }
 
 .context-menu-item:hover {
-  background-color: #3a3a3a;
+  background-color: #333333;
 }
 </style>

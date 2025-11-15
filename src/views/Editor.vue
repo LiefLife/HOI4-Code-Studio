@@ -500,7 +500,7 @@ onMounted(() => {
     <div class="flex-1 flex overflow-hidden">
       <!-- 左侧文件树面板 -->
       <div
-        class="bg-hoi4-gray border-r-2 border-hoi4-border overflow-y-auto flex-shrink-0"
+        class="bg-hoi4-gray/80 border border-hoi4-border/60 overflow-y-auto flex-shrink-0 rounded-2xl shadow-lg my-2 ml-2"
         :style="{ width: leftPanelWidth + 'px' }"
         @contextmenu.prevent="showTreeContextMenu($event, null)"
       >

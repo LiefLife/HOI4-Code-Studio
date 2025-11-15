@@ -58,12 +58,12 @@ function handleKeydown(event: KeyboardEvent) {
   <div
     v-if="visible"
     class="fixed inset-0 flex items-center justify-center z-50"
-    style="background-color: rgba(0, 0, 0, 0.7);"
+    style="background-color: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px);"
     @click.self="handleCancel"
   >
     <div
-      class="border-2 rounded-lg shadow-2xl"
-      style="background-color: #1a1a1a; border-color: #2a2a2a; width: 400px; max-width: 90vw;"
+      class="border rounded-2xl shadow-2xl overflow-hidden"
+      style="background-color: #101010; border-color: #333333; width: 400px; max-width: 90vw;"
       @click.stop
     >
       <!-- 对话框标题 -->

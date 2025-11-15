@@ -240,12 +240,47 @@ defineExpose({
 
 .codemirror-editor .cm-editor {
   height: 100%;
+  border-radius: 0.75rem;
+  background-color: rgba(10, 10, 10, 0.96);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
 }
 
 .codemirror-editor .cm-scroller {
   overflow: auto;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Segoe UI', monospace;
   font-size: 14px;
   line-height: 21px;
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete {
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+  background-color: rgba(18, 18, 18, 0.98);
+  border: 1px solid rgba(64, 64, 64, 0.85);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete ul {
+  padding: 0.125rem;
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete li {
+  border-radius: 0.5rem;
+  margin: 0.125rem 0;
+  padding: 0.125rem 0.375rem;
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete li[aria-selected='true'] {
+  background-color: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.75);
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionLabel {
+  font-weight: 500;
+}
+
+.codemirror-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionDetail {
+  opacity: 0.7;
 }
 </style>
