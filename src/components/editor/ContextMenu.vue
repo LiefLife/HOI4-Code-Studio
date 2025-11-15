@@ -3,7 +3,8 @@ defineProps<{
   visible: boolean
   x: number
   y: number
-  menuType: 'file' | 'tree'
+  menuType: 'file' | 'tree' | 'pane'
+  canSplit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -70,6 +71,43 @@ function handleAction(action: string) {
       style="color: #e0e0e0; border-color: #2a2a2a;"
     >
       📁 新建文件夹
+    </button>
+  </div>
+
+  <!-- 编辑器窗格右键菜单 -->
+  <div
+    v-if="visible && menuType === 'pane'"
+    class="fixed border-2 rounded shadow-lg z-50"
+    :style="{ 
+      left: x + 'px', 
+      top: y + 'px',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#2a2a2a'
+    }"
+    @click.stop
+  >
+    <button
+      v-if="canSplit"
+      @click="handleAction('splitRight')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0;"
+    >
+      ➡️ 向右分割
+    </button>
+    <button
+      @click="handleAction('closeAll')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      :class="{ 'border-t': canSplit }"
+      style="color: #e0e0e0; border-color: #2a2a2a;"
+    >
+      关闭全部
+    </button>
+    <button
+      @click="handleAction('closeOthers')"
+      class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0; border-color: #2a2a2a;"
+    >
+      关闭其他
     </button>
   </div>
 </template>

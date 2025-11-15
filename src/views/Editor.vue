@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile } from '../api/tauri'
-import { collectErrors } from '../utils/ErrorTip'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
@@ -10,17 +9,14 @@ import 'prismjs/components/prism-yaml'
 
 // 组件导入
 import EditorToolbar from '../components/editor/EditorToolbar.vue'
-import EditorTabs from '../components/editor/EditorTabs.vue'
-import CodeMirrorEditor from '../components/editor/CodeMirrorEditor.vue'
+import EditorGroup from '../components/editor/EditorGroup.vue'
 import RightPanel from '../components/editor/RightPanel.vue'
 import ContextMenu from '../components/editor/ContextMenu.vue'
 import CreateDialog from '../components/editor/CreateDialog.vue'
 import FileTreeNode from '../components/FileTreeNode.vue'
 
 // Composables 导入
-import { useFileManager, type FileNode } from '../composables/useFileManager'
-import { useEditorState } from '../composables/useEditorState'
-import { useSyntaxHighlight } from '../composables/useSyntaxHighlight'
+import { type FileNode } from '../composables/useFileManager'
 import { useSearch } from '../composables/useSearch'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
@@ -28,6 +24,7 @@ import SearchPanel from '../components/editor/SearchPanel.vue'
 import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
 import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
 import { logger } from '../utils/logger'
+import { readFileContent } from '../api/tauri'
 
 // Prism 语法定义
 Prism.languages.mod = {
@@ -83,7 +80,8 @@ const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
 const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
-const contextMenuType = ref<'file' | 'tree'>('file')
+const contextMenuType = ref<'file' | 'tree' | 'pane'>('file')
+const contextMenuPaneId = ref('')
 const contextMenuFileIndex = ref(-1)
 const treeContextMenuNode = ref<FileNode | null>(null)
 
@@ -92,41 +90,7 @@ const createDialogVisible = ref(false)
 const createDialogType = ref<'file' | 'folder'>('file')
 
 // Refs
-const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
-
-// CodeMirror 内置滚动和高亮，无需额外状态
-
-// 使用 Composables
-const {
-  openFiles,
-  activeFileIndex,
-  currentFile,
-  openFile,
-  switchToFile,
-  closeFile,
-  closeAllFiles,
-  closeOtherFiles,
-  saveFile,
-  updateCurrentFile,
-  updateFileState,
-  isFileReadOnly
-} = useFileManager(gameDirectory.value)
-
-const {
-  fileContent,
-  hasUnsavedChanges,
-  currentLine,
-  currentColumn,
-  isReadOnly,
-  onContentChange,
-  resetUnsavedChanges,
-  setReadOnly
-} = useEditorState()
-
-const {
-  highlightCode,
-  getLanguage
-} = useSyntaxHighlight()
+const editorGroupRef = ref<InstanceType<typeof EditorGroup> | null>(null)
 
 const {
   leftPanelWidth,
@@ -142,8 +106,7 @@ const {
   searchCaseSensitive,
   searchRegex,
   searchScope,
-  performSearch,
-  jumpToResult
+  performSearch
 } = useSearch()
 
 const searchPanelVisible = ref(false)
@@ -162,11 +125,7 @@ async function handleRefreshIdeas() {
   await refreshIdeas()
 }
 
-// 计算行数
-const lineCount = ref(1)
-watch(fileContent, (content) => {
-  lineCount.value = content ? content.split('\n').length : 1
-})
+// 计算行数（已移至EditorPane）
 
 // 转换文件节点
 function convertRustFileNode(node: any): FileNode {
@@ -312,131 +271,63 @@ async function toggleGameFolder(node: FileNode) {
 }
 
 // 打开文件处理
-async function handleOpenFile(node: FileNode) {
-  selectedNode.value = node
-  const success = await openFile(node, (content) => {
-    fileContent.value = content
-    hasUnsavedChanges.value = false
-    setReadOnly(isFileReadOnly(node.path))
-    nextTick(() => {
-      if (currentFile.value) {
-        const language = getLanguage(currentFile.value.name)
-        if (language === 'hoi4') {
-          txtErrors.value = collectErrors(content, { filePath: node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
-        } else {
-          txtErrors.value = []
-        }
-        highlightCode(content, currentFile.value.name, txtErrors.value)
-      }
-    })
-  })
-  if (success) {
-    updateCurrentFile()
-  }
-}
-
-// 切换文件
-function handleSwitchFile(index: number) {
-  switchToFile(index, fileContent.value)
-  const file = updateCurrentFile()
-  if (file) {
-    fileContent.value = file.content
-    hasUnsavedChanges.value = file.hasUnsavedChanges
-    currentLine.value = file.cursorLine
-    currentColumn.value = file.cursorColumn
-    setReadOnly(isFileReadOnly(file.node.path))
-    nextTick(() => {
-      if (currentFile.value) {
-        const language = getLanguage(currentFile.value.name)
-        if (language === 'hoi4') {
-          txtErrors.value = collectErrors(fileContent.value, { filePath: file.node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
-        } else {
-          txtErrors.value = []
-        }
-        highlightCode(fileContent.value, currentFile.value.name, txtErrors.value)
-      }
-    })
-  }
-}
-
-// 关闭文件
-function handleCloseFile(index: number) {
-  closeFile(index)
-  const file = updateCurrentFile()
-  if (file) {
-    fileContent.value = file.content
-    hasUnsavedChanges.value = file.hasUnsavedChanges
-  } else {
-    fileContent.value = ''
-    hasUnsavedChanges.value = false
-  }
-}
-
-// 保存文件
-async function handleSaveFile() {
-  if (!currentFile.value || !hasUnsavedChanges.value) return
-  const success = await saveFile(fileContent.value)
-  if (success) {
-    hasUnsavedChanges.value = false
-    resetUnsavedChanges()
-  }
-}
-
-// 内容变化
-function handleContentChange(content: string) {
-  // CodeMirror 内置撤销/重做，无需手动保存历史
-  onContentChange(content)
-  updateFileState(content, true)
+async function handleOpenFile(node: FileNode, paneId?: string) {
+  if (node.isDirectory) return
   
-  if (currentFile.value) {
-    const language = getLanguage(currentFile.value.name)
-    if (language === 'hoi4') {
-      txtErrors.value = collectErrors(content, { filePath: currentFile.value.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
+  selectedNode.value = node
+  const targetPaneId = paneId || editorGroupRef.value?.activePaneId
+  if (!targetPaneId) return
+  
+  const pane = editorGroupRef.value?.panes.find(p => p.id === targetPaneId)
+  if (!pane) return
+  
+  // 检查文件是否已在该窗格中打开
+  const existingIndex = pane.openFiles.findIndex(f => f.node.path === node.path)
+  if (existingIndex !== -1) {
+    pane.activeFileIndex = existingIndex
+    return
+  }
+  
+  // 读取文件内容
+  try {
+    const result = await readFileContent(node.path)
+    if (result.success) {
+      pane.openFiles.push({
+        node,
+        content: result.content,
+        hasUnsavedChanges: false,
+        cursorLine: 1,
+        cursorColumn: 1
+      })
+      pane.activeFileIndex = pane.openFiles.length - 1
+    } else {
+      alert(`打开文件失败: ${result.message}`)
     }
-    highlightCode(content, currentFile.value.name, txtErrors.value)
+  } catch (error) {
+    logger.error('打开文件失败:', error)
+    alert(`打开文件失败: ${error}`)
   }
 }
 
-// 光标位置变化
-function handleCursorChange(line: number, column: number) {
-  currentLine.value = line
-  currentColumn.value = column
-  if (activeFileIndex.value >= 0 && openFiles.value[activeFileIndex.value]) {
-    openFiles.value[activeFileIndex.value].cursorLine = line
-    openFiles.value[activeFileIndex.value].cursorColumn = column
-  }
-}
+// 切换文件（已移至EditorGroup）
 
+// 关闭文件（已移至EditorGroup）
 
-// 撤销
-function handleUndo() {
-  // contentEditable有自己的撤销/重做机制
-  // 简化处理，只更新文件状态
-  if (currentFile.value) {
-    highlightCode(fileContent.value, currentFile.value.name, txtErrors.value)
-  }
-}
+// 保存文件（已移至EditorGroup）
 
-// 重做
-function handleRedo() {
-  // contentEditable有自己的撤销/重做机制
-  // 简化处理，只更新文件状态
-  if (currentFile.value) {
-    highlightCode(fileContent.value, currentFile.value.name, txtErrors.value)
-  }
-}
+// 内容变化（已移至EditorPane）
 
-// 滚动同步（CodeMirror 内置滚动，简化处理）
-function handleScroll() {
-  // CodeMirror 内置滚动管理，无需额外同步
-}
+// 光标位置变化（已移至EditorPane）
+// 撤销/重做（已移至EditorPane）
+// 滚动同步（已移至EditorPane）
 
 // 右键菜单
-function showFileTabContextMenu(event: MouseEvent, index: number) {
+function showFileTabContextMenu(event: MouseEvent, paneId: string, index: number) {
+  contextMenuPaneId.value = paneId
   contextMenuFileIndex.value = index
   contextMenuX.value = event.clientX
   contextMenuY.value = event.clientY
-  contextMenuType.value = 'file'
+  contextMenuType.value = 'pane'
   contextMenuVisible.value = true
 }
 
@@ -453,11 +344,29 @@ function hideContextMenu() {
 }
 
 function handleContextMenuAction(action: string) {
-  if (contextMenuType.value === 'file') {
-    if (action === 'closeAll') {
-      closeAllFiles()
+  if (contextMenuType.value === 'pane') {
+    const pane = editorGroupRef.value?.panes.find(p => p.id === contextMenuPaneId.value)
+    if (!pane) return
+    
+    if (action === 'splitRight') {
+      editorGroupRef.value?.splitPane(contextMenuPaneId.value, contextMenuFileIndex.value)
+    } else if (action === 'closeAll') {
+      if (pane.openFiles.some(f => f.hasUnsavedChanges)) {
+        if (!confirm('有文件包含未保存的更改，是否关闭？')) return
+      }
+      pane.openFiles = []
+      pane.activeFileIndex = -1
     } else if (action === 'closeOthers') {
-      closeOtherFiles(contextMenuFileIndex.value)
+      const keepFile = pane.openFiles[contextMenuFileIndex.value]
+      if (!keepFile) return
+      
+      const others = pane.openFiles.filter((_, i) => i !== contextMenuFileIndex.value)
+      if (others.some(f => f.hasUnsavedChanges)) {
+        if (!confirm('其他文件包含未保存的更改，是否关闭？')) return
+      }
+      
+      pane.openFiles = [keepFile]
+      pane.activeFileIndex = 0
     }
   } else if (contextMenuType.value === 'tree') {
     if (action === 'createFile') {
@@ -507,7 +416,9 @@ async function handleCreateConfirm(name: string) {
 
 // 返回主界面
 function goBack() {
-  const hasUnsaved = openFiles.value.some(f => f.hasUnsavedChanges)
+  const hasUnsaved = editorGroupRef.value?.panes.some(pane => 
+    pane.openFiles.some((f: any) => f.hasUnsavedChanges)
+  )
   if (hasUnsaved) {
     if (!confirm('有文件包含未保存的更改，是否放弃所有更改？')) {
       return
@@ -521,24 +432,10 @@ function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
 }
 
-// 跳转到错误行
-async function jumpToError(error: {line: number, msg: string, type: string}) {
-  const view = editorRef.value?.editorView as any
-  if (!view) return
-  
-  try {
-    const targetLine = Math.max(1, Math.min(error.line, view.state.doc.lines))
-    const line = view.state.doc.line(targetLine)
-    const pos = line.from
-    
-    view.dispatch({
-      selection: { anchor: pos, head: pos },
-      scrollIntoView: true
-    })
-    view.focus()
-  } catch (error) {
-    logger.error('Jump to error failed:', error)
-  }
+// 跳转到错误行（已移至EditorPane）
+function jumpToError(error: {line: number, msg: string, type: string}) {
+  // TODO: 实现跳转到错误行
+  console.log('Jump to error:', error)
 }
 
 // 处理搜索
@@ -553,44 +450,23 @@ async function handleJumpToSearchResult(result: any) {
   const targetPath = result?.file?.path
   if (!targetPath) return
 
-  // 若未打开或未激活目标文件，则先打开
-  if (!currentFile.value || currentFile.value.path !== targetPath) {
-    const name = (result?.file?.name as string) || (targetPath.split(/[\\\/]/).pop() || targetPath)
-    const node: FileNode = { name, path: targetPath, isDirectory: false }
-    await openFile(node, (content) => {
-      fileContent.value = content
-      hasUnsavedChanges.value = false
-      setReadOnly(isFileReadOnly(node.path))
-      nextTick(() => {
-        const language = getLanguage(name)
-        if (language === 'hoi4') {
-          txtErrors.value = collectErrors(content, { filePath: node.path, projectRoot: projectPath.value, gameDirectory: gameDirectory.value })
-        } else {
-          txtErrors.value = []
-        }
-        highlightCode(content, name, txtErrors.value)
-      })
-    })
-    updateCurrentFile()
-    await nextTick()
-  }
-
-  const view = editorRef.value?.editorView
-  if (view) {
-    jumpToResult(result, view)
-  }
+  const name = (result?.file?.name as string) || (targetPath.split(/[\\\/ ]/).pop() || targetPath)
+  const node: FileNode = { name, path: targetPath, isDirectory: false }
+  
+  await handleOpenFile(node)
+  
+  // TODO: 实现跳转到搜索结果
   searchPanelVisible.value = false
 }
 
 // 键盘快捷键
 useKeyboardShortcuts({
   save: () => {
-    if (currentFile.value && hasUnsavedChanges.value) {
-      handleSaveFile()
-    }
+    // 保存当前活动窗格的文件
+    // TODO: 实现保存快捷键
   },
-  undo: handleUndo,
-  redo: handleRedo,
+  undo: () => {},
+  redo: () => {},
   search: () => {
     searchPanelVisible.value = !searchPanelVisible.value
   }
@@ -679,68 +555,14 @@ onMounted(() => {
         @mousedown="startResizeLeft"
       ></div>
 
-      <!-- 中间编辑区域 -->
-      <div class="flex-1 bg-hoi4-dark flex flex-col overflow-hidden">
-        <!-- 文件标签栏 -->
-        <div v-if="openFiles.length > 0" class="bg-hoi4-gray border-b-2 border-hoi4-border">
-          <EditorTabs
-            :open-files="openFiles"
-            :active-file-index="activeFileIndex"
-            @switch-file="handleSwitchFile"
-            @close-file="handleCloseFile"
-            @context-menu="showFileTabContextMenu"
-          />
-          
-          <!-- 编辑器工具栏 -->
-          <div class="px-4 py-2 flex items-center justify-between bg-hoi4-accent">
-            <div class="flex items-center space-x-2">
-              <button
-                @click="handleSaveFile"
-                class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
-                :disabled="!hasUnsavedChanges || isReadOnly"
-                :class="{ 'opacity-50 cursor-not-allowed': !hasUnsavedChanges || isReadOnly }"
-                title="保存 (Ctrl+S)"
-              >
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-                </svg>
-                <span>保存</span>
-              </button>
-            </div>
-            
-            <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
-              <span v-if="isReadOnly" class="text-red-400 font-semibold">只读</span>
-              <span>行: {{ currentLine }}</span>
-              <span>列: {{ currentColumn }}</span>
-              <span>字符: {{ fileContent.length }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 编辑器 -->
-        <div v-if="currentFile" class="flex-1 overflow-hidden relative">
-          <CodeMirrorEditor
-            ref="editorRef"
-            :content="fileContent"
-            :is-read-only="isReadOnly"
-            :file-name="currentFile?.name"
-            :file-path="currentFile?.path"
-            :project-root="projectPath"
-            :game-directory="gameDirectory"
-            @update:content="handleContentChange"
-            @cursor-change="handleCursorChange"
-            @scroll="handleScroll"
-          />
-        </div>
-
-        <!-- 空状态 -->
-        <div v-else class="flex-1 flex items-center justify-center">
-          <div class="text-center">
-            <h2 class="text-hoi4-text text-2xl font-bold mb-4">编辑器区域</h2>
-            <p class="text-hoi4-text-dim">点击左侧文件树中的文件进行编辑</p>
-          </div>
-        </div>
-      </div>
+      <!-- 中间编辑区域 - EditorGroup -->
+      <EditorGroup
+        ref="editorGroupRef"
+        :project-path="projectPath"
+        :game-directory="gameDirectory"
+        @context-menu="showFileTabContextMenu"
+        @open-file="handleOpenFile"
+      />
 
       <!-- 右侧面板 -->
       <RightPanel
@@ -764,6 +586,7 @@ onMounted(() => {
       :x="contextMenuX"
       :y="contextMenuY"
       :menu-type="contextMenuType"
+      :can-split="(editorGroupRef?.panes.length || 0) < 3"
       @action="handleContextMenuAction"
       @close="hideContextMenu"
     />
