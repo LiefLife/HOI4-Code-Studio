@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getRecentProjects, openProject, initializeProject, type RecentProject } from '../api/tauri'
+import { getRecentProjects, openProject, initializeProject, loadSettings, type RecentProject } from '../api/tauri'
 
 const router = useRouter()
 
@@ -9,6 +9,33 @@ const projects = ref<RecentProject[]>([])
 const loading = ref(true)
 const showStatus = ref(false)
 const statusMessage = ref('')
+const layoutMode = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
+
+// 计算网格布局类
+const gridClass = computed(() => {
+  switch (layoutMode.value) {
+    case 'four-columns':
+      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+    case 'three-columns':
+      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+    case 'two-columns':
+      return 'grid grid-cols-1 md:grid-cols-2 gap-4'
+    case 'one-column':
+      return 'flex flex-col space-y-4'
+    case 'masonry':
+      return 'columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4'
+    default:
+      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+  }
+})
+
+// 项目卡片样式
+const cardClass = computed(() => {
+  if (layoutMode.value === 'masonry') {
+    return 'break-inside-avoid mb-4'
+  }
+  return ''
+})
 
 function displayStatus(message: string, duration: number = 3000) {
   statusMessage.value = message
@@ -75,7 +102,15 @@ function formatDate(dateString: string) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 加载布局设置
+  const settings = await loadSettings()
+  if (settings.success && settings.data) {
+    const data = settings.data as any
+    layoutMode.value = data.recentProjectsLayout || 'four-columns'
+  }
+  
+  // 加载项目列表
   loadRecentProjects()
 })
 </script>
@@ -100,32 +135,42 @@ onMounted(() => {
     </div>
 
     <!-- 项目列表 -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="max-w-4xl mx-auto space-y-4">
-        <div v-if="loading" class="text-center text-hoi4-text-dim py-12">
-          加载中...
-        </div>
+    <div class="flex-1 overflow-y-auto px-4">
+      <div v-if="loading" class="text-center text-hoi4-text-dim py-12">
+        加载中...
+      </div>
 
-        <div v-else-if="projects.length === 0" class="card text-center py-12">
-          <p class="text-hoi4-text-dim text-lg">暂无最近项目</p>
-        </div>
+      <div v-else-if="projects.length === 0" class="card text-center py-12 max-w-2xl mx-auto">
+        <p class="text-hoi4-text-dim text-lg">暂无最近项目</p>
+      </div>
 
+      <div
+        v-else
+        :class="gridClass"
+      >
         <div
-          v-else
           v-for="project in projects"
           :key="project.path"
           @click="handleOpenProject(project)"
-          class="card cursor-pointer hover:border-hoi4-accent transition-colors"
+          :class="['card cursor-pointer hover:border-hoi4-accent transition-colors', cardClass]"
         >
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-hoi4-text font-bold text-lg mb-1">{{ project.name }}</h3>
-              <p class="text-hoi4-text-dim text-sm">{{ project.path }}</p>
-              <p class="text-hoi4-text-dim text-xs mt-2">最后打开: {{ formatDate(project.last_opened) }}</p>
+          <div class="flex flex-col h-full">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex-1 min-w-0">
+                <h3 class="text-hoi4-text font-bold text-lg mb-1 truncate" :title="project.name">
+                  {{ project.name }}
+                </h3>
+              </div>
+              <svg class="w-5 h-5 text-hoi4-text-dim flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
             </div>
-            <svg class="w-6 h-6 text-hoi4-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
+            <p class="text-hoi4-text-dim text-sm break-all mb-2" :title="project.path">
+              {{ project.path }}
+            </p>
+            <p class="text-hoi4-text-dim text-xs mt-auto">
+              最后打开: {{ formatDate(project.last_opened) }}
+            </p>
           </div>
         </div>
       </div>

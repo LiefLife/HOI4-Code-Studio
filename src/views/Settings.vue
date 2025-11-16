@@ -1,20 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadSettings, saveSettings, validateGameDirectory, openFileDialog } from '../api/tauri'
+import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, openUrl } from '../api/tauri'
+import { checkForUpdates } from '../utils/version'
 
 const router = useRouter()
 
 // 设置数据
 const gameDirectory = ref('')
-const autoSave = ref(true)
-const showGrid = ref(false)
-const syntaxHighlight = ref(true)
+const checkForUpdatesOnStartup = ref(true)
+const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
+const configLocation = ref<'appdata' | 'portable'>('appdata')
 
 // 状态
 const showStatus = ref(false)
 const statusMessage = ref('')
 const isSaving = ref(false)
+
+// 版本信息
+const CURRENT_VERSION = 'v0.1.2-dev'
+const currentVersion = ref(CURRENT_VERSION)
+const githubVersion = ref('检查中...')
+const isCheckingUpdate = ref(false)
+
+// 更新对话框
+const showUpdateDialog = ref(false)
+const updateInfo = ref<{ version: string; url: string } | null>(null)
 
 // 显示状态消息
 function displayStatus(message: string, duration: number = 3000) {
@@ -32,9 +43,9 @@ async function loadUserSettings() {
   if (result.success && result.data) {
     const data = result.data as any
     gameDirectory.value = data.gameDirectory || ''
-    autoSave.value = data.autoSave !== false
-    showGrid.value = data.showGrid === true
-    syntaxHighlight.value = data.syntaxHighlight !== false
+    checkForUpdatesOnStartup.value = data.checkForUpdates !== false
+    recentProjectsLayout.value = data.recentProjectsLayout || 'four-columns'
+    configLocation.value = data.configLocation || 'appdata'
   }
 }
 
@@ -52,35 +63,83 @@ async function selectGameDirectory() {
   }
 }
 
-// 保存设置
+// 保存设置（静默保存，仅在失败时提示）
 async function handleSave() {
   isSaving.value = true
   
   const settings = {
     gameDirectory: gameDirectory.value,
-    autoSave: autoSave.value,
-    showGrid: showGrid.value,
-    syntaxHighlight: syntaxHighlight.value
+    checkForUpdates: checkForUpdatesOnStartup.value,
+    recentProjectsLayout: recentProjectsLayout.value,
+    configLocation: configLocation.value
   }
   
   const result = await saveSettings(settings)
   
-  if (result.success) {
-    displayStatus('设置保存成功', 2000)
-  } else {
+  // 只在保存失败时显示提示
+  if (!result.success) {
     displayStatus(`保存失败: ${result.message}`, 3000)
   }
   
   isSaving.value = false
 }
 
-// 返回主界面
-function goBack() {
+// 手动检查更新
+async function handleCheckUpdate() {
+  isCheckingUpdate.value = true
+  githubVersion.value = '检查中...'
+  
+  try {
+    const result = await checkForUpdates(CURRENT_VERSION)
+    
+    if (result.error) {
+      githubVersion.value = '检查失败'
+      displayStatus(`检查更新失败: ${result.error}`, 3000)
+    } else if (result.latestVersion) {
+      githubVersion.value = result.latestVersion
+      
+      if (result.hasUpdate && result.releaseUrl) {
+        updateInfo.value = {
+          version: result.latestVersion,
+          url: result.releaseUrl
+        }
+        showUpdateDialog.value = true
+      } else {
+        displayStatus('当前已是最新版本', 2000)
+      }
+    }
+  } catch (error) {
+    githubVersion.value = '检查失败'
+    displayStatus('检查更新失败', 3000)
+  } finally {
+    isCheckingUpdate.value = false
+  }
+}
+
+// 打开更新页面
+async function openUpdatePage() {
+  if (updateInfo.value?.url) {
+    await openUrl(updateInfo.value.url)
+    showUpdateDialog.value = false
+  }
+}
+
+// 关闭更新对话框
+function closeUpdateDialog() {
+  showUpdateDialog.value = false
+}
+
+// 返回主界面（自动保存）
+async function goBack() {
+  // 自动保存设置
+  await handleSave()
   router.push('/')
 }
 
-onMounted(() => {
-  loadUserSettings()
+onMounted(async () => {
+  await loadUserSettings()
+  // 自动检查一次GitHub版本
+  handleCheckUpdate()
 })
 </script>
 
@@ -129,48 +188,224 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 编辑器设置 -->
+        <!-- 应用设置 -->
         <div class="space-y-4">
-          <h2 class="text-hoi4-text text-lg font-semibold">编辑器设置</h2>
+          <h2 class="text-hoi4-text text-lg font-semibold">应用设置</h2>
           
           <label class="flex items-center space-x-3 cursor-pointer">
             <input
-              v-model="autoSave"
+              v-model="checkForUpdatesOnStartup"
               type="checkbox"
               class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
             />
-            <span class="text-hoi4-text">自动保存</span>
+            <span class="text-hoi4-text">启动时检查更新</span>
           </label>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="showGrid"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
-            />
-            <span class="text-hoi4-text">显示网格</span>
-          </label>
+          <!-- 配置文件保存位置 -->
+          <div>
+            <label class="block text-hoi4-text mb-3 text-base font-semibold">
+              配置文件保存位置
+            </label>
+            <div class="space-y-3">
+              <label 
+                class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
+                :class="configLocation === 'appdata' ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'"
+              >
+                <input
+                  type="radio"
+                  v-model="configLocation"
+                  value="appdata"
+                  class="mt-1 w-5 h-5 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <div class="text-hoi4-text font-semibold mb-1">AppData（推荐）</div>
+                  <div class="text-hoi4-comment text-sm">
+                    保存到系统配置目录，适合单用户使用。配置文件不会随程序移动而丢失。
+                  </div>
+                  <div class="text-hoi4-text-dim text-xs mt-1 font-mono">
+                    Windows: %APPDATA%\HOI4_GUI_Editor\
+                  </div>
+                </div>
+              </label>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="syntaxHighlight"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
-            />
-            <span class="text-hoi4-text">语法高亮</span>
-          </label>
-        </div>
+              <label 
+                class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
+                :class="configLocation === 'portable' ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'"
+              >
+                <input
+                  type="radio"
+                  v-model="configLocation"
+                  value="portable"
+                  class="mt-1 w-5 h-5 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <div class="text-hoi4-text font-semibold mb-1">便携模式</div>
+                  <div class="text-hoi4-comment text-sm">
+                    保存到程序所在目录，适合U盘等便携设备。移动程序时配置会一起移动。
+                  </div>
+                  <div class="text-hoi4-text-dim text-xs mt-1 font-mono">
+                    程序目录\config\settings.json
+                  </div>
+                </div>
+              </label>
+            </div>
+            <div class="mt-2 p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
+              <div class="flex items-start space-x-2">
+                <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="text-hoi4-comment text-sm">
+                  <strong class="text-hoi4-text">注意：</strong>更改此设置需要重启应用才能生效。现有配置文件不会自动迁移。
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <!-- 保存按钮 -->
-        <div class="flex justify-end pt-4">
-          <button
-            @click="handleSave"
-            :disabled="isSaving"
-            class="btn-primary px-8"
-            :class="{ 'opacity-50 cursor-not-allowed': isSaving }"
-          >
-            {{ isSaving ? '保存中...' : '保存设置' }}
-          </button>
+          <!-- 版本信息区域 -->
+          <div class="border-2 border-hoi4-border rounded-lg p-4 bg-hoi4-gray">
+            <div class="flex items-start space-x-4">
+              <!-- 左侧：手动检查更新按钮 -->
+              <button
+                @click="handleCheckUpdate"
+                :disabled="isCheckingUpdate"
+                class="btn-primary px-4 py-2 flex-shrink-0"
+                :class="{ 'opacity-50 cursor-not-allowed': isCheckingUpdate }"
+              >
+                <div class="flex items-center space-x-2">
+                  <svg 
+                    v-if="!isCheckingUpdate"
+                    class="w-5 h-5" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  <svg 
+                    v-else
+                    class="w-5 h-5 animate-spin" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                  <span>{{ isCheckingUpdate ? '检查中...' : '检查更新' }}</span>
+                </div>
+              </button>
+
+              <!-- 右侧：版本信息 -->
+              <div class="flex-1 space-y-2">
+                <div class="flex items-center space-x-2">
+                  <span class="text-hoi4-comment">当前版本:</span>
+                  <span class="text-hoi4-text font-semibold">{{ currentVersion }}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-hoi4-comment">GitHub版本:</span>
+                  <span class="text-hoi4-text font-semibold">{{ githubVersion }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最近项目显示方式 -->
+          <div>
+            <label class="block text-hoi4-text mb-3 text-base font-semibold">
+              最近项目显示方式
+            </label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              <label 
+                class="relative cursor-pointer"
+                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'four-columns' }"
+              >
+                <input
+                  type="radio"
+                  v-model="recentProjectsLayout"
+                  value="four-columns"
+                  class="sr-only"
+                />
+                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
+                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+                  </svg>
+                  <span class="text-hoi4-text text-sm">四列</span>
+                  <span v-if="recentProjectsLayout === 'four-columns'" class="block text-hoi4-accent text-xs mt-1">默认</span>
+                </div>
+              </label>
+
+              <label 
+                class="relative cursor-pointer"
+                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'three-columns' }"
+              >
+                <input
+                  type="radio"
+                  v-model="recentProjectsLayout"
+                  value="three-columns"
+                  class="sr-only"
+                />
+                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
+                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z"></path>
+                  </svg>
+                  <span class="text-hoi4-text text-sm">三列</span>
+                </div>
+              </label>
+
+              <label 
+                class="relative cursor-pointer"
+                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'two-columns' }"
+              >
+                <input
+                  type="radio"
+                  v-model="recentProjectsLayout"
+                  value="two-columns"
+                  class="sr-only"
+                />
+                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
+                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z"></path>
+                  </svg>
+                  <span class="text-hoi4-text text-sm">二列</span>
+                </div>
+              </label>
+
+              <label 
+                class="relative cursor-pointer"
+                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'one-column' }"
+              >
+                <input
+                  type="radio"
+                  v-model="recentProjectsLayout"
+                  value="one-column"
+                  class="sr-only"
+                />
+                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
+                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                  </svg>
+                  <span class="text-hoi4-text text-sm">一列</span>
+                </div>
+              </label>
+
+              <label 
+                class="relative cursor-pointer"
+                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'masonry' }"
+              >
+                <input
+                  type="radio"
+                  v-model="recentProjectsLayout"
+                  value="masonry"
+                  class="sr-only"
+                />
+                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
+                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"></path>
+                  </svg>
+                  <span class="text-hoi4-text text-sm">磁吸</span>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -179,6 +414,47 @@ onMounted(() => {
     <div v-if="showStatus" class="fixed bottom-[2vh] right-[2vw] z-50">
       <div class="bg-hoi4-gray border-2 border-hoi4-border rounded-lg shadow-lg p-4">
         <p class="text-hoi4-text">{{ statusMessage }}</p>
+      </div>
+    </div>
+
+    <!-- 更新提示对话框 -->
+    <div 
+      v-if="showUpdateDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeUpdateDialog"
+    >
+      <div class="card max-w-md mx-4">
+        <div class="space-y-4">
+          <div class="flex items-start space-x-3">
+            <svg class="w-8 h-8 text-hoi4-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-xl font-bold text-hoi4-text mb-2">发现新版本</h3>
+              <p class="text-hoi4-comment mb-1">当前版本: {{ currentVersion }}</p>
+              <p class="text-hoi4-accent font-semibold">最新版本: {{ updateInfo?.version }}</p>
+            </div>
+          </div>
+          
+          <p class="text-hoi4-text">
+            新版本已发布，建议更新以获得最新功能和修复。
+          </p>
+          
+          <div class="flex space-x-3 pt-2">
+            <button
+              @click="openUpdatePage"
+              class="btn-primary flex-1"
+            >
+              查看更新
+            </button>
+            <button
+              @click="closeUpdateDialog"
+              class="btn-secondary flex-1"
+            >
+              稍后提醒
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -1,13 +1,14 @@
 {
   "name": "hoi4-code-studio",
   "private": true,
-  "version": "0.1.1-dev",
+  "version": "0.1.2-dev",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "version:update": "node scripts/update-version.js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.1",

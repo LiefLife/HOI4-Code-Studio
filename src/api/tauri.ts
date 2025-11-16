@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { openUrl as tauriOpenUrl } from '@tauri-apps/plugin-opener'
 
 // ==================== 类型定义 ====================
 
@@ -434,4 +435,13 @@ export async function findBracketPair(
 
 export async function getBracketDepths(content: string): Promise<number[]> {
   return await invoke('get_bracket_depths', { content })
+}
+
+// ==================== 外部链接 ====================
+
+/**
+ * 在默认浏览器中打开URL
+ */
+export async function openUrl(url: string): Promise<void> {
+  await tauriOpenUrl(url)
 }

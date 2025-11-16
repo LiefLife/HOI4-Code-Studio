@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { openFileDialog, openProject, initializeProject } from '../api/tauri'
+import { openFileDialog, openProject, initializeProject, loadSettings, openUrl } from '../api/tauri'
+import { checkForUpdates } from '../utils/version'
 
 const router = useRouter()
 const statusMessage = ref('')
 const showStatus = ref(false)
+
+// 当前版本
+const CURRENT_VERSION = 'v0.1.2-dev'
+
+// 更新提示
+const showUpdateDialog = ref(false)
+const updateInfo = ref<{ version: string; url: string } | null>(null)
 
 // 显示状态消息
 function displayStatus(message: string, duration: number = 3000) {
@@ -69,11 +77,55 @@ function handleSettings() {
   router.push('/settings')
 }
 
-// 组件挂载后显示欢迎消息
-onMounted(() => {
+// 检查更新
+async function checkAppUpdates() {
+  try {
+    const result = await checkForUpdates(CURRENT_VERSION)
+    
+    if (result.hasUpdate && result.latestVersion && result.releaseUrl) {
+      updateInfo.value = {
+        version: result.latestVersion,
+        url: result.releaseUrl
+      }
+      showUpdateDialog.value = true
+    }
+  } catch (error) {
+    console.error('检查更新失败:', error)
+  }
+}
+
+// 打开更新页面
+async function openUpdatePage() {
+  if (updateInfo.value?.url) {
+    await openUrl(updateInfo.value.url)
+    showUpdateDialog.value = false
+  }
+}
+
+// 关闭更新对话框
+function closeUpdateDialog() {
+  showUpdateDialog.value = false
+}
+
+// 组件挂载后显示欢迎消息并检查更新
+onMounted(async () => {
   setTimeout(() => {
     displayStatus('欢迎使用 Hearts of Iron IV GUI Mod Editor', 3000)
   }, 500)
+  
+  // 检查是否启用了自动更新检测
+  const settings = await loadSettings()
+  if (settings.success && settings.data) {
+    const data = settings.data as any
+    const shouldCheckUpdates = data.checkForUpdates !== false
+    
+    if (shouldCheckUpdates) {
+      // 延迟检查更新，避免影响启动体验
+      setTimeout(() => {
+        checkAppUpdates()
+      }, 1000)
+    }
+  }
 })
 </script>
 
@@ -88,7 +140,7 @@ onMounted(() => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.1.1-dev
+        v0.1.2-dev
       </div>
     </div>
 
@@ -167,6 +219,47 @@ onMounted(() => {
     >
       <div class="bg-onedark-bg-secondary border-2 border-onedark-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
         <p class="text-onedark-fg" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
+      </div>
+    </div>
+
+    <!-- 更新提示对话框 -->
+    <div 
+      v-if="showUpdateDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="closeUpdateDialog"
+    >
+      <div class="card max-w-md mx-4">
+        <div class="space-y-4">
+          <div class="flex items-start space-x-3">
+            <svg class="w-8 h-8 text-onedark-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-xl font-bold text-onedark-fg mb-2">发现新版本</h3>
+              <p class="text-onedark-comment mb-1">当前版本: {{ CURRENT_VERSION }}</p>
+              <p class="text-onedark-green font-semibold">最新版本: {{ updateInfo?.version }}</p>
+            </div>
+          </div>
+          
+          <p class="text-onedark-fg">
+            新版本已发布，建议更新以获得最新功能和修复。
+          </p>
+          
+          <div class="flex space-x-3 pt-2">
+            <button
+              @click="openUpdatePage"
+              class="btn-primary flex-1"
+            >
+              查看更新
+            </button>
+            <button
+              @click="closeUpdateDialog"
+              class="btn-secondary flex-1"
+            >
+              稍后提醒
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
