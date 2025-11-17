@@ -16,10 +16,12 @@ const state = ref<IdeaRegistryState>({
 
 const projectRootRef = ref<string | undefined>(undefined)
 const gameRootRef = ref<string | undefined>(undefined)
+const dependencyRootsRef = ref<string[]>([])
 
-export function setIdeaRoots(projectRoot?: string, gameRoot?: string) {
+export function setIdeaRoots(projectRoot?: string, gameRoot?: string, dependencyRoots?: string[]) {
   projectRootRef.value = projectRoot
   gameRootRef.value = gameRoot
+  dependencyRootsRef.value = dependencyRoots || []
 }
 
 export async function ensureIdeaRegistry(): Promise<IdeaLoadResponse> {
@@ -34,7 +36,7 @@ export async function ensureIdeaRegistry(): Promise<IdeaLoadResponse> {
   state.value.loading = true
   state.value.status = '加载idea中...'
   try {
-    const resp = await loadIdeas(projectRootRef.value, gameRootRef.value)
+    const resp = await loadIdeas(projectRootRef.value, gameRootRef.value, dependencyRootsRef.value)
     if (resp.success && resp.ideas) {
       state.value.ideas = resp.ideas
       state.value.status = `已加载 ${resp.ideas.length} 个idea`

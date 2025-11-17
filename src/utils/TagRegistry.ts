@@ -3,6 +3,7 @@ import { loadCountryTags } from '../api/tauri'
 
 let projectRootPath: string | undefined
 let gameRootPath: string | undefined
+let dependencyRootPaths: string[] = []
 let tagEntries: TagEntry[] = []
 let tagSet: Set<string> = new Set()
 let statusMessage = ''
@@ -18,9 +19,10 @@ function normalizePath(path?: string): string {
   return (path || '').replace(/\\/g, '/').replace(/\/+/g, '/').trim()
 }
 
-export function setTagRoots(projectRoot?: string, gameRoot?: string) {
+export function setTagRoots(projectRoot?: string, gameRoot?: string, dependencyRoots?: string[]) {
   projectRootPath = normalizePath(projectRoot) || undefined
   gameRootPath = normalizePath(gameRoot) || undefined
+  dependencyRootPaths = (dependencyRoots || []).map(p => normalizePath(p)).filter(Boolean)
   // 强制下次刷新
   lastKey = ''
 }
@@ -41,15 +43,16 @@ export function getLastResponse(): TagLoadResponse {
   return lastResponse
 }
 
-export function getRoots(): { projectRoot?: string; gameRoot?: string } {
+export function getRoots(): { projectRoot?: string; gameRoot?: string; dependencyRoots: string[] } {
   return {
     projectRoot: projectRootPath,
-    gameRoot: gameRootPath
+    gameRoot: gameRootPath,
+    dependencyRoots: dependencyRootPaths
   }
 }
 
 export function ensureRefreshed(): Promise<TagLoadResponse> {
-  const key = `${projectRootPath ?? ''}||${gameRootPath ?? ''}`
+  const key = `${projectRootPath ?? ''}||${gameRootPath ?? ''}||${dependencyRootPaths.join('|')}`
 
   if (refreshing) {
     return refreshing
@@ -63,7 +66,7 @@ export function ensureRefreshed(): Promise<TagLoadResponse> {
 
   refreshing = (async () => {
     try {
-      const response = await loadCountryTags(projectRootPath, gameRootPath)
+      const response = await loadCountryTags(projectRootPath, gameRootPath, dependencyRootPaths)
       lastResponse = response
 
       if (response.success && response.tags) {

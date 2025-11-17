@@ -14,8 +14,8 @@ const loading = ref(false)
 const tags = ref(getEntries())
 const statusMessage = ref(getStatus())
 
-export function setTagRoots(projectRoot?: string, gameRoot?: string) {
-  internalSetTagRoots(projectRoot, gameRoot)
+export function setTagRoots(projectRoot?: string, gameRoot?: string, dependencyRoots?: string[]) {
+  internalSetTagRoots(projectRoot, gameRoot, dependencyRoots)
 }
 
 export async function ensureTagRegistry(): Promise<TagLoadResponse> {
@@ -50,8 +50,8 @@ export function useTagRegistry() {
     statusMessage: status,
     refresh: ensureTagRegistry,
     async validate(content: string): Promise<TagValidationResponse> {
-      const { projectRoot, gameRoot } = getRoots()
-      const resp = await validateTags(content, projectRoot, gameRoot)
+      const { projectRoot, gameRoot, dependencyRoots } = getRoots()
+      const resp = await validateTags(content, projectRoot, gameRoot, dependencyRoots)
       return resp
     },
     tagSet: getRegistry

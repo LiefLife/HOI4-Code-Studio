@@ -14,6 +14,8 @@ import RightPanel from '../components/editor/RightPanel.vue'
 import ContextMenu from '../components/editor/ContextMenu.vue'
 import CreateDialog from '../components/editor/CreateDialog.vue'
 import FileTreeNode from '../components/FileTreeNode.vue'
+import LeftPanelTabs from '../components/editor/LeftPanelTabs.vue'
+import DependencyManager from '../components/editor/DependencyManager.vue'
 
 // Composables 导入
 import { type FileNode } from '../composables/useFileManager'
@@ -25,6 +27,7 @@ import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
 import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
 import { logger } from '../utils/logger'
 import { readFileContent } from '../api/tauri'
+import { useDependencyManager } from '../composables/useDependencyManager'
 
 // Prism 语法定义
 Prism.languages.mod = {
@@ -90,6 +93,12 @@ const treeContextMenuNode = ref<FileNode | null>(null)
 const createDialogVisible = ref(false)
 const createDialogType = ref<'file' | 'folder'>('file')
 
+// 依赖项管理状态
+const leftPanelActiveTab = ref<'project' | 'dependencies'>('project')
+const activeDependencyId = ref<string | undefined>(undefined)
+const dependencyManagerVisible = ref(false)
+const dependencyFileTrees = ref<Map<string, FileNode[]>>(new Map())
+
 // Refs
 const editorGroupRef = ref<InstanceType<typeof EditorGroup> | null>(null)
 
@@ -118,12 +127,86 @@ const { isLoading: tagLoading, statusMessage: tagStatus, refresh: refreshTags } 
 // idea状态
 const { isLoading: ideaLoading, statusMessage: ideaStatus, refresh: refreshIdeas } = useIdeaRegistry()
 
+// 依赖项管理
+const dependencyManager = useDependencyManager(projectPath.value)
+const {
+  dependencies,
+  isLoading: isDependencyLoading,
+  addDependency,
+  removeDependency,
+  toggleDependency,
+  loadDependencies: loadDependenciesList
+} = dependencyManager
+
 async function handleRefreshTags() {
   await refreshTags()
 }
 
 async function handleRefreshIdeas() {
   await refreshIdeas()
+}
+
+// 依赖项管理函数
+function handleSwitchToProject() {
+  leftPanelActiveTab.value = 'project'
+  activeDependencyId.value = undefined
+}
+
+function handleSwitchToDependency(id: string) {
+  leftPanelActiveTab.value = 'dependencies'
+  activeDependencyId.value = id
+  loadDependencyFileTree(id)
+}
+
+function handleManageDependencies() {
+  dependencyManagerVisible.value = true
+}
+
+async function handleAddDependency(path: string) {
+  const result = await addDependency(path)
+  if (result.success) {
+    // 成功添加后刷新依赖项列表
+    await loadDependenciesList()
+  } else {
+    alert(result.message)
+  }
+}
+
+async function handleRemoveDependency(id: string) {
+  const result = await removeDependency(id)
+  if (result.success) {
+    // 如果删除的是当前激活的依赖项，切换回项目
+    if (activeDependencyId.value === id) {
+      handleSwitchToProject()
+    }
+    dependencyFileTrees.value.delete(id)
+  } else {
+    alert(result.message)
+  }
+}
+
+async function handleToggleDependency(id: string) {
+  await toggleDependency(id)
+}
+
+async function loadDependencyFileTree(dependencyId: string) {
+  const dependency = dependencies.value.find(dep => dep.id === dependencyId)
+  if (!dependency) return
+  
+  // 如果已经加载过，直接返回
+  if (dependencyFileTrees.value.has(dependencyId)) return
+  
+  try {
+    const result = await buildDirectoryTreeFast(dependency.path, 3)
+    if (result.success && result.tree) {
+      dependencyFileTrees.value.set(
+        dependencyId,
+        result.tree.map(convertRustFileNode)
+      )
+    }
+  } catch (error) {
+    logger.error('加载依赖项文件树失败:', error)
+  }
 }
 
 // 计算行数（已移至EditorPane）
@@ -189,9 +272,10 @@ async function loadFileTree() {
     if (result.success && result.tree) {
       fileTree.value = result.tree.map(convertRustFileNode)
     }
-    setTagRoots(projectPath.value, gameDirectory.value)
+    const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
+    setTagRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
     await refreshTags()
-    setIdeaRoots(projectPath.value, gameDirectory.value)
+    setIdeaRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
     await refreshIdeas()
   } catch (error) {
     logger.error('加载文件树失败:', error)
@@ -206,15 +290,17 @@ async function loadGameDirectory() {
     const result = await loadSettings()
     if (result.success && result.data && typeof result.data === 'object' && 'gameDirectory' in result.data) {
       gameDirectory.value = result.data.gameDirectory as string
-      setTagRoots(projectPath.value, gameDirectory.value)
+      const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
+      setTagRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
       await loadGameFileTree()
       await refreshTags()
-      setIdeaRoots(projectPath.value, gameDirectory.value)
+      setIdeaRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
       await ensureIdeaRegistry()
     } else {
-      setTagRoots(projectPath.value, undefined)
+      const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
+      setTagRoots(projectPath.value, undefined, enabledDependencyPaths)
       await refreshTags()
-      setIdeaRoots(projectPath.value, undefined)
+      setIdeaRoots(projectPath.value, undefined, enabledDependencyPaths)
       await ensureIdeaRegistry()
     }
   } catch (error) {
@@ -428,6 +514,11 @@ function goBack() {
   router.push('/')
 }
 
+// 打开依赖项管理对话框（从工具栏）
+function openDependenciesFromToolbar() {
+  dependencyManagerVisible.value = true
+}
+
 // 切换右侧面板
 function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
@@ -499,12 +590,15 @@ useKeyboardShortcuts({
 })
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   projectPath.value = route.query.path as string || ''
   if (projectPath.value) {
+    dependencyManager.setProjectPath(projectPath.value)
     loadProjectInfo()
     loadFileTree()
     loadGameDirectory()
+    // 加载依赖项列表
+    await loadDependenciesList()
   } else {
     loading.value = false
   }
@@ -522,18 +616,31 @@ onMounted(() => {
       @go-back="goBack"
       @toggle-right-panel="toggleRightPanel"
       @launch-game="handleLaunchGame"
+      @manage-dependencies="openDependenciesFromToolbar"
     />
 
     <!-- 主内容区域 -->
     <div class="flex-1 flex overflow-hidden">
       <!-- 左侧文件树面板 -->
       <div
-        class="bg-hoi4-gray/80 border border-hoi4-border/60 overflow-y-auto flex-shrink-0 rounded-2xl shadow-lg my-2 ml-2"
+        class="bg-hoi4-gray/80 border border-hoi4-border/60 flex-shrink-0 rounded-2xl shadow-lg my-2 ml-2 flex flex-col overflow-hidden"
         :style="{ width: leftPanelWidth + 'px' }"
-        @contextmenu.prevent="showTreeContextMenu($event, null)"
       >
-        <div class="p-2">
-          <h3 class="text-hoi4-text font-bold mb-2 text-sm">文件目录</h3>
+        <!-- 左侧面板标签栏 -->
+        <LeftPanelTabs
+          :active-tab="leftPanelActiveTab"
+          :active-dependency-id="activeDependencyId"
+          :dependencies="dependencies"
+          @switch-to-project="handleSwitchToProject"
+          @switch-to-dependency="handleSwitchToDependency"
+          @manage-dependencies="handleManageDependencies"
+        />
+        
+        <!-- 文件树内容 -->
+        <div class="flex-1 overflow-y-auto p-2" @contextmenu.prevent="showTreeContextMenu($event, null)">
+          <h3 class="text-hoi4-text font-bold mb-2 text-sm">
+            {{ leftPanelActiveTab === 'project' ? '项目文件' : '依赖项文件' }}
+          </h3>
           <div
             v-if="tagLoading || tagStatus"
             class="text-hoi4-text-dim text-xs mb-2 px-2 py-1 bg-hoi4-border/30 rounded flex items-center justify-between"
@@ -560,20 +667,45 @@ onMounted(() => {
             刷新
           </button>
         </div>
-          <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
-          <div v-else-if="fileTree.length === 0" class="text-hoi4-text-dim text-sm p-2">无文件</div>
-          <div v-else>
-            <FileTreeNode
-              v-for="node in fileTree"
-              :key="node.path"
-              :node="node"
-              :level="0"
-              :selected-path="selectedNode?.path"
-              @toggle="toggleFolder"
-              @open-file="handleOpenFile"
-              @contextmenu="showTreeContextMenu"
-            />
-          </div>
+          <!-- 项目文件树 -->
+          <template v-if="leftPanelActiveTab === 'project'">
+            <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
+            <div v-else-if="fileTree.length === 0" class="text-hoi4-text-dim text-sm p-2">无文件</div>
+            <div v-else>
+              <FileTreeNode
+                v-for="node in fileTree"
+                :key="node.path"
+                :node="node"
+                :level="0"
+                :selected-path="selectedNode?.path"
+                @toggle="toggleFolder"
+                @open-file="handleOpenFile"
+                @contextmenu="showTreeContextMenu"
+              />
+            </div>
+          </template>
+
+          <!-- 依赖项文件树 -->
+          <template v-else-if="leftPanelActiveTab === 'dependencies' && activeDependencyId">
+            <div v-if="!dependencyFileTrees.has(activeDependencyId)" class="text-hoi4-text-dim text-sm p-2">
+              加载中...
+            </div>
+            <div v-else-if="(dependencyFileTrees.get(activeDependencyId) || []).length === 0" class="text-hoi4-text-dim text-sm p-2">
+              无文件
+            </div>
+            <div v-else>
+              <FileTreeNode
+                v-for="node in dependencyFileTrees.get(activeDependencyId)"
+                :key="node.path"
+                :node="node"
+                :level="0"
+                :selected-path="selectedNode?.path"
+                @toggle="toggleFolder"
+                @open-file="handleOpenFile"
+                @contextmenu="showTreeContextMenu"
+              />
+            </div>
+          </template>
         </div>
       </div>
 
@@ -645,6 +777,17 @@ onMounted(() => {
       @update:search-regex="searchRegex = $event"
       @update:search-scope="searchScope = $event as 'project' | 'game'"
       @perform-search="handlePerformSearch"
+    />
+
+    <!-- 依赖项管理对话框 -->
+    <DependencyManager
+      :visible="dependencyManagerVisible"
+      :dependencies="dependencies"
+      :is-loading="isDependencyLoading"
+      @close="dependencyManagerVisible = false"
+      @add="handleAddDependency"
+      @remove="handleRemoveDependency"
+      @toggle="handleToggleDependency"
     />
   </div>
 </template>

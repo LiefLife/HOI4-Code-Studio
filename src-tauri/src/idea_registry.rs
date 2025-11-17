@@ -8,12 +8,13 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::time::SystemTime;
 
-/// ：标记点位的来源，区分项目与游戏目录，便于前端显示覆盖关系。
+/// ：标记点位的来源，区分项目、游戏目录与依赖项，便于前端显示覆盖关系。
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum IdeaSource {
     Project,
     Game,
+    Dependency,
 }
 
 /// ：单个idea条目，仅包含标识符与来源信息。
@@ -64,18 +65,33 @@ pub fn reset_idea_cache() -> bool {
     }
 }
 
-/// ：加载idea列表，必要时重新扫描文件。
+/// ：加载idea列表，必要时重新扫描文件。支持依赖项路径列表。
 #[tauri::command]
-pub fn load_ideas(project_root: Option<String>, game_root: Option<String>) -> IdeaLoadResponse {
+pub fn load_ideas(
+    project_root: Option<String>,
+    game_root: Option<String>,
+    dependency_roots: Option<Vec<String>>,
+) -> IdeaLoadResponse {
     let normalized_project = normalize_root(project_root.as_deref());
     let normalized_game = normalize_root(game_root.as_deref());
+    let normalized_deps: Vec<String> = dependency_roots
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|s| normalize_root(Some(&s)))
+        .collect();
+    
     let cache_key = format!(
-        "{}||{}",
+        "{}||{}||{}",
         normalized_project.clone().unwrap_or_default(),
-        normalized_game.clone().unwrap_or_default()
+        normalized_game.clone().unwrap_or_default(),
+        normalized_deps.join("|")
     );
 
-    let files = match collect_file_infos(normalized_project.as_deref(), normalized_game.as_deref()) {
+    let files = match collect_file_infos(
+        normalized_project.as_deref(),
+        normalized_game.as_deref(),
+        &normalized_deps,
+    ) {
         Ok(list) => list,
         Err(err) => {
             return IdeaLoadResponse {
@@ -130,14 +146,19 @@ fn normalize_root(path: Option<&str>) -> Option<String> {
     }
 }
 
-/// 收集项目与游戏目录下的idea定义文件。
+/// 收集项目、游戏目录与依赖项目录下的idea定义文件。
 fn collect_file_infos(
     project_root: Option<&str>,
     game_root: Option<&str>,
+    dependency_roots: &[String],
 ) -> io::Result<Vec<IdeaFileInfo>> {
     let mut files = Vec::new();
     add_files_under_root(project_root, IdeaSource::Project, &mut files)?;
     add_files_under_root(game_root, IdeaSource::Game, &mut files)?;
+    // 添加所有依赖项的idea文件
+    for dep_root in dependency_roots {
+        add_files_under_root(Some(dep_root.as_str()), IdeaSource::Dependency, &mut files)?;
+    }
     Ok(files)
 }
 
@@ -243,7 +264,8 @@ fn parse_ideas(files: &[IdeaFileInfo]) -> io::Result<Vec<IdeaEntry>> {
         for (id, source) in list {
             let priority = match source {
                 IdeaSource::Game => 0u8,
-                IdeaSource::Project => 1u8,
+                IdeaSource::Dependency => 1u8,
+                IdeaSource::Project => 2u8,
             };
             merged
                 .entry(id.clone())

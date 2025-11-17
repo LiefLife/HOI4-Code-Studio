@@ -31,6 +31,7 @@ const currentLine = ref(1)
 const currentColumn = ref(1)
 const hasUnsavedChanges = ref(false)
 const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
+const isLoadingFile = ref(false)  // 标记是否正在加载文件
 
 const { highlightCode, getLanguage } = useSyntaxHighlight()
 
@@ -45,6 +46,8 @@ const currentFile = computed(() => {
 // 监听活动文件变化
 watch(currentFile, (file) => {
   if (file) {
+    // 标记正在加载文件，避免触发 hasUnsavedChanges
+    isLoadingFile.value = true
     fileContent.value = file.content
     hasUnsavedChanges.value = file.hasUnsavedChanges
     currentLine.value = file.cursorLine
@@ -64,11 +67,17 @@ watch(currentFile, (file) => {
         }
         highlightCode(fileContent.value, file.node.name, txtErrors.value)
       }
+      // 文件加载完成，可以开始追踪修改
+      isLoadingFile.value = false
     })
   } else {
+    isLoadingFile.value = true
     fileContent.value = ''
     hasUnsavedChanges.value = false
     txtErrors.value = []
+    nextTick(() => {
+      isLoadingFile.value = false
+    })
   }
 }, { immediate: true })
 
@@ -86,8 +95,11 @@ function handleContextMenu(event: MouseEvent, index: number) {
 
 function handleContentChange(content: string) {
   fileContent.value = content
-  hasUnsavedChanges.value = true
-  emit('contentChange', props.pane.id, content)
+  // 只有在不是加载文件时才标记为已修改和触发事件
+  if (!isLoadingFile.value) {
+    hasUnsavedChanges.value = true
+    emit('contentChange', props.pane.id, content)
+  }
   
   if (currentFile.value?.node) {
     const language = getLanguage(currentFile.value.node.name)

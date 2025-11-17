@@ -58,14 +58,18 @@ fn build_tag_set(tags: &[TagEntry]) -> HashSet<String> {
     tags.iter().map(|entry| entry.code.clone()).collect()
 }
 
-fn ensure_tag_cache(project_root: Option<String>, game_root: Option<String>) -> HashSet<String> {
+fn ensure_tag_cache(
+    project_root: Option<String>,
+    game_root: Option<String>,
+    dependency_roots: Option<Vec<String>>,
+) -> HashSet<String> {
     let current_version = {
         let cache = TAG_CACHE.read().expect("tag cache poisoned");
         cache.as_ref().map(|c| c.version).unwrap_or(0)
     };
 
     // 每次请求都重新加载 tags，保持与 country_tags 的缓存一致
-    let TagLoadResponse { success, tags, .. } = load_country_tags(project_root.clone(), game_root.clone());
+    let TagLoadResponse { success, tags, .. } = load_country_tags(project_root.clone(), game_root.clone(), dependency_roots);
     if success {
         if let Some(tags) = tags {
             let tag_set = build_tag_set(&tags);
@@ -158,8 +162,13 @@ fn validate_tags_internal(content: &str, tags: &HashSet<String>) -> Vec<TagValid
 }
 
 /// ：对给定文本执行标签校验。
-pub fn validate_tags_content(content: &str, project_root: Option<String>, game_root: Option<String>) -> TagValidationResponse {
-    let tag_set = ensure_tag_cache(project_root, game_root);
+pub fn validate_tags_content(
+    content: &str,
+    project_root: Option<String>,
+    game_root: Option<String>,
+    dependency_roots: Option<Vec<String>>,
+) -> TagValidationResponse {
+    let tag_set = ensure_tag_cache(project_root, game_root, dependency_roots);
     if tag_set.is_empty() {
         return TagValidationResponse {
             success: false,
@@ -190,6 +199,7 @@ pub fn validate_tags(
     content: String,
     project_root: Option<String>,
     game_root: Option<String>,
+    dependency_roots: Option<Vec<String>>,
 ) -> TagValidationResponse {
-    validate_tags_content(&content, project_root, game_root)
+    validate_tags_content(&content, project_root, game_root, dependency_roots)
 }

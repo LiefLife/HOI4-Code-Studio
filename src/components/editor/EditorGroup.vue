@@ -86,8 +86,11 @@ function handleContentChange(paneId: string, content: string) {
   
   const file = pane.openFiles[pane.activeFileIndex]
   if (file) {
-    file.content = content
-    file.hasUnsavedChanges = true
+    // 只有内容真的改变时才标记为已修改
+    if (file.content !== content) {
+      file.content = content
+      file.hasUnsavedChanges = true
+    }
   }
 }
 

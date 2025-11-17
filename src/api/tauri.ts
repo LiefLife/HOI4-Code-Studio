@@ -335,12 +335,12 @@ export async function buildDirectoryTreeFast(
   return await invoke('build_directory_tree_fast', { path, maxDepth })
 }
 
-// ==================== 国家标签 ====================
+// ==================== Country Tags ====================
 
 export interface TagEntry {
   code: string
   name?: string
-  source: 'project' | 'game'
+  source: 'project' | 'game' | 'dependency'
 }
 
 export interface TagLoadResponse {
@@ -351,9 +351,10 @@ export interface TagLoadResponse {
 
 export async function loadCountryTags(
   projectRoot?: string,
-  gameRoot?: string
+  gameRoot?: string,
+  dependencyRoots?: string[]
 ): Promise<TagLoadResponse> {
-  return await invoke('load_country_tags', { projectRoot, gameRoot })
+  return invoke<TagLoadResponse>('load_country_tags', { projectRoot, gameRoot, dependencyRoots })
 }
 
 export interface TagValidationError {
@@ -370,16 +371,17 @@ export interface TagValidationResponse {
 export async function validateTags(
   content: string,
   projectRoot?: string,
-  gameRoot?: string
+  gameRoot?: string,
+  dependencyRoots?: string[]
 ): Promise<TagValidationResponse> {
-  return await invoke('validate_tags', { content, projectRoot, gameRoot })
+  return invoke<TagValidationResponse>('validate_tags', { content, projectRoot, gameRoot, dependencyRoots })
 }
 
 // ==================== idea ====================
 
 export interface IdeaEntry {
   id: string
-  source: 'project' | 'game'
+  source: 'project' | 'game' | 'dependency'
 }
 
 export interface IdeaLoadResponse {
@@ -390,15 +392,15 @@ export interface IdeaLoadResponse {
 
 export async function loadIdeas(
   projectRoot?: string,
-  gameRoot?: string
+  gameRoot?: string,
+  dependencyRoots?: string[]
 ): Promise<IdeaLoadResponse> {
-  return await invoke('load_ideas', { projectRoot, gameRoot })
+  return invoke<IdeaLoadResponse>('load_ideas', { projectRoot, gameRoot, dependencyRoots })
 }
 
 export async function resetIdeaCache(): Promise<boolean> {
   return await invoke('reset_idea_cache')
 }
-
 // ==================== 括号匹配 ====================
 
 export enum BracketType {
@@ -461,4 +463,91 @@ export interface LaunchGameResult {
  */
 export async function launchGame(): Promise<LaunchGameResult> {
   return await invoke('launch_game')
+}
+
+// ==================== 依赖项管理 ====================
+
+/**
+ * 依赖项类型
+ */
+export type DependencyType = 'hoics' | 'hoi4mod'
+
+/**
+ * 依赖项接口
+ */
+export interface Dependency {
+  id: string
+  name: string
+  path: string
+  type: DependencyType
+  addedAt: string
+  enabled: boolean
+}
+
+/**
+ * 依赖项验证结果
+ */
+export interface DependencyValidation {
+  valid: boolean
+  message: string
+  name?: string
+  type?: DependencyType
+}
+
+/**
+ * 依赖项加载结果
+ */
+export interface DependencyLoadResult {
+  success: boolean
+  message: string
+  dependencies?: Dependency[]
+}
+
+/**
+ * 依赖项保存结果
+ */
+export interface DependencySaveResult {
+  success: boolean
+  message: string
+}
+
+/**
+ * 依赖项索引结果
+ */
+export interface DependencyIndexResult {
+  success: boolean
+  message: string
+  ideaCount?: number
+  tagCount?: number
+}
+
+/**
+ * 加载项目的依赖项列表
+ */
+export async function loadDependencies(projectPath: string): Promise<DependencyLoadResult> {
+  return await invoke('load_dependencies', { projectPath })
+}
+
+/**
+ * 保存项目的依赖项列表
+ */
+export async function saveDependencies(
+  projectPath: string,
+  dependencies: Dependency[]
+): Promise<DependencySaveResult> {
+  return await invoke('save_dependencies', { projectPath, dependencies })
+}
+
+/**
+ * 验证依赖项路径
+ */
+export async function validateDependencyPath(path: string): Promise<DependencyValidation> {
+  return await invoke('validate_dependency_path', { path })
+}
+
+/**
+ * 索引依赖项的 Idea 和 Tag 数据
+ */
+export async function indexDependency(dependencyPath: string): Promise<DependencyIndexResult> {
+  return await invoke('index_dependency', { dependencyPath })
 }

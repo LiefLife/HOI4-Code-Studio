@@ -8,12 +8,13 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use std::time::SystemTime;
 
-/// ：表示标签来源（项目或游戏目录），用于前端区分来源显示。
+/// ：表示标签来源（项目、游戏目录或依赖项），用于前端区分来源显示。
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum TagSource {
     Project,
     Game,
+    Dependency,
 }
 
 /// ：单个国家标签条目，包含标签代码、名称与来源。
@@ -51,22 +52,34 @@ static TAG_LINE_REGEX: Lazy<Regex> = Lazy::new(|| {
         .expect("failed to compile tag parser regex")
 });
 
-/// ：命令入口，加载两个目录下的全部国家标签，并应用缓存。
+/// ：命令入口，加载项目、游戏目录与依赖项目录下的全部国家标签，并应用缓存。
 #[tauri::command]
 pub fn load_country_tags(
     project_root: Option<String>,
     game_root: Option<String>,
+    dependency_roots: Option<Vec<String>>,
 ) -> TagLoadResponse {
     let normalized_project = normalize_root(project_root.as_deref());
     let normalized_game = normalize_root(game_root.as_deref());
+    let normalized_deps: Vec<String> = dependency_roots
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|s| normalize_root(Some(&s)))
+        .collect();
+    
     let cache_key = format!(
-        "{}||{}",
+        "{}||{}||{}",
         normalized_project.clone().unwrap_or_default(),
-        normalized_game.clone().unwrap_or_default()
+        normalized_game.clone().unwrap_or_default(),
+        normalized_deps.join("|")
     );
 
     // ：收集所有候选文件以及其最新修改时间。
-    let file_infos = match collect_file_infos(normalized_project.as_deref(), normalized_game.as_deref()) {
+    let file_infos = match collect_file_infos(
+        normalized_project.as_deref(),
+        normalized_game.as_deref(),
+        &normalized_deps,
+    ) {
         Ok(infos) => infos,
         Err(err) => {
             return TagLoadResponse {
@@ -129,16 +142,21 @@ fn normalize_root(path: Option<&str>) -> Option<String> {
     }
 }
 
-/// 收集 project/game 下 `common/country_tags` 内所有 `.txt` 文件。
+/// 收集 project/game/dependency 下 `common/country_tags` 内所有 `.txt` 文件。
 fn collect_file_infos(
     project_root: Option<&str>,
     game_root: Option<&str>,
+    dependency_roots: &[String],
 ) -> io::Result<Vec<TagFileInfo>> {
     let mut files: Vec<TagFileInfo> = Vec::new();
     add_files_under_root(project_root, TagSource::Project, &mut files)?;
     add_files_under_root(game_root, TagSource::Game, &mut files)?;
+    // 添加所有依赖项的标签文件
+    for dep_root in dependency_roots {
+        add_files_under_root(Some(dep_root.as_str()), TagSource::Dependency, &mut files)?;
+    }
 
-    // ：若两个目录均不存在，则返回空列表以免误报。
+    // ：若所有目录均不存在，则返回空列表以免误报。
     Ok(files)
 }
 
@@ -223,7 +241,8 @@ fn parse_tags(files: &[TagFileInfo]) -> io::Result<Vec<TagEntry>> {
     let mut ordered_files: Vec<&TagFileInfo> = files.iter().collect();
     ordered_files.sort_by_key(|info| match info.source {
         TagSource::Game => 0,
-        TagSource::Project => 1,
+        TagSource::Dependency => 1,
+        TagSource::Project => 2,
     });
 
     for info in ordered_files {
