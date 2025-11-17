@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { openFileDialog, openProject, initializeProject, loadSettings, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
-import { getDevToken } from '../utils/devToken'
 
 const router = useRouter()
 const statusMessage = ref('')
@@ -81,19 +80,8 @@ function handleSettings() {
 // 检查更新
 async function checkAppUpdates() {
   try {
-    // 从设置中读取配置
-    const settings = await loadSettings()
-    const useDevToken = settings.success && settings.data 
-      ? (settings.data as any).useDevToken !== false
-      : true
-    const customToken = settings.success && settings.data 
-      ? (settings.data as any).githubToken 
-      : ''
-    
-    // 根据配置选择Token
-    const githubToken = useDevToken ? getDevToken() : customToken
-    
-    const result = await checkForUpdates(CURRENT_VERSION, githubToken)
+    // 使用未认证访问
+    const result = await checkForUpdates(CURRENT_VERSION, '')
     
     if (result.hasUpdate && result.latestVersion && result.releaseUrl) {
       updateInfo.value = {
