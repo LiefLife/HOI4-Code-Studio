@@ -5,11 +5,11 @@
 
 /**
  * 获取开发者 Token
- * @returns 开发者提供的 GitHub Token
+ * @returns GitHub Token（当前使用未认证访问，返回空字符串）
  */
 export function getDevToken(): string {
-  // 从环境变量读取 Token，避免硬编码敏感信息
-  return import.meta.env.VITE_GITHUB_TOKEN || ''
+  // 使用未认证访问 GitHub API (60次/小时限制)
+  return ''
 }
 
 /**
