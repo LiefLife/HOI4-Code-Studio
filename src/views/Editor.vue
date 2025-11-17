@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile } from '../api/tauri'
+import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame } from '../api/tauri'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
@@ -75,6 +75,7 @@ const gameFileTree = ref<FileNode[]>([])
 const isLoadingGameTree = ref(false)
 const rightPanelExpanded = ref(true)
 const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
+const isLaunchingGame = ref(false)
 
 // 右键菜单状态
 const contextMenuVisible = ref(false)
@@ -432,6 +433,31 @@ function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
 }
 
+// 启动游戏
+async function handleLaunchGame() {
+  if (isLaunchingGame.value) return
+  
+  isLaunchingGame.value = true
+  
+  try {
+    const result = await launchGame()
+    
+    // 最少显示 500ms 的加载状态，让用户看到反馈
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    if (result.success) {
+      console.log('游戏启动成功:', result.message)
+    } else {
+      alert(`启动游戏失败: ${result.message}`)
+    }
+  } catch (error) {
+    logger.error('启动游戏失败:', error)
+    alert(`启动游戏失败: ${error}`)
+  } finally {
+    isLaunchingGame.value = false
+  }
+}
+
 // 跳转到错误行（已移至EditorPane）
 function jumpToError(error: {line: number, msg: string, type: string}) {
   // TODO: 实现跳转到错误行
@@ -492,8 +518,10 @@ onMounted(() => {
     <EditorToolbar
       :project-name="projectInfo?.name"
       :right-panel-expanded="rightPanelExpanded"
+      :is-launching-game="isLaunchingGame"
       @go-back="goBack"
       @toggle-right-panel="toggleRightPanel"
+      @launch-game="handleLaunchGame"
     />
 
     <!-- 主内容区域 -->

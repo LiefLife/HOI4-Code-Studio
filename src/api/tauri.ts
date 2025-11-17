@@ -445,3 +445,20 @@ export async function getBracketDepths(content: string): Promise<number[]> {
 export async function openUrl(url: string): Promise<void> {
   await tauriOpenUrl(url)
 }
+
+// ==================== 游戏启动 ====================
+
+/**
+ * 启动游戏结果
+ */
+export interface LaunchGameResult {
+  success: boolean
+  message: string
+}
+
+/**
+ * 启动游戏
+ */
+export async function launchGame(): Promise<LaunchGameResult> {
+  return await invoke('launch_game')
+}

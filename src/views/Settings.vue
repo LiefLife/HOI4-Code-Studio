@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
+import { getDevToken } from '../utils/devToken'
 
 const router = useRouter()
 
@@ -12,13 +13,21 @@ const checkForUpdatesOnStartup = ref(true)
 const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
 const configLocation = ref<'appdata' | 'portable'>('appdata')
 
+// 游戏启动设置
+const useSteamVersion = ref(true)
+const usePirateVersion = ref(false)
+
+// GitHub Token 设置
+const useDevToken = ref(true) // true: 使用开发者Token, false: 使用自定义Token
+const githubToken = ref('')
+
 // 状态
 const showStatus = ref(false)
 const statusMessage = ref('')
 const isSaving = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.1.2-dev'
+const CURRENT_VERSION = 'v0.1.3-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -46,6 +55,10 @@ async function loadUserSettings() {
     checkForUpdatesOnStartup.value = data.checkForUpdates !== false
     recentProjectsLayout.value = data.recentProjectsLayout || 'four-columns'
     configLocation.value = data.configLocation || 'appdata'
+    useSteamVersion.value = data.useSteamVersion !== false
+    usePirateVersion.value = data.usePirateVersion || false
+    useDevToken.value = data.useDevToken !== false
+    githubToken.value = data.githubToken || ''
   }
 }
 
@@ -71,7 +84,11 @@ async function handleSave() {
     gameDirectory: gameDirectory.value,
     checkForUpdates: checkForUpdatesOnStartup.value,
     recentProjectsLayout: recentProjectsLayout.value,
-    configLocation: configLocation.value
+    configLocation: configLocation.value,
+    useSteamVersion: useSteamVersion.value,
+    usePirateVersion: usePirateVersion.value,
+    useDevToken: useDevToken.value,
+    githubToken: githubToken.value
   }
   
   const result = await saveSettings(settings)
@@ -90,7 +107,9 @@ async function handleCheckUpdate() {
   githubVersion.value = '检查中...'
   
   try {
-    const result = await checkForUpdates(CURRENT_VERSION)
+    // 根据选择决定使用哪个 Token
+    const tokenToUse = useDevToken.value ? getDevToken() : githubToken.value
+    const result = await checkForUpdates(CURRENT_VERSION, tokenToUse, false)
     
     if (result.error) {
       githubVersion.value = '检查失败'
@@ -188,6 +207,46 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- 游戏启动设置 -->
+        <div class="space-y-4">
+          <h2 class="text-hoi4-text text-lg font-semibold">游戏启动设置</h2>
+          
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input
+              v-model="useSteamVersion"
+              type="radio"
+              name="gameVersion"
+              :value="true"
+              @change="usePirateVersion = false"
+              class="w-5 h-5 border-2 border-hoi4-border"
+            />
+            <span class="text-hoi4-text">使用 Steam 版本启动</span>
+          </label>
+
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input
+              v-model="usePirateVersion"
+              type="radio"
+              name="gameVersion"
+              :value="true"
+              @change="useSteamVersion = false"
+              class="w-5 h-5 border-2 border-hoi4-border"
+            />
+            <span class="text-hoi4-text">使用学习版启动</span>
+          </label>
+
+          <div v-if="usePirateVersion" class="ml-8 p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
+            <div class="flex items-start space-x-2">
+              <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <div class="text-hoi4-comment text-sm">
+                <strong class="text-hoi4-text">提示：</strong>学习版启动将使用上方设置的 HOI4 游戏目录，请确保该目录包含 dowser.exe 文件。
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 应用设置 -->
         <div class="space-y-4">
           <h2 class="text-hoi4-text text-lg font-semibold">应用设置</h2>
@@ -200,6 +259,68 @@ onMounted(async () => {
             />
             <span class="text-hoi4-text">启动时检查更新</span>
           </label>
+
+          <!-- GitHub Token 渠道选择 -->
+          <div>
+            <label class="block text-hoi4-text mb-3 text-base font-semibold">
+              更新检查渠道
+            </label>
+            
+            <div class="space-y-3">
+              <label class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
+                     :class="useDevToken ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'">
+                <input
+                  type="radio"
+                  v-model="useDevToken"
+                  :value="true"
+                  class="mt-1 w-5 h-5 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <div class="text-hoi4-text font-semibold mb-1">使用开发者 Token（推荐）</div>
+                  <div class="text-hoi4-comment text-sm">
+                    使用内置的开发者 Token，无需配置，限额 5000次/小时。
+                  </div>
+                </div>
+              </label>
+
+              <label class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
+                     :class="!useDevToken ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'">
+                <input
+                  type="radio"
+                  v-model="useDevToken"
+                  :value="false"
+                  class="mt-1 w-5 h-5 flex-shrink-0"
+                />
+                <div class="flex-1">
+                  <div class="text-hoi4-text font-semibold mb-1">使用自定义 Token</div>
+                  <div class="text-hoi4-comment text-sm">
+                    使用自己的 GitHub Token，更高的个人限额。
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- 自定义 Token 输入框 -->
+            <div v-if="!useDevToken" class="mt-3">
+              <input
+                v-model="githubToken"
+                type="password"
+                placeholder="输入您的 GitHub Personal Access Token"
+                class="input-field w-full"
+              />
+              <div class="mt-2 p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
+                <div class="flex items-start space-x-2">
+                  <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <div class="text-hoi4-comment text-sm">
+                    <strong class="text-hoi4-text">说明：</strong>Token 只需 <code class="bg-hoi4-border px-1 rounded">public_repo</code> 权限。<br/>
+                    创建 Token：<a href="https://github.com/settings/tokens" target="_blank" class="text-hoi4-accent hover:underline">GitHub Settings → Developer settings</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- 配置文件保存位置 -->
           <div>

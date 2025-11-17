@@ -79,6 +79,12 @@ pub struct FileDialogResult {
     path: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LaunchGameResult {
+    success: bool,
+    message: String,
+}
+
 // ==================== Tauri 命令 ====================
 
 /// 创建新项目
@@ -630,6 +636,145 @@ fn validate_game_directory(path: String) -> serde_json::Value {
             "valid": false,
             "message": "不是有效的 HOI4 游戏目录"
         })
+    }
+}
+
+/// 启动游戏
+#[tauri::command]
+fn launch_game() -> LaunchGameResult {
+    use std::process::Command;
+    use std::path::Path;
+
+    // 加载设置
+    let settings_result = load_settings();
+    if !settings_result.success {
+        return LaunchGameResult {
+            success: false,
+            message: "无法加载设置".to_string(),
+        };
+    }
+
+    let settings = match settings_result.data {
+        Some(data) => data,
+        None => {
+            return LaunchGameResult {
+                success: false,
+                message: "设置数据为空".to_string(),
+            };
+        }
+    };
+
+    // 获取启动选项
+    let use_steam = settings.get("useSteamVersion")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let use_pirate = settings.get("usePirateVersion")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    // Steam 版本启动
+    if use_steam {
+        let steam_url = "steam://rungameid/394360";
+        
+        #[cfg(target_os = "windows")]
+        {
+            match Command::new("cmd")
+                .args(&["/C", "start", steam_url])
+                .spawn()
+            {
+                Ok(_) => {
+                    return LaunchGameResult {
+                        success: true,
+                        message: "正在通过 Steam 启动游戏...".to_string(),
+                    };
+                }
+                Err(e) => {
+                    return LaunchGameResult {
+                        success: false,
+                        message: format!("启动 Steam 失败: {}", e),
+                    };
+                }
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            match Command::new("xdg-open")
+                .arg(steam_url)
+                .spawn()
+            {
+                Ok(_) => {
+                    return LaunchGameResult {
+                        success: true,
+                        message: "正在通过 Steam 启动游戏...".to_string(),
+                    };
+                }
+                Err(e) => {
+                    return LaunchGameResult {
+                        success: false,
+                        message: format!("启动 Steam 失败: {}", e),
+                    };
+                }
+            }
+        }
+    }
+
+    // 学习版版本启动
+    if use_pirate {
+        let game_path = settings.get("gameDirectory")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        if game_path.is_empty() {
+            return LaunchGameResult {
+                success: false,
+                message: "未设置游戏目录，请在设置中配置 HOI4 游戏目录".to_string(),
+            };
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let game_exe = Path::new(game_path).join("dowser.exe");
+
+            if !game_exe.exists() {
+                return LaunchGameResult {
+                    success: false,
+                    message: format!("找不到游戏文件: {}，请确认游戏目录包含 dowser.exe", game_exe.display()),
+                };
+            }
+
+            match Command::new(&game_exe)
+                .current_dir(game_path)
+                .spawn()
+            {
+                Ok(_) => {
+                    return LaunchGameResult {
+                        success: true,
+                        message: "正在启动游戏...".to_string(),
+                    };
+                }
+                Err(e) => {
+                    return LaunchGameResult {
+                        success: false,
+                        message: format!("启动游戏失败: {}", e),
+                    };
+                }
+            }
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            return LaunchGameResult {
+                success: false,
+                message: "学习版启动仅支持 Windows 平台".to_string(),
+            };
+        }
+    }
+
+    // 如果两个都未启用
+    LaunchGameResult {
+        success: false,
+        message: "未启用任何游戏启动方式，请在设置中配置".to_string(),
     }
 }
 
@@ -1356,6 +1501,7 @@ pub fn run() {
             load_settings,
             save_settings,
             validate_game_directory,
+            launch_game,
             parse_json,
             stringify_json,
             validate_json,

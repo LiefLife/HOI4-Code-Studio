@@ -2,6 +2,56 @@
  * 版本管理工具
  */
 
+// 缓存接口
+interface VersionCache {
+  version: string
+  url: string
+  timestamp: number
+}
+
+// 缓存时间：1小时（毫秒）
+const CACHE_DURATION = 60 * 60 * 1000
+
+// 缓存键
+const CACHE_KEY = 'hoi4_version_check_cache'
+
+// 从 localStorage 获取缓存
+function getCache(): VersionCache | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (!cached) return null
+    
+    const data: VersionCache = JSON.parse(cached)
+    const now = Date.now()
+    
+    // 检查缓存是否过期
+    if (now - data.timestamp > CACHE_DURATION) {
+      localStorage.removeItem(CACHE_KEY)
+      return null
+    }
+    
+    return data
+  } catch (error) {
+    console.error('[版本检查] 读取缓存失败:', error)
+    return null
+  }
+}
+
+// 保存到缓存
+function setCache(version: string, url: string): void {
+  try {
+    const cache: VersionCache = {
+      version,
+      url,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+    console.log('[版本检查] 缓存已更新，有效期1小时')
+  } catch (error) {
+    console.error('[版本检查] 保存缓存失败:', error)
+  }
+}
+
 /**
  * 解析版本字符串为标签格式
  * @param version 版本字符串 (例如: "v0.1.1-dev" 或 "v0.1.1")
@@ -80,34 +130,93 @@ export function compareVersions(version1: string, version2: string): boolean {
 /**
  * 从 GitHub 获取最新版本信息
  * @param currentVersion 当前版本
+ * @param githubToken 可选的 GitHub Token
+ * @param useCache 是否使用缓存，默认 true
  * @returns 如果有新版本返回版本信息，否则返回 null
  */
-export async function checkForUpdates(currentVersion: string): Promise<{
+export async function checkForUpdates(
+  currentVersion: string, 
+  githubToken?: string,
+  useCache: boolean = true
+): Promise<{
   hasUpdate: boolean
   latestVersion?: string
   releaseUrl?: string
   error?: string
 }> {
   try {
-    const response = await fetch('https://api.github.com/repos/LiefLife/HOI4-Code-Studio/releases/latest', {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json'
+    console.log('[版本检查] 开始检查更新...')
+    console.log('[版本检查] 当前版本:', currentVersion)
+    
+    // 检查缓存
+    if (useCache) {
+      const cached = getCache()
+      if (cached) {
+        console.log('[版本检查] ✅ 使用缓存数据:', cached.version)
+        const hasUpdate = compareVersions(currentVersion, cached.version)
+        return {
+          hasUpdate,
+          latestVersion: cached.version,
+          releaseUrl: cached.url
+        }
       }
+      console.log('[版本检查] 缓存未命中或已过期，发起网络请求')
+    }
+    
+    console.log('[版本检查] 请求 URL: https://api.github.com/repos/LiefLife/HOI4-Code-Studio/releases/latest')
+    console.log('[版本检查] 使用 Token:', githubToken ? '✅ 是（5000次/小时）' : '❌ 否（60次/小时）')
+    
+    const headers: HeadersInit = {
+      'Accept': 'application/vnd.github.v3+json'
+    }
+    
+    // 如果有 Token，添加认证头
+    if (githubToken && githubToken.trim()) {
+      headers['Authorization'] = `token ${githubToken.trim()}`
+    }
+    
+    const response = await fetch('https://api.github.com/repos/LiefLife/HOI4-Code-Studio/releases/latest', {
+      headers
     })
     
+    console.log('[版本检查] HTTP 状态码:', response.status)
+    console.log('[版本检查] 响应状态:', response.statusText)
+    console.log('[版本检查] 响应头:', Object.fromEntries(response.headers.entries()))
+    
     if (!response.ok) {
-      throw new Error(`GitHub API 请求失败: ${response.status}`)
+      // 尝试获取错误响应内容
+      let errorDetail = ''
+      try {
+        const errorData = await response.json()
+        errorDetail = JSON.stringify(errorData, null, 2)
+        console.error('[版本检查] 错误响应内容:', errorDetail)
+      } catch (e) {
+        const errorText = await response.text()
+        errorDetail = errorText
+        console.error('[版本检查] 错误响应文本:', errorText)
+      }
+      
+      throw new Error(`GitHub API 请求失败: ${response.status} ${response.statusText}\n详情: ${errorDetail}`)
     }
     
     const data = await response.json()
+    console.log('[版本检查] 成功获取版本信息:', data)
+    
     const tagName = data.tag_name // 例如: "v0_2_0" 或 "Dev_0_1_1"
     const releaseUrl = data.html_url
     
     // 将标签格式转换为版本格式
     const latestVersion = parseTagToVersion(tagName)
+    console.log('[版本检查] 最新版本:', latestVersion)
+    
+    // 保存到缓存
+    if (useCache) {
+      setCache(latestVersion, releaseUrl)
+    }
     
     // 比较版本
     const hasUpdate = compareVersions(currentVersion, latestVersion)
+    console.log('[版本检查] 是否有更新:', hasUpdate)
     
     return {
       hasUpdate,
@@ -115,7 +224,11 @@ export async function checkForUpdates(currentVersion: string): Promise<{
       releaseUrl
     }
   } catch (error) {
-    console.error('检查更新失败:', error)
+    console.error('[版本检查] ❌ 检查更新失败:')
+    console.error('[版本检查] 错误类型:', error?.constructor?.name)
+    console.error('[版本检查] 错误消息:', error instanceof Error ? error.message : String(error))
+    console.error('[版本检查] 完整错误:', error)
+    
     return {
       hasUpdate: false,
       error: error instanceof Error ? error.message : '未知错误'

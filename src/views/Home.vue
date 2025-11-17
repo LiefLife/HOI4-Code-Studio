@@ -3,13 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { openFileDialog, openProject, initializeProject, loadSettings, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
+import { getDevToken } from '../utils/devToken'
 
 const router = useRouter()
 const statusMessage = ref('')
 const showStatus = ref(false)
 
 // 当前版本
-const CURRENT_VERSION = 'v0.1.2-dev'
+const CURRENT_VERSION = 'v0.1.3-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
@@ -80,7 +81,19 @@ function handleSettings() {
 // 检查更新
 async function checkAppUpdates() {
   try {
-    const result = await checkForUpdates(CURRENT_VERSION)
+    // 从设置中读取配置
+    const settings = await loadSettings()
+    const useDevToken = settings.success && settings.data 
+      ? (settings.data as any).useDevToken !== false
+      : true
+    const customToken = settings.success && settings.data 
+      ? (settings.data as any).githubToken 
+      : ''
+    
+    // 根据配置选择Token
+    const githubToken = useDevToken ? getDevToken() : customToken
+    
+    const result = await checkForUpdates(CURRENT_VERSION, githubToken)
     
     if (result.hasUpdate && result.latestVersion && result.releaseUrl) {
       updateInfo.value = {
@@ -140,7 +153,7 @@ onMounted(async () => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.1.2-dev
+        v0.1.3-dev
       </div>
     </div>
 
