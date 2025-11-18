@@ -22,6 +22,7 @@ export interface OpenFile {
   hasUnsavedChanges: boolean
   cursorLine: number
   cursorColumn: number
+  isImage?: boolean  // 是否为图片文件
 }
 
 /**

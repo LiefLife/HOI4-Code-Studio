@@ -43,6 +43,40 @@ const currentFile = computed(() => {
   return null
 })
 
+// 当前文件是否为图片
+const isCurrentFileImage = computed(() => {
+  return currentFile.value?.isImage === true
+})
+
+// 图片 URL (使用 base64 数据)
+const imageUrl = computed(() => {
+  if (isCurrentFileImage.value && currentFile.value && currentFile.value.content) {
+    // content 存储的是 base64 字符串，需要添加 data URI 前缀
+    const ext = currentFile.value.node.name.split('.').pop()?.toLowerCase() || ''
+    let mimeType = 'image/png'
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        mimeType = 'image/jpeg'
+        break
+      case 'gif':
+        mimeType = 'image/gif'
+        break
+      case 'bmp':
+        mimeType = 'image/bmp'
+        break
+      case 'webp':
+        mimeType = 'image/webp'
+        break
+      case 'tga':
+        mimeType = 'image/x-tga'
+        break
+    }
+    return `data:${mimeType};base64,${currentFile.value.content}`
+  }
+  return ''
+})
+
 // 监听活动文件变化
 watch(currentFile, (file) => {
   if (file) {
@@ -187,9 +221,38 @@ function handleSplitPane() {
       </div>
     </div>
 
-    <!-- 编辑器 -->
+    <!-- 编辑器 / 图片预览 -->
     <div v-if="currentFile" class="flex-1 overflow-hidden relative">
+      <!-- 图片预览 -->
+      <div v-if="isCurrentFileImage" class="w-full h-full overflow-auto bg-hoi4-gray/50 flex items-center justify-center p-4">
+        <div class="max-w-full max-h-full flex flex-col items-center gap-4">
+          <div class="bg-hoi4-border/20 p-4 rounded-lg">
+            <img 
+              :src="imageUrl" 
+              :alt="currentFile.node.name"
+              class="max-w-full max-h-[calc(100vh-300px)] object-contain rounded shadow-lg"
+              @error="(e) => { (e.target as HTMLImageElement).src = '' }"
+            />
+          </div>
+          <div class="bg-hoi4-border/20 p-3 rounded-lg">
+            <div class="text-hoi4-text text-sm space-y-1">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-hoi4-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <span class="font-semibold">{{ currentFile.node.name }}</span>
+              </div>
+              <div class="text-hoi4-comment text-xs font-mono">
+                {{ currentFile.node.path }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 代码编辑器 -->
       <CodeMirrorEditor
+        v-else
         ref="editorRef"
         :content="fileContent"
         :is-read-only="isReadOnly"

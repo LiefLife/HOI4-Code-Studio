@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame } from '../api/tauri'
 import Prism from 'prismjs'
@@ -17,6 +17,7 @@ import FileTreeNode from '../components/FileTreeNode.vue'
 import LeftPanelTabs from '../components/editor/LeftPanelTabs.vue'
 import DependencyManager from '../components/editor/DependencyManager.vue'
 import LoadingMonitor from '../components/editor/LoadingMonitor.vue'
+import PackageDialog from '../components/editor/PackageDialog.vue'
 
 // Composables 导入
 import { type FileNode } from '../composables/useFileManager'
@@ -122,6 +123,12 @@ const {
 
 const searchPanelVisible = ref(false)
 const loadingMonitorVisible = ref(false)
+const packageDialogVisible = ref(false)
+const packageDialogRef = ref<InstanceType<typeof PackageDialog> | null>(null)
+
+// 目录树自动刷新
+const fileTreeAutoRefreshInterval = ref<number | null>(null)
+const fileTreeAutoRefreshEnabled = ref(true)
 
 const { isLoading: tagLoading, refresh: refreshTags, tags: tagList } = useTagRegistry()
 const { isLoading: ideaLoading, refresh: refreshIdeas, ideas: ideaList } = useIdeaRegistry()
@@ -262,19 +269,55 @@ async function loadProjectInfo() {
   }
 }
 
+// 收集展开的文件夹路径
+function collectExpandedPaths(nodes: FileNode[]): Set<string> {
+  const expandedPaths = new Set<string>()
+  
+  function traverse(node: FileNode) {
+    if (node.isDirectory && node.expanded) {
+      expandedPaths.add(node.path)
+      if (node.children) {
+        node.children.forEach(traverse)
+      }
+    }
+  }
+  
+  nodes.forEach(traverse)
+  return expandedPaths
+}
+
+// 恢复展开状态
+function restoreExpandedState(nodes: FileNode[], expandedPaths: Set<string>): void {
+  function traverse(node: FileNode) {
+    if (node.isDirectory && expandedPaths.has(node.path)) {
+      node.expanded = true
+      if (node.children) {
+        node.children.forEach(traverse)
+      }
+    }
+  }
+  
+  nodes.forEach(traverse)
+}
+
 // 加载文件树
 async function loadFileTree() {
   if (!projectPath.value) return
+  
+  // 保存当前展开状态
+  const expandedPaths = collectExpandedPaths(fileTree.value)
+  
   try {
     const result = await buildDirectoryTreeFast(projectPath.value, 3)
     if (result.success && result.tree) {
       fileTree.value = result.tree.map(convertRustFileNode)
+      // 恢复展开状态
+      restoreExpandedState(fileTree.value, expandedPaths)
     }
+    // 只设置根目录，不自动刷新 Tag/Idea（避免 2 秒刷新影响 30 秒定时器）
     const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
     setTagRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
-    await refreshTags()
     setIdeaRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
-    await refreshIdeas()
   } catch (error) {
     logger.error('加载文件树失败:', error)
   } finally {
@@ -355,6 +398,12 @@ async function toggleGameFolder(node: FileNode) {
   }
 }
 
+// 检查是否为图片文件
+function isImageFile(filePath: string): boolean {
+  const ext = filePath.split('.').pop()?.toLowerCase()
+  return ['png', 'jpg', 'jpeg', 'tga', 'bmp', 'gif', 'webp'].includes(ext || '')
+}
+
 // 打开文件处理
 async function handleOpenFile(node: FileNode, paneId?: string) {
   if (node.isDirectory) return
@@ -373,7 +422,36 @@ async function handleOpenFile(node: FileNode, paneId?: string) {
     return
   }
   
-  // 读取文件内容
+  // 检查是否为图片文件
+  const isImage = isImageFile(node.path)
+  
+  // 如果是图片，读取为 base64
+  if (isImage) {
+    try {
+      // 使用自定义命令读取图片文件为 base64
+      const { readImageAsBase64 } = await import('../api/tauri')
+      const result = await readImageAsBase64(node.path)
+      if (result.success && result.base64) {
+        pane.openFiles.push({
+          node,
+          content: result.base64, // 存储 base64 数据
+          hasUnsavedChanges: false,
+          cursorLine: 1,
+          cursorColumn: 1,
+          isImage: true
+        })
+        pane.activeFileIndex = pane.openFiles.length - 1
+      } else {
+        alert(`打开图片失败: ${result.message || '无法读取图片'}`)
+      }
+    } catch (error) {
+      logger.error('打开图片失败:', error)
+      alert(`打开图片失败: ${error}`)
+    }
+    return
+  }
+  
+  // 读取文本文件内容
   try {
     const result = await readFileContent(node.path)
     if (result.success) {
@@ -382,7 +460,8 @@ async function handleOpenFile(node: FileNode, paneId?: string) {
         content: result.content,
         hasUnsavedChanges: false,
         cursorLine: 1,
-        cursorColumn: 1
+        cursorColumn: 1,
+        isImage: false
       })
       pane.activeFileIndex = pane.openFiles.length - 1
     } else {
@@ -393,18 +472,6 @@ async function handleOpenFile(node: FileNode, paneId?: string) {
     alert(`打开文件失败: ${error}`)
   }
 }
-
-// 切换文件（已移至EditorGroup）
-
-// 关闭文件（已移至EditorGroup）
-
-// 保存文件（已移至EditorGroup）
-
-// 内容变化（已移至EditorPane）
-
-// 光标位置变化（已移至EditorPane）
-// 撤销/重做（已移至EditorPane）
-// 滚动同步（已移至EditorPane）
 
 // 右键菜单
 function showFileTabContextMenu(event: MouseEvent, paneId: string, index: number) {
@@ -522,6 +589,40 @@ function toggleLoadingMonitor() {
   loadingMonitorVisible.value = !loadingMonitorVisible.value
 }
 
+// 打开打包对话框
+function openPackageDialog() {
+  packageDialogVisible.value = true
+}
+
+// 处理打包
+async function handlePackageProject(fileName: string) {
+  if (!projectPath.value || !packageDialogRef.value) return
+  
+  // 开始打包
+  packageDialogRef.value.startPacking()
+  
+  try {
+    // 导入 API
+    const { packProject } = await import('../api/tauri')
+    
+    // 执行打包
+    const result = await packProject({
+      projectPath: projectPath.value,
+      outputName: fileName,
+      excludeDependencies: true
+    })
+    
+    // 显示结果
+    packageDialogRef.value.finishPacking(result)
+  } catch (error) {
+    logger.error('打包失败:', error)
+    packageDialogRef.value.finishPacking({
+      success: false,
+      message: `打包失败: ${error}`
+    })
+  }
+}
+
 // 切换右侧面板
 function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
@@ -592,6 +693,26 @@ useKeyboardShortcuts({
   }
 })
 
+// 开始目录树自动刷新
+function startFileTreeAutoRefresh() {
+  stopFileTreeAutoRefresh() // 先清除现有的定时器
+  if (fileTreeAutoRefreshEnabled.value) {
+    fileTreeAutoRefreshInterval.value = window.setInterval(() => {
+      if (projectPath.value) {
+        loadFileTree()
+      }
+    }, 2000) // 2秒刷新一次
+  }
+}
+
+// 停止目录树自动刷新
+function stopFileTreeAutoRefresh() {
+  if (fileTreeAutoRefreshInterval.value !== null) {
+    clearInterval(fileTreeAutoRefreshInterval.value)
+    fileTreeAutoRefreshInterval.value = null
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   projectPath.value = route.query.path as string || ''
@@ -602,10 +723,21 @@ onMounted(async () => {
     loadGameDirectory()
     // 加载依赖项列表
     await loadDependenciesList()
+    // 首次加载 Tags 和 Ideas
+    await refreshTags()
+    await refreshIdeas()
+    // 启动目录树自动刷新
+    startFileTreeAutoRefresh()
   } else {
     loading.value = false
   }
   document.addEventListener('click', hideContextMenu)
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  stopFileTreeAutoRefresh()
+  document.removeEventListener('click', hideContextMenu)
 })
 </script>
 
@@ -623,6 +755,7 @@ onMounted(async () => {
       @launch-game="handleLaunchGame"
       @manage-dependencies="openDependenciesFromToolbar"
       @toggle-loading-monitor="toggleLoadingMonitor"
+      @package-project="openPackageDialog"
     />
 
     <!-- 主内容区域 -->
@@ -780,6 +913,15 @@ onMounted(async () => {
       @close="loadingMonitorVisible = false"
       @refresh-tags="handleRefreshTags"
       @refresh-ideas="handleRefreshIdeas"
+    />
+
+    <!-- 打包对话框 -->
+    <PackageDialog
+      ref="packageDialogRef"
+      :visible="packageDialogVisible"
+      :project-name="projectInfo?.name"
+      @close="packageDialogVisible = false"
+      @confirm="handlePackageProject"
     />
   </div>
 </template>

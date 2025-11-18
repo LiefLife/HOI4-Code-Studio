@@ -84,6 +84,22 @@ pub struct LaunchGameResult {
     message: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PackageResult {
+    success: bool,
+    message: String,
+    output_path: Option<String>,
+    file_size: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageReadResult {
+    success: bool,
+    message: Option<String>,
+    base64: Option<String>,
+    mime_type: Option<String>,
+}
+
 // ==================== Tauri 命令 ====================
 
 /// 创建新项目
@@ -1445,7 +1461,7 @@ fn build_directory_tree(path: String, max_depth: usize) -> FileTreeResult {
 /// * `max_depth` - 最大递归深度
 #[tauri::command]
 fn build_directory_tree_fast(path: String, max_depth: usize) -> FileTreeResult {
-    println!("快速构建文件树（多线程）: {}, 最大深度: {}", path, max_depth);
+    // println!("快速构建文件树（多线程）: {}, 最大深度: {}", path, max_depth);
     build_file_tree_parallel(&path, max_depth)
 }
 
@@ -1477,6 +1493,289 @@ fn find_bracket_pair(content: String, cursor_pos: usize) -> Option<usize> {
 #[tauri::command]
 fn get_bracket_depths(content: String) -> Vec<usize> {
     get_bracket_depth_map(&content)
+}
+
+// ==================== 项目打包命令 ====================
+
+/// 打包项目到 ZIP 文件
+/// 
+/// # 参数
+/// * `project_path` - 项目路径
+/// * `output_name` - 输出文件名（如 project.zip）
+/// * `exclude_dependencies` - 是否排除依赖项
+#[tauri::command]
+fn pack_project(
+    project_path: String,
+    output_name: String,
+    exclude_dependencies: bool,
+) -> PackageResult {
+    use std::fs::{self, File};
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use walkdir::WalkDir;
+    use zip::write::SimpleFileOptions;
+    use zip::ZipWriter;
+
+    println!("开始打包项目: {}", project_path);
+    println!("输出文件名: {}", output_name);
+
+    let project_path_obj = Path::new(&project_path);
+    if !project_path_obj.exists() {
+        return PackageResult {
+            success: false,
+            message: "项目路径不存在".to_string(),
+            output_path: None,
+            file_size: None,
+        };
+    }
+
+    // 创建 package 目录
+    let package_dir = project_path_obj.join("package");
+    if let Err(e) = fs::create_dir_all(&package_dir) {
+        return PackageResult {
+            success: false,
+            message: format!("创建 package 目录失败: {}", e),
+            output_path: None,
+            file_size: None,
+        };
+    }
+
+    // 输出文件路径
+    let output_path = package_dir.join(&output_name);
+    
+    // 如果文件已存在，尝试删除
+    if output_path.exists() {
+        if let Err(e) = fs::remove_file(&output_path) {
+            return PackageResult {
+                success: false,
+                message: format!("无法覆盖已存在的文件: {}", e),
+                output_path: None,
+                file_size: None,
+            };
+        }
+    }
+
+    // 创建 ZIP 文件
+    let file = match File::create(&output_path) {
+        Ok(f) => f,
+        Err(e) => {
+            return PackageResult {
+                success: false,
+                message: format!("创建 ZIP 文件失败: {}", e),
+                output_path: None,
+                file_size: None,
+            };
+        }
+    };
+
+    let mut zip = ZipWriter::new(file);
+    let options = SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(6));
+
+    // 定义要排除的目录和文件
+    let exclude_dirs = vec![
+        "node_modules",
+        "target",
+        ".git",
+        ".idea",
+        ".vscode",
+        ".windsurf",
+        "package",
+    ];
+
+    // 读取 dependencies.json 获取依赖项路径（如果需要排除）
+    let dependency_paths: Vec<PathBuf> = if exclude_dependencies {
+        let deps_file = project_path_obj.join("dependencies.json");
+        if deps_file.exists() {
+            match fs::read_to_string(&deps_file) {
+                Ok(content) => {
+                    if let Ok(deps) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(arr) = deps.as_array() {
+                            arr.iter()
+                                .filter_map(|dep| {
+                                    dep.get("path")
+                                        .and_then(|p| p.as_str())
+                                        .map(|s| PathBuf::from(s))
+                                })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                }
+                Err(_) => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
+    // 遍历项目文件夹
+    let mut file_count = 0;
+    for entry in WalkDir::new(project_path_obj)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            let path = e.path();
+            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            
+            // 排除指定目录
+            if e.file_type().is_dir() && exclude_dirs.contains(&file_name) {
+                return false;
+            }
+
+            // 排除依赖项路径（如果依赖项在项目内部）
+            for dep_path in &dependency_paths {
+                if path.starts_with(dep_path) {
+                    return false;
+                }
+            }
+
+            true
+        })
+    {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        let path = entry.path();
+        
+        // 跳过项目根目录本身
+        if path == project_path_obj {
+            continue;
+        }
+
+        // 跳过目录，只打包文件
+        if !path.is_file() {
+            continue;
+        }
+
+        // 计算相对路径
+        let relative_path = match path.strip_prefix(project_path_obj) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+
+        // 转换为字符串路径（使用 / 作为分隔符）
+        let zip_path = relative_path
+            .to_str()
+            .unwrap_or("")
+            .replace("\\", "/");
+
+        // 读取文件内容
+        let file_content = match fs::read(path) {
+            Ok(content) => content,
+            Err(e) => {
+                println!("警告: 无法读取文件 {}: {}", path.display(), e);
+                continue;
+            }
+        };
+
+        // 添加到 ZIP
+        if let Err(e) = zip.start_file(&zip_path, options) {
+            println!("警告: 无法添加文件到 ZIP {}: {}", zip_path, e);
+            continue;
+        }
+
+        if let Err(e) = zip.write_all(&file_content) {
+            println!("警告: 无法写入文件内容 {}: {}", zip_path, e);
+            continue;
+        }
+
+        file_count += 1;
+    }
+
+    // 完成 ZIP 文件
+    if let Err(e) = zip.finish() {
+        return PackageResult {
+            success: false,
+            message: format!("完成 ZIP 文件失败: {}", e),
+            output_path: None,
+            file_size: None,
+        };
+    }
+
+    // 获取文件大小
+    let file_size = fs::metadata(&output_path)
+        .ok()
+        .map(|m| m.len());
+
+    println!("打包完成: {} 个文件", file_count);
+
+    PackageResult {
+        success: true,
+        message: format!("打包成功！已打包 {} 个文件", file_count),
+        output_path: Some(output_path.to_string_lossy().to_string()),
+        file_size,
+    }
+}
+
+// ==================== 图片读取命令 ====================
+
+/// 读取图片文件为 base64
+/// 
+/// # 参数
+/// * `file_path` - 图片文件路径
+#[tauri::command]
+fn read_image_as_base64(file_path: String) -> ImageReadResult {
+    use std::fs;
+    
+    println!("读取图片为 base64: {}", file_path);
+    
+    // 检查文件是否存在
+    if !std::path::Path::new(&file_path).exists() {
+        return ImageReadResult {
+            success: false,
+            message: Some("文件不存在".to_string()),
+            base64: None,
+            mime_type: None,
+        };
+    }
+    
+    // 读取文件
+    match fs::read(&file_path) {
+        Ok(bytes) => {
+            // 转换为 base64
+            use base64::{Engine as _, engine::general_purpose};
+            let base64_string = general_purpose::STANDARD.encode(&bytes);
+            
+            // 获取 MIME 类型
+            let ext = std::path::Path::new(&file_path)
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            
+            let mime_type = match ext.as_str() {
+                "png" => "image/png",
+                "jpg" | "jpeg" => "image/jpeg",
+                "gif" => "image/gif",
+                "bmp" => "image/bmp",
+                "webp" => "image/webp",
+                "tga" => "image/x-tga",
+                _ => "application/octet-stream",
+            };
+            
+            ImageReadResult {
+                success: true,
+                message: None,
+                base64: Some(base64_string),
+                mime_type: Some(mime_type.to_string()),
+            }
+        }
+        Err(e) => ImageReadResult {
+            success: false,
+            message: Some(format!("读取文件失败: {}", e)),
+            base64: None,
+            mime_type: None,
+        },
+    }
 }
 
 // ==================== 应用入口 ====================
@@ -1524,7 +1823,9 @@ pub fn run() {
             dependency::load_dependencies,
             dependency::save_dependencies,
             dependency::validate_dependency_path,
-            dependency::index_dependency
+            dependency::index_dependency,
+            pack_project,
+            read_image_as_base64
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

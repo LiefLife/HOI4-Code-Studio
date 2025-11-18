@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { TagEntry, IdeaEntry } from '../../api/tauri'
 
 const props = defineProps<{
@@ -21,6 +21,12 @@ const activeTab = ref<'tags' | 'ideas'>('tags')
 
 // 搜索查询
 const searchQuery = ref('')
+
+// 自动刷新相关
+const autoRefreshEnabled = ref(true)
+const refreshInterval = ref<number | null>(null)
+const nextRefreshIn = ref(30) // 倒计时（秒）
+const countdownInterval = ref<number | null>(null)
 
 // 过滤后的 Tag 列表
 const filteredTags = computed(() => {
@@ -67,7 +73,86 @@ function handleRefresh() {
   } else {
     emit('refreshIdeas')
   }
+  // 重置倒计时
+  resetCountdown()
 }
+
+// 刷新所有数据（Tags 和 Ideas）
+function refreshAll() {
+  emit('refreshTags')
+  emit('refreshIdeas')
+  resetCountdown()
+}
+
+// 重置倒计时
+function resetCountdown() {
+  nextRefreshIn.value = 30
+}
+
+// 切换自动刷新
+function toggleAutoRefresh() {
+  autoRefreshEnabled.value = !autoRefreshEnabled.value
+  if (autoRefreshEnabled.value) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
+
+// 开始自动刷新
+function startAutoRefresh() {
+  stopAutoRefresh() // 先清除现有的定时器
+  
+  // 30秒自动刷新定时器
+  refreshInterval.value = window.setInterval(() => {
+    if (autoRefreshEnabled.value && props.visible) {
+      refreshAll()
+    }
+  }, 30000) // 30秒
+  
+  // 倒计时定时器（每秒更新）
+  countdownInterval.value = window.setInterval(() => {
+    if (autoRefreshEnabled.value && props.visible) {
+      nextRefreshIn.value -= 1
+      if (nextRefreshIn.value <= 0) {
+        nextRefreshIn.value = 30
+      }
+    }
+  }, 1000)
+}
+
+// 停止自动刷新
+function stopAutoRefresh() {
+  if (refreshInterval.value !== null) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+  if (countdownInterval.value !== null) {
+    clearInterval(countdownInterval.value)
+    countdownInterval.value = null
+  }
+}
+
+// 监听可见性变化
+watch(() => props.visible, (newVal) => {
+  if (newVal && autoRefreshEnabled.value) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+})
+
+// 组件挂载时启动自动刷新
+onMounted(() => {
+  if (autoRefreshEnabled.value && props.visible) {
+    startAutoRefresh()
+  }
+})
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  stopAutoRefresh()
+})
 </script>
 
 <template>
@@ -225,7 +310,34 @@ function handleRefresh() {
       </div>
 
       <!-- 底部操作栏 -->
-      <div class="pt-4 border-t border-hoi4-border">
+      <div class="pt-4 border-t border-hoi4-border space-y-3">
+        <!-- 自动刷新设置 -->
+        <div class="flex items-center justify-between p-3 bg-hoi4-border/20 rounded-lg">
+          <div class="flex items-center gap-3">
+            <button
+              @click="toggleAutoRefresh"
+              class="w-12 h-6 rounded-full transition-colors relative"
+              :class="autoRefreshEnabled ? 'bg-hoi4-accent' : 'bg-hoi4-border'"
+              :title="autoRefreshEnabled ? '点击禁用自动刷新' : '点击启用自动刷新'"
+            >
+              <span
+                class="block w-4 h-4 rounded-full bg-hoi4-text absolute top-1 transition-transform"
+                :class="autoRefreshEnabled ? 'translate-x-7' : 'translate-x-1'"
+              ></span>
+            </button>
+            <div>
+              <p class="text-hoi4-text text-sm font-semibold">自动刷新</p>
+              <p class="text-hoi4-comment text-xs">
+                {{ autoRefreshEnabled ? `下次刷新: ${nextRefreshIn}秒` : '已禁用' }}
+              </p>
+            </div>
+          </div>
+          <div class="text-hoi4-comment text-xs">
+            每30秒
+          </div>
+        </div>
+
+        <!-- 统计和刷新按钮 -->
         <div class="flex items-center justify-between">
           <div class="text-hoi4-text-dim text-sm">
             <span v-if="activeTab === 'tags'">
@@ -241,10 +353,16 @@ function handleRefresh() {
             :disabled="(activeTab === 'tags' && isLoadingTags) || (activeTab === 'ideas' && isLoadingIdeas)"
           >
             <div class="flex items-center gap-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg 
+                class="w-4 h-4" 
+                :class="{'animate-spin': (activeTab === 'tags' && isLoadingTags) || (activeTab === 'ideas' && isLoadingIdeas)}"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
               </svg>
-              <span>刷新</span>
+              <span>手动刷新</span>
             </div>
           </button>
         </div>

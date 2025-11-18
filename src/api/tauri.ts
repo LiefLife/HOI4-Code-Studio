@@ -551,3 +551,54 @@ export async function validateDependencyPath(path: string): Promise<DependencyVa
 export async function indexDependency(dependencyPath: string): Promise<DependencyIndexResult> {
   return await invoke('index_dependency', { dependencyPath })
 }
+
+// ==================== 项目打包 ====================
+
+/**
+ * 打包选项
+ */
+export interface PackageOptions {
+  projectPath: string
+  outputName: string
+  excludeDependencies: boolean
+}
+
+/**
+ * 打包结果
+ */
+export interface PackageResult {
+  success: boolean
+  message: string
+  outputPath?: string
+  fileSize?: number
+}
+
+/**
+ * 打包项目
+ */
+export async function packProject(options: PackageOptions): Promise<PackageResult> {
+  return await invoke('pack_project', {
+    projectPath: options.projectPath,
+    outputName: options.outputName,
+    excludeDependencies: options.excludeDependencies
+  })
+}
+
+// ==================== 图片读取 ====================
+
+/**
+ * 图片读取结果
+ */
+export interface ImageReadResult {
+  success: boolean
+  message?: string
+  base64?: string
+  mimeType?: string
+}
+
+/**
+ * 读取图片文件为 base64
+ */
+export async function readImageAsBase64(filePath: string): Promise<ImageReadResult> {
+  return await invoke('read_image_as_base64', { filePath })
+}

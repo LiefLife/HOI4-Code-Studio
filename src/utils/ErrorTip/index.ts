@@ -35,16 +35,30 @@ const RULES: Rule[] = [
 ]
 
 /**
+ * 移除每行 # 后的注释内容
+ */
+function stripComments(line: string): string {
+  const commentIndex = line.indexOf('#')
+  if (commentIndex === -1) {
+    return line
+  }
+  return line.substring(0, commentIndex)
+}
+
+/**
  * 聚合执行所有规则
  */
 function runAll(content: string, ctx?: RuleContext): { errors: ErrorItem[]; ranges: RangeItem[] } {
   const lines = content.split('\n')
+  // 移除每行的注释部分，但保留原始行结构用于行号映射
+  const strippedLines = lines.map(stripComments)
   const lineStarts = computeLineStarts(lines)
   const errors: ErrorItem[] = []
   const ranges: RangeItem[] = []
 
   for (const rule of RULES) {
-    const res: RuleResult = rule.apply(content, lines, lineStarts, ctx)
+    // 传递去除注释后的行，但使用原始行的偏移量
+    const res: RuleResult = rule.apply(content, strippedLines, lineStarts, ctx)
     errors.push(...res.errors)
     ranges.push(...res.ranges)
   }
