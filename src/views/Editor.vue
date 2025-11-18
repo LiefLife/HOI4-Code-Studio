@@ -16,6 +16,7 @@ import CreateDialog from '../components/editor/CreateDialog.vue'
 import FileTreeNode from '../components/FileTreeNode.vue'
 import LeftPanelTabs from '../components/editor/LeftPanelTabs.vue'
 import DependencyManager from '../components/editor/DependencyManager.vue'
+import LoadingMonitor from '../components/editor/LoadingMonitor.vue'
 
 // Composables 导入
 import { type FileNode } from '../composables/useFileManager'
@@ -120,13 +121,10 @@ const {
 } = useSearch()
 
 const searchPanelVisible = ref(false)
+const loadingMonitorVisible = ref(false)
 
-// 标签状态
-const { isLoading: tagLoading, statusMessage: tagStatus, refresh: refreshTags } = useTagRegistry()
-
-// idea状态
-const { isLoading: ideaLoading, statusMessage: ideaStatus, refresh: refreshIdeas } = useIdeaRegistry()
-
+const { isLoading: tagLoading, refresh: refreshTags, tags: tagList } = useTagRegistry()
+const { isLoading: ideaLoading, refresh: refreshIdeas, ideas: ideaList } = useIdeaRegistry()
 // 依赖项管理
 const dependencyManager = useDependencyManager(projectPath.value)
 const {
@@ -519,6 +517,11 @@ function openDependenciesFromToolbar() {
   dependencyManagerVisible.value = true
 }
 
+// 切换加载监控面板
+function toggleLoadingMonitor() {
+  loadingMonitorVisible.value = !loadingMonitorVisible.value
+}
+
 // 切换右侧面板
 function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
@@ -613,10 +616,13 @@ onMounted(async () => {
       :project-name="projectInfo?.name"
       :right-panel-expanded="rightPanelExpanded"
       :is-launching-game="isLaunchingGame"
+      :tag-count="tagList.length"
+      :idea-count="ideaList.length"
       @go-back="goBack"
       @toggle-right-panel="toggleRightPanel"
       @launch-game="handleLaunchGame"
       @manage-dependencies="openDependenciesFromToolbar"
+      @toggle-loading-monitor="toggleLoadingMonitor"
     />
 
     <!-- 主内容区域 -->
@@ -641,32 +647,6 @@ onMounted(async () => {
           <h3 class="text-hoi4-text font-bold mb-2 text-sm">
             {{ leftPanelActiveTab === 'project' ? '项目文件' : '依赖项文件' }}
           </h3>
-          <div
-            v-if="tagLoading || tagStatus"
-            class="text-hoi4-text-dim text-xs mb-2 px-2 py-1 bg-hoi4-border/30 rounded flex items-center justify-between"
-          >
-            <span>{{ tagLoading ? '国家标签加载中...' : tagStatus }}</span>
-          <button
-            class="ml-2 px-2 py-0.5 bg-hoi4-accent text-hoi4-text text-xs rounded hover:bg-hoi4-border transition-colors"
-            @click="handleRefreshTags"
-            :disabled="tagLoading"
-          >
-            刷新
-          </button>
-        </div>
-        <div
-          v-if="ideaLoading || ideaStatus"
-          class="text-hoi4-text-dim text-xs mb-2 px-2 py-1 bg-hoi4-border/30 rounded flex items-center justify-between"
-        >
-          <span>{{ ideaLoading ? 'idea数据加载中...' : ideaStatus }}</span>
-          <button
-            class="ml-2 px-2 py-0.5 bg-hoi4-accent text-hoi4-text text-xs rounded hover:bg-hoi4-border transition-colors"
-            @click="handleRefreshIdeas"
-            :disabled="ideaLoading"
-          >
-            刷新
-          </button>
-        </div>
           <!-- 项目文件树 -->
           <template v-if="leftPanelActiveTab === 'project'">
             <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
@@ -788,6 +768,18 @@ onMounted(async () => {
       @add="handleAddDependency"
       @remove="handleRemoveDependency"
       @toggle="handleToggleDependency"
+    />
+
+    <!-- 加载监控面板 -->
+    <LoadingMonitor
+      :visible="loadingMonitorVisible"
+      :tags="tagList"
+      :ideas="ideaList"
+      :is-loading-tags="tagLoading"
+      :is-loading-ideas="ideaLoading"
+      @close="loadingMonitorVisible = false"
+      @refresh-tags="handleRefreshTags"
+      @refresh-ideas="handleRefreshIdeas"
     />
   </div>
 </template>

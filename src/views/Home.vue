@@ -134,6 +134,14 @@ onMounted(async () => {
   <div class="h-full w-full flex flex-col items-center justify-center p-[2vh] bg-onedark-bg">
     <!-- 标题区域 -->
     <div class="text-center mb-[3vh]">
+      <!-- 应用图标 -->
+      <div class="flex justify-center mb-[2vh]">
+        <img 
+          src="/HOICS.png" 
+          alt="HOI4 Code Studio" 
+          class="w-[clamp(4rem,10vw,8rem)] h-[clamp(4rem,10vw,8rem)] drop-shadow-lg"
+        />
+      </div>
       <h1 class="font-bold text-onedark-fg text-shadow mb-[1vh]" style="font-size: clamp(1.5rem, 4vw, 3rem);">
         Hearts of Iron IV
       </h1>

@@ -1,8 +1,12 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   projectName?: string
   rightPanelExpanded: boolean
   isLaunchingGame?: boolean
+  tagCount?: number
+  ideaCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -10,7 +14,13 @@ const emit = defineEmits<{
   toggleRightPanel: []
   launchGame: []
   manageDependencies: []
+  toggleLoadingMonitor: []
 }>()
+
+// 计算总加载数量
+const totalLoadedCount = computed(() => {
+  return (props.tagCount || 0) + (props.ideaCount || 0)
+})
 </script>
 
 <template>
@@ -25,10 +35,33 @@ const emit = defineEmits<{
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
         </svg>
       </button>
+      <!-- 应用图标 -->
+      <img 
+        src="/HOICS.png" 
+        alt="HOI4 Code Studio" 
+        class="w-8 h-8 drop-shadow-sm"
+      />
       <h1 class="text-hoi4-text font-bold text-lg">{{ projectName || '项目编辑器' }}</h1>
     </div>
     
     <div class="flex items-center space-x-2">
+      <!-- 加载监控按钮 -->
+      <button
+        @click="emit('toggleLoadingMonitor')"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm relative"
+        :title="`已加载 ${tagCount || 0} 个Tag, ${ideaCount || 0} 个Idea`"
+      >
+        <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        <!-- 数字徽章 -->
+        <span 
+          v-if="totalLoadedCount > 0"
+          class="absolute -top-1 -right-1 bg-hoi4-accent text-hoi4-text text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 shadow-md"
+        >
+          {{ totalLoadedCount > 999 ? '999+' : totalLoadedCount }}
+        </span>
+      </button>
       <button
         @click="emit('launchGame')"
         :disabled="isLaunchingGame"
