@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  editorView
+  getEditorView: () => editorView
 })
 </script>
 

@@ -172,6 +172,48 @@ function handleActivate() {
 function handleSplitPane() {
   emit('splitPane', props.pane.id, props.pane.activeFileIndex)
 }
+
+/**
+ * 跳转到指定行并高亮显示
+ */
+function jumpToLine(line: number) {
+  console.log('[EditorPane] jumpToLine called with line:', line)
+  console.log('[EditorPane] editorRef.value:', editorRef.value)
+  
+  // 通过 getEditorView() 方法获取 editorView
+  const view = (editorRef.value as any)?.getEditorView?.()
+  if (!view) {
+    console.warn('[EditorPane] Editor view not available')
+    return
+  }
+  
+  console.log('[EditorPane] Got editor view, doc lines:', view.state.doc.lines)
+  const doc = view.state.doc
+  
+  // 确保行号在有效范围内
+  const targetLine = Math.max(1, Math.min(line, doc.lines))
+  console.log('[EditorPane] Target line (clamped):', targetLine)
+  
+  const lineInfo = doc.line(targetLine)
+  console.log('[EditorPane] Line info:', { from: lineInfo.from, to: lineInfo.to })
+  
+  // 滚动到该行并设置光标位置
+  view.dispatch({
+    selection: { anchor: lineInfo.from, head: lineInfo.to },
+    scrollIntoView: true
+  })
+  
+  console.log('[EditorPane] Dispatched selection and scroll')
+  
+  // 确保编辑器获得焦点
+  view.focus()
+  console.log('[EditorPane] Focused editor')
+}
+
+// 暴露方法供父组件调用
+defineExpose({
+  jumpToLine
+})
 </script>
 
 <template>

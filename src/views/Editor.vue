@@ -653,10 +653,18 @@ async function handleLaunchGame() {
   }
 }
 
-// 跳转到错误行（已移至EditorPane）
+// 跳转到错误行
 function jumpToError(error: {line: number, msg: string, type: string}) {
-  // TODO: 实现跳转到错误行
-  console.log('Jump to error:', error)
+  console.log('[Editor] jumpToError called with:', error)
+  
+  if (!editorGroupRef.value) {
+    console.warn('[Editor] Editor group ref not available')
+    return
+  }
+  
+  console.log('[Editor] Calling jumpToErrorLine with line:', error.line)
+  // 调用 EditorGroup 的 jumpToErrorLine 方法
+  editorGroupRef.value.jumpToErrorLine(error.line)
 }
 
 // 处理错误变化

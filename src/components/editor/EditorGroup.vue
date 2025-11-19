@@ -28,6 +28,9 @@ const resizingPaneIndex = ref<number | null>(null)
 const resizeStartX = ref(0)
 const resizeStartWidths = ref<number[]>([])
 
+// EditorPane 引用 Map
+const paneRefs = ref<Map<string, InstanceType<typeof EditorPane>>>(new Map())
+
 // 计算每个窗格是否只读
 function isPaneReadOnly(paneId: string): boolean {
   const pane = panes.value.find(p => p.id === paneId)
@@ -197,6 +200,41 @@ function openFileInPane(node: FileNode, paneId?: string) {
   emit('openFile', node, targetPaneId)
 }
 
+/**
+ * 设置 EditorPane 引用
+ */
+function setPaneRef(paneId: string, el: any) {
+  if (el) {
+    paneRefs.value.set(paneId, el)
+  } else {
+    paneRefs.value.delete(paneId)
+  }
+}
+
+/**
+ * 跳转到错误行（在当前活动的 Pane 中）
+ */
+function jumpToErrorLine(line: number) {
+  console.log('[EditorGroup] jumpToErrorLine called with line:', line)
+  console.log('[EditorGroup] activePaneId:', activePaneId.value)
+  console.log('[EditorGroup] paneRefs size:', paneRefs.value.size)
+  console.log('[EditorGroup] paneRefs keys:', Array.from(paneRefs.value.keys()))
+  
+  if (!activePaneId.value) {
+    console.warn('[EditorGroup] No active pane')
+    return
+  }
+  
+  const paneRef = paneRefs.value.get(activePaneId.value)
+  if (!paneRef) {
+    console.warn('[EditorGroup] Active pane ref not found for id:', activePaneId.value)
+    return
+  }
+  
+  console.log('[EditorGroup] Calling jumpToLine on pane')
+  paneRef.jumpToLine(line)
+}
+
 // 暴露方法供父组件使用
 defineExpose({
   panes,
@@ -204,7 +242,8 @@ defineExpose({
   activePane,
   openFileInPane,
   splitPane,
-  closePane
+  closePane,
+  jumpToErrorLine
 })
 </script>
 
@@ -229,6 +268,7 @@ defineExpose({
         </button>
         
         <EditorPane
+          :ref="(el) => setPaneRef(pane.id, el)"
           :pane="pane"
           :is-active="pane.id === activePaneId"
           :project-path="projectPath"
