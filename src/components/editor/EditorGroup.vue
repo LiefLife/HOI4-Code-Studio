@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   contextMenu: [event: MouseEvent, paneId: string, fileIndex: number]
   openFile: [node: FileNode, paneId?: string]
+  errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
 }>()
 
 const {
@@ -138,6 +139,11 @@ function handleSplitPane(paneId: string, fileIndex?: number) {
   splitPane(paneId, fileIndex)
 }
 
+// 处理错误变化
+function handleErrorsChange(paneId: string, errors: Array<{line: number, msg: string, type: string}>) {
+  emit('errorsChange', paneId, errors)
+}
+
 // 处理关闭窗格
 function handleClosePane(paneId: string) {
   closePane(paneId)
@@ -236,6 +242,7 @@ defineExpose({
           @save-file="handleSaveFile"
           @activate="handleActivate"
           @split-pane="handleSplitPane"
+          @errors-change="handleErrorsChange"
         />
       </div>
       

@@ -32,7 +32,7 @@ function findLineNumber(lineStarts: number[], pos: number): number {
 
 export const ideaDesignerRule: Rule = {
   name: 'idea_designer',
-  apply(content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
+  apply(_content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
     const errors = [] as RuleResult['errors']
     const ranges = [] as RuleResult['ranges']
 
@@ -43,11 +43,14 @@ export const ideaDesignerRule: Rule = {
       return { errors, ranges }
     }
 
-    // 1) add_ideas = X（全局匹配，忽略行注释后效果更佳，这里直接匹配原文以简化实现）
+    // 使用去除注释后的内容（lines 参数已经是去除注释后的行）
+    const strippedContent = lines.join('\n')
+
+    // 1) add_ideas = X（全局匹配）
     {
       const re = /\badd_ideas\s*=\s*([A-Za-z0-9_\.-]+)/g
       let m: RegExpExecArray | null
-      while ((m = re.exec(content)) !== null) {
+      while ((m = re.exec(strippedContent)) !== null) {
         const ideaId = m[1]
         // 捕获 group 起始位置（近似计算）：在 m[0] 内定位 idea = X
         const sub = m[0]
@@ -68,7 +71,7 @@ export const ideaDesignerRule: Rule = {
     {
       const re = /\badd_ideas\s*=\s*\{[^{}]*?\}/gs
       let m: RegExpExecArray | null
-      while ((m = re.exec(content)) !== null) {
+      while ((m = re.exec(strippedContent)) !== null) {
         const block = m[0]
         const openIdx = block.indexOf('{')
         const closeIdx = block.lastIndexOf('}')
@@ -93,7 +96,7 @@ export const ideaDesignerRule: Rule = {
     {
       const re = /\badd_timed_idea\s*=\s*\{[^{}]*?\bidea\s*=\s*([A-Za-z0-9_\.-]+)[^{}]*?\}/gs
       let m: RegExpExecArray | null
-      while ((m = re.exec(content)) !== null) {
+      while ((m = re.exec(strippedContent)) !== null) {
         const sub = m[0]
         const mm = /\bidea\s*=\s*([A-Za-z0-9_\.-]+)/.exec(sub)
         if (!mm) continue
@@ -114,7 +117,7 @@ export const ideaDesignerRule: Rule = {
     {
       const re = /\bswap_ideas\s*=\s*\{[^{}]*?\}/gs
       let m: RegExpExecArray | null
-      while ((m = re.exec(content)) !== null) {
+      while ((m = re.exec(strippedContent)) !== null) {
         const block = m[0]
         const localRe = /\b(remove_idea|add_idea)\s*=\s*([A-Za-z0-9_\.-]+)/g
         let mm: RegExpExecArray | null

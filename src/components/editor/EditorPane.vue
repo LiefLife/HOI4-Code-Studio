@@ -23,6 +23,7 @@ const emit = defineEmits<{
   saveFile: [paneId: string]
   activate: [paneId: string]
   splitPane: [paneId: string, fileIndex?: number]
+  errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
 }>()
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -100,6 +101,8 @@ watch(currentFile, (file) => {
           txtErrors.value = []
         }
         highlightCode(fileContent.value, file.node.name, txtErrors.value)
+        // 触发错误变化事件
+        emit('errorsChange', props.pane.id, txtErrors.value)
       }
       // 文件加载完成，可以开始追踪修改
       isLoadingFile.value = false
@@ -109,6 +112,8 @@ watch(currentFile, (file) => {
     fileContent.value = ''
     hasUnsavedChanges.value = false
     txtErrors.value = []
+    // 触发错误变化事件（清空错误）
+    emit('errorsChange', props.pane.id, [])
     nextTick(() => {
       isLoadingFile.value = false
     })
@@ -143,6 +148,8 @@ function handleContentChange(content: string) {
         projectRoot: props.projectPath, 
         gameDirectory: props.gameDirectory 
       })
+      // 触发错误变化事件
+      emit('errorsChange', props.pane.id, txtErrors.value)
     }
     highlightCode(content, currentFile.value.node.name, txtErrors.value)
   }

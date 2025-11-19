@@ -659,6 +659,12 @@ function jumpToError(error: {line: number, msg: string, type: string}) {
   console.log('Jump to error:', error)
 }
 
+// 处理错误变化
+function handleErrorsChange(_paneId: string, errors: Array<{line: number, msg: string, type: string}>) {
+  // 更新全局错误列表
+  txtErrors.value = errors
+}
+
 // 处理搜索
 function handlePerformSearch() {
   const searchPath = searchScope.value === 'project' ? projectPath.value : gameDirectory.value
@@ -835,6 +841,7 @@ onUnmounted(() => {
         :game-directory="gameDirectory"
         @context-menu="showFileTabContextMenu"
         @open-file="handleOpenFile"
+        @errors-change="handleErrorsChange"
       />
 
       <!-- 右侧面板 -->

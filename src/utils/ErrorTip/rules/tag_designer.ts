@@ -66,7 +66,7 @@ function pushError(
 
 export const tagDesignerRule: Rule = {
   name: 'tag_designer',
-  apply(content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
+  apply(_content: string, lines: string[], lineStarts: number[], _ctx?: RuleContext): RuleResult {
     const errors: RuleResult['errors'] = []
     const ranges: RuleResult['ranges'] = []
 
@@ -77,10 +77,12 @@ export const tagDesignerRule: Rule = {
       return { errors, ranges }
     }
 
+    // 使用去除注释后的内容（lines 参数已经是去除注释后的行）
+    const strippedContent = lines.join('\n')
     let match: RegExpExecArray | null
 
     // 1) 直接赋值模式
-    while ((match = DIRECT_PATTERN.exec(content)) !== null) {
+    while ((match = DIRECT_PATTERN.exec(strippedContent)) !== null) {
       const tag = normalizeTag(match[2])
       if (!isReservedTag(tag) && !tagSet.has(tag)) {
         pushError(errors, ranges, lineStarts, lines, match.index, `未定义的国家标签: ${tag}`)
@@ -88,7 +90,7 @@ export const tagDesignerRule: Rule = {
     }
 
     // 2) 作用域块模式
-    while ((match = SCOPE_PATTERN.exec(content)) !== null) {
+    while ((match = SCOPE_PATTERN.exec(strippedContent)) !== null) {
       const tag = normalizeTag(match[2])
       if (!isReservedTag(tag) && !tagSet.has(tag)) {
         pushError(errors, ranges, lineStarts, lines, match.index, `作用域引用未定义的国家标签: ${tag}`)
@@ -96,7 +98,7 @@ export const tagDesignerRule: Rule = {
     }
 
     // 3) target = TAG 模式
-    while ((match = TARGET_PATTERN.exec(content)) !== null) {
+    while ((match = TARGET_PATTERN.exec(strippedContent)) !== null) {
       const tag = normalizeTag(match[1])
       if (!isReservedTag(tag) && !tagSet.has(tag)) {
         pushError(errors, ranges, lineStarts, lines, match.index, `target 引用了未定义的国家标签: ${tag}`)
