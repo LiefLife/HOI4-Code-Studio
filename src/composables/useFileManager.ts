@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { readFileContent, writeFileContent } from '../api/tauri'
+import { readFileContent, writeFileContent, readImageAsBase64 } from '../api/tauri'
 import { logger } from '../utils/logger'
 
 /**
@@ -23,6 +23,7 @@ export interface OpenFile {
   cursorLine: number
   cursorColumn: number
   isImage?: boolean  // 是否为图片文件
+  mimeType?: string  // 图片 MIME 类型
 }
 
 /**
@@ -34,6 +35,15 @@ export function useFileManager(gameDirectory: string = '') {
   const activeFileIndex = ref<number>(-1)
   const currentFile = ref<FileNode | null>(null)
   const isLoadingFile = ref(false)
+  
+  /**
+   * 检查文件是否为图片
+   */
+  function isImageFile(filePath: string): boolean {
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.dds', '.tga']
+    const ext = filePath.toLowerCase().substring(filePath.lastIndexOf('.'))
+    return imageExtensions.includes(ext)
+  }
   
   /**
    * 打开文件
@@ -55,6 +65,36 @@ export function useFileManager(gameDirectory: string = '') {
     // 读取文件内容
     isLoadingFile.value = true
     try {
+      // 检查是否为图片文件
+      if (isImageFile(node.path)) {
+        const imageResult = await readImageAsBase64(node.path)
+        if (imageResult.success && imageResult.base64 && imageResult.mimeType) {
+          // 将图片数据作为 Data URL 格式存储
+          const dataUrl = `data:${imageResult.mimeType};base64,${imageResult.base64}`
+          
+          openFiles.value.push({
+            node,
+            content: dataUrl,
+            hasUnsavedChanges: false,
+            cursorLine: 1,
+            cursorColumn: 1,
+            isImage: true,
+            mimeType: imageResult.mimeType
+          })
+          activeFileIndex.value = openFiles.value.length - 1
+          updateCurrentFile()
+          
+          // 通知内容已加载
+          onContentLoaded?.(dataUrl)
+          
+          return true
+        } else {
+          alert(`打开图片失败: ${imageResult.message || '未知错误'}`)
+          return false
+        }
+      }
+      
+      // 非图片文件，使用普通文件读取
       const result = await readFileContent(node.path)
       if (result.success) {
         // 显示编码信息

@@ -1716,7 +1716,7 @@ fn pack_project(
     }
 }
 
-// ==================== 图片读取命令 ====================
+
 
 /// 读取图片文件为 base64
 /// 
@@ -1725,6 +1725,8 @@ fn pack_project(
 #[tauri::command]
 fn read_image_as_base64(file_path: String) -> ImageReadResult {
     use std::fs;
+    use std::io::Cursor;
+    use image::ImageFormat;
     
     println!("读取图片为 base64: {}", file_path);
     
@@ -1738,19 +1740,102 @@ fn read_image_as_base64(file_path: String) -> ImageReadResult {
         };
     }
     
-    // 读取文件
+    // 获取文件扩展名
+    let ext = std::path::Path::new(&file_path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // 对于 DDS 文件，使用 image_dds 库处理
+    if ext.as_str() == "dds" {
+        println!("转换 DDS 图片为 PNG: {}", file_path);
+        
+        match fs::read(&file_path) {
+            Ok(dds_data) => {
+                // 先解析 DDS 文件
+                match image_dds::ddsfile::Dds::read(&mut Cursor::new(&dds_data)) {
+                    Ok(dds) => {
+                        // 使用 image_dds 解码 DDS 文件，尝试获取第一个 mipmap
+                        match image_dds::image_from_dds(&dds, 0) {
+                            Ok(img) => {
+                                let mut buffer = Cursor::new(Vec::new());
+                                
+                                // 转换为 PNG
+                                match img.write_to(&mut buffer, ImageFormat::Png) {
+                                    Ok(_) => {
+                                        use base64::{Engine as _, engine::general_purpose};
+                                        let base64_string = general_purpose::STANDARD.encode(buffer.get_ref());
+                                        
+                                        return ImageReadResult {
+                                            success: true,
+                                            message: None,
+                                            base64: Some(base64_string),
+                                            mime_type: Some("image/png".to_string()),
+                                        };
+                                    },
+                                    Err(e) => {
+                                        println!("转换 DDS 为 PNG 失败: {}", e);
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                println!("无法从 DDS 创建图片: {}", e);
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        println!("无法解析 DDS 文件: {}", e);
+                    }
+                }
+            },
+            Err(e) => {
+                println!("无法读取 DDS 文件: {}", e);
+            }
+        }
+    }
+    
+    // 对于 TGA 文件，使用 image crate 转换为 PNG
+    if ext.as_str() == "tga" {
+        println!("转换 TGA 图片为 PNG: {}", file_path);
+        
+        // 打开图片
+        match image::open(&file_path) {
+            Ok(img) => {
+                let mut buffer = Cursor::new(Vec::new());
+                
+                // 转换为 PNG
+                match img.write_to(&mut buffer, ImageFormat::Png) {
+                    Ok(_) => {
+                        use base64::{Engine as _, engine::general_purpose};
+                        let base64_string = general_purpose::STANDARD.encode(buffer.get_ref());
+                        
+                        return ImageReadResult {
+                            success: true,
+                            message: None,
+                            base64: Some(base64_string),
+                            mime_type: Some("image/png".to_string()),
+                        };
+                    },
+                    Err(e) => {
+                        println!("转换图片格式失败: {}", e);
+                        // 如果转换失败，尝试直接读取（可能前端有办法处理，或者只是为了显示错误）
+                    }
+                }
+            },
+            Err(e) => {
+                println!("无法使用 image crate 打开图片: {}", e);
+                // 失败后继续，尝试直接读取
+            }
+        }
+    }
+    
+    // 读取文件（原始逻辑）
     match fs::read(&file_path) {
         Ok(bytes) => {
             // 转换为 base64
             use base64::{Engine as _, engine::general_purpose};
             let base64_string = general_purpose::STANDARD.encode(&bytes);
-            
-            // 获取 MIME 类型
-            let ext = std::path::Path::new(&file_path)
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_lowercase();
             
             let mime_type = match ext.as_str() {
                 "png" => "image/png",
@@ -1758,7 +1843,10 @@ fn read_image_as_base64(file_path: String) -> ImageReadResult {
                 "gif" => "image/gif",
                 "bmp" => "image/bmp",
                 "webp" => "image/webp",
-                "tga" => "image/x-tga",
+                "svg" => "image/svg+xml",
+                // 如果上面转换失败了，这里仍然返回原始 MIME
+                "tga" => "image/x-tga", 
+                "dds" => "image/vnd-ms.dds",
                 _ => "application/octet-stream",
             };
             

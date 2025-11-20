@@ -401,7 +401,7 @@ async function toggleGameFolder(node: FileNode) {
 // 检查是否为图片文件
 function isImageFile(filePath: string): boolean {
   const ext = filePath.split('.').pop()?.toLowerCase()
-  return ['png', 'jpg', 'jpeg', 'tga', 'bmp', 'gif', 'webp'].includes(ext || '')
+  return ['png', 'jpg', 'jpeg', 'tga', 'bmp', 'gif', 'webp' ,'dds'].includes(ext || '')
 }
 
 // 打开文件处理
