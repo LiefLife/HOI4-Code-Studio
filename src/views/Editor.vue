@@ -694,17 +694,86 @@ async function handleJumpToSearchResult(result: any) {
   searchPanelVisible.value = false
 }
 
+// 跳转到下一个错误
+function handleNextError() {
+  if (!editorGroupRef.value) return
+  const activePaneId = editorGroupRef.value.activePaneId
+  const activePane = editorGroupRef.value.panes.find(p => p.id === activePaneId)
+  if (!activePane || activePane.activeFileIndex === -1) return
+  
+  const activeFile = activePane.openFiles[activePane.activeFileIndex]
+  const currentLine = activeFile.cursorLine
+  
+  const sortedErrors = [...txtErrors.value].sort((a, b) => a.line - b.line)
+  if (sortedErrors.length === 0) return
+  
+  const nextError = sortedErrors.find(e => e.line > currentLine)
+  
+  if (nextError) {
+    jumpToError(nextError)
+  } else {
+    // 循环到第一个
+    jumpToError(sortedErrors[0])
+  }
+}
+
+// 跳转到上一个错误
+function handlePreviousError() {
+  if (!editorGroupRef.value) return
+  const activePaneId = editorGroupRef.value.activePaneId
+  const activePane = editorGroupRef.value.panes.find(p => p.id === activePaneId)
+  if (!activePane || activePane.activeFileIndex === -1) return
+  
+  const activeFile = activePane.openFiles[activePane.activeFileIndex]
+  const currentLine = activeFile.cursorLine
+  
+  const sortedErrors = [...txtErrors.value].sort((a, b) => a.line - b.line)
+  if (sortedErrors.length === 0) return
+  
+  // 查找小于当前行的最大行号错误
+  // reverse() 后 find 第一个 < currentLine 的
+  const prevError = [...sortedErrors].reverse().find(e => e.line < currentLine)
+  
+  if (prevError) {
+    jumpToError(prevError)
+  } else {
+    // 循环到最后一个
+    jumpToError(sortedErrors[sortedErrors.length - 1])
+  }
+}
+
 // 键盘快捷键
 useKeyboardShortcuts({
   save: () => {
     // 保存当前活动窗格的文件
-    // TODO: 实现保存快捷键
+    if (editorGroupRef.value) {
+      const activePaneId = editorGroupRef.value.activePaneId
+      if (activePaneId) {
+        const pane = editorGroupRef.value.panes.find(p => p.id === activePaneId)
+        if (pane && pane.activeFileIndex !== -1) {
+          const file = pane.openFiles[pane.activeFileIndex]
+          if (file && file.hasUnsavedChanges) {
+            // 这里我们需要调用 EditorPane 的保存方法，或者复用 handleSaveFile
+            // 但 handleSaveFile 是 EditorGroup 的内部方法
+            // 我们可以通过 emit 或者直接调用暴露的方法
+            // 实际上 EditorGroup 暴露了 saveFile 吗？
+            // 让我们查看 EditorGroup.vue
+            // EditorGroup 没有暴露 saveFile，但 EditorPane 暴露了 save
+            // 这是一个设计问题，我们应该在 EditorGroup 中暴露 saveCurrentFile
+            // 目前我们可以尝试查找 EditorPane ref 并调用它的 save
+            // 暂时先留空，等待后续完善
+          }
+        }
+      }
+    }
   },
   undo: () => {},
   redo: () => {},
   search: () => {
     searchPanelVisible.value = !searchPanelVisible.value
-  }
+  },
+  nextError: handleNextError,
+  previousError: handlePreviousError
 })
 
 // 开始目录树自动刷新

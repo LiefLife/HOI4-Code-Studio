@@ -9,6 +9,8 @@ export function useKeyboardShortcuts(handlers: {
   undo?: () => void
   redo?: () => void
   search?: () => void
+  nextError?: () => void
+  previousError?: () => void
 }) {
   function handleKeyDown(e: KeyboardEvent) {
     // Ctrl+S 保存
@@ -17,8 +19,20 @@ export function useKeyboardShortcuts(handlers: {
       handlers.save?.()
     }
     
+    // Ctrl+E 下一个错误
+    if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+      e.preventDefault()
+      handlers.nextError?.()
+    }
+
+    // Ctrl+R 上一个错误
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+      e.preventDefault()
+      handlers.previousError?.()
+    }
+
     // Ctrl+F 搜索
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'f') {
       e.preventDefault()
       handlers.search?.()
     }
