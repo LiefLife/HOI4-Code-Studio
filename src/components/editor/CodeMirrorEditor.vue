@@ -14,6 +14,7 @@ import { hoi4 } from '../../lang/hoi4'
 import { createLinter } from '../../utils/ErrorTip'
 import { setIdeaRoots, ensureIdeaRegistry } from '../../composables/useIdeaRegistry'
 import { useGrammarCompletion } from '../../composables/useGrammarCompletion'
+import { rainbowBrackets, rainbowTheme } from './rainbowBrackets'
 
 const props = defineProps<{
   content: string
@@ -87,6 +88,8 @@ function getLanguageExtension() {
       ensureIdeaRegistry()
       return [
         hoi4(),
+        rainbowBrackets,
+        rainbowTheme,
         autocompletion({
           override: [grammarCompletionSource]
         }),
