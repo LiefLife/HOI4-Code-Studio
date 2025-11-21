@@ -3,6 +3,12 @@
  * 目标：为 ErrorTip 规则系统提供统一的类型，便于扩展与复用。
  */
 
+import type { Token } from './core/tokenizer'
+export type { Token } from './core/tokenizer'
+export { TokenType } from './core/tokenizer'
+
+export type Severity = 'error' | 'warning'
+
 export interface ErrorItem {
   /** 错误所在行（1-based） */
   line: number
@@ -10,6 +16,8 @@ export interface ErrorItem {
   msg: string
   /** 错误类型（如 always / is / control 等） */
   type: string
+  /** 严重程度 (默认为 error) */
+  severity?: Severity
 }
 
 export interface RangeItem {
@@ -23,6 +31,8 @@ export interface RangeItem {
   type: string
   /** 对应首行（1-based），用于右侧列表定位 */
   line: number
+  /** 严重程度 (默认为 error) */
+  severity?: Severity
 }
 
 export interface RuleResult {
@@ -36,11 +46,20 @@ export interface Rule {
   /**
    * 对内容执行检查，返回错误与范围（整行范围用于 Lint 高亮）
    * @param content 原始全文字符串
-   * @param lines 按 \n 切分后的行
+   * @param lines 经过清洗的行（去除了注释和字符串内容）
    * @param lineStarts 每行起始在全文中的偏移（包含行末换行的累加）
    * @param ctx 可选上下文（如文件路径、项目根目录）
+   * @param tokens Token 流（包含更精确的词法信息）
+   * @param cleanContent 经过清洗的全文字符串（去除了注释和字符串内容）
    */
-  apply(content: string, lines: string[], lineStarts: number[], ctx?: RuleContext): RuleResult
+  apply(
+    content: string, 
+    lines: string[], 
+    lineStarts: number[], 
+    ctx?: RuleContext,
+    tokens?: Token[],
+    cleanContent?: string
+  ): RuleResult
 }
 
 /**
