@@ -216,15 +216,15 @@ export function createLinter(options?: { contextProvider?: () => RuleContext | u
   const theme = EditorView.baseTheme({
     /* 调整 lint 标记的可视效果（备用） */
     '.cm-lintRange.cm-lintRange-error': {
-      backgroundColor: 'rgba(255, 77, 79, 0.18)'
+      backgroundColor: 'rgba(255, 0, 0, 0.3)'
     },
     /* 行级红底 */
     '.cm-error-line': {
-      backgroundColor: 'rgba(255, 77, 79, 0.18)'
+      backgroundColor: 'rgba(255, 0, 0, 0.3)'
     },
     /* Error Lens 行尾气泡 */
     '.cm-error-lens': {
-      background: 'rgba(255, 77, 79, 0.9)',
+      background: 'rgba(255, 0, 0, 0.9)',
       color: '#ffffff',
       fontSize: '12px',
       padding: '0 6px',

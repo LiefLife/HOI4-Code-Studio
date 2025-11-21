@@ -42,7 +42,7 @@ const emit = defineEmits<{
         v-for="(error, index) in errors"
         :key="index"
         @click="emit('jumpToError', error)"
-        class="group relative bg-hoi4-gray hover:bg-hoi4-accent/50 border border-hoi4-border hover:border-onedark-error/40 rounded-lg p-3 cursor-pointer transition-all duration-200 ease-out shadow-sm hover:shadow-md overflow-hidden"
+        class="group relative bg-[rgba(255,0,0,0.3)] hover:bg-[rgba(255,0,0,0.4)] border border-hoi4-border hover:border-onedark-error/40 rounded-lg p-3 cursor-pointer transition-all duration-200 ease-out shadow-sm hover:shadow-md overflow-hidden"
       >
         <!-- 左侧强调条 -->
         <div class="absolute left-0 top-0 bottom-0 w-1 bg-onedark-error opacity-60 group-hover:opacity-100 transition-opacity"></div>
