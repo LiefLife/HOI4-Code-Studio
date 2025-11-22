@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import EditorTabs from './EditorTabs.vue'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
+import ContextMenu from './ContextMenu.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -24,6 +25,7 @@ const emit = defineEmits<{
   activate: [paneId: string]
   splitPane: [paneId: string, fileIndex?: number]
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
+  editorContextMenuAction: [action: string, paneId: string]
 }>()
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -33,6 +35,11 @@ const currentColumn = ref(1)
 const hasUnsavedChanges = ref(false)
 const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
 const isLoadingFile = ref(false)  // 标记是否正在加载文件
+
+// 编辑器右键菜单状态
+const editorContextMenuVisible = ref(false)
+const editorContextMenuX = ref(0)
+const editorContextMenuY = ref(0)
 
 const { highlightCode, getLanguage } = useSyntaxHighlight()
 
@@ -210,9 +217,53 @@ function jumpToLine(line: number) {
   console.log('[EditorPane] Focused editor')
 }
 
+// 处理编辑器右键菜单
+function handleEditorContextMenu(event: MouseEvent) {
+  const menuWidth = 200  // 菜单宽度
+  const menuHeight = 250 // 菜单高度（估计值）
+  
+  let x = event.clientX
+  let y = event.clientY
+  
+  // 检查右侧边界
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 10
+  }
+  
+  // 检查底部边界
+  if (y + menuHeight > window.innerHeight) {
+    y = window.innerHeight - menuHeight - 10
+  }
+  
+  // 确保不会超出左侧和顶部
+  x = Math.max(10, x)
+  y = Math.max(10, y)
+  
+  editorContextMenuX.value = x
+  editorContextMenuY.value = y
+  editorContextMenuVisible.value = true
+}
+
+// 关闭编辑器右键菜单
+function closeEditorContextMenu() {
+  editorContextMenuVisible.value = false
+}
+
+// 处理编辑器右键菜单操作
+function handleEditorContextMenuAction(action: string) {
+  closeEditorContextMenu()
+  emit('editorContextMenuAction', action, props.pane.id)
+}
+
+// 获取编辑器实例的方法
+function getEditorMethods() {
+  return editorRef.value
+}
+
 // 暴露方法供父组件调用
 defineExpose({
-  jumpToLine
+  jumpToLine,
+  getEditorMethods
 })
 </script>
 
@@ -311,6 +362,7 @@ defineExpose({
         :game-directory="gameDirectory"
         @update:content="handleContentChange"
         @cursor-change="handleCursorChange"
+        @contextmenu="handleEditorContextMenu"
       />
     </div>
 
@@ -321,7 +373,27 @@ defineExpose({
         <p class="text-hoi4-text-dim text-sm">点击左侧文件树中的文件进行编辑</p>
       </div>
     </div>
+
+    <!-- 编辑器右键菜单 -->
+    <ContextMenu
+      :visible="editorContextMenuVisible"
+      :x="editorContextMenuX"
+      :y="editorContextMenuY"
+      menu-type="editor"
+      @action="handleEditorContextMenuAction"
+      @close="closeEditorContextMenu"
+    />
   </div>
+  
+  <!-- 全局点击关闭菜单 -->
+  <Teleport to="body">
+    <div
+      v-if="editorContextMenuVisible"
+      class="fixed inset-0 z-40"
+      @click="closeEditorContextMenu"
+      @contextmenu.prevent="closeEditorContextMenu"
+    ></div>
+  </Teleport>
 </template>
 
 <style scoped>

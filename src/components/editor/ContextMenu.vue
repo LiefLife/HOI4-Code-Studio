@@ -1,9 +1,11 @@
 <script setup lang="ts">
-defineProps<{
+import { ref, computed } from 'vue'
+
+const props = defineProps<{
   visible: boolean
   x: number
   y: number
-  menuType: 'file' | 'tree' | 'pane'
+  menuType: 'file' | 'tree' | 'pane' | 'editor'
   canSplit?: boolean
 }>()
 
@@ -12,8 +14,25 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const templateMenuVisible = ref(false)
+
+// 检查二级菜单是否应该显示在左侧
+const showSubmenuOnLeft = computed(() => {
+  const submenuWidth = 180
+  const padding = 20
+  return props.x + 200 + submenuWidth > window.innerWidth - padding
+})
+
 function handleAction(action: string) {
   emit('action', action)
+}
+
+function showTemplateMenu() {
+  templateMenuVisible.value = true
+}
+
+function hideTemplateMenu() {
+  templateMenuVisible.value = false
 }
 </script>
 
@@ -131,6 +150,74 @@ function handleAction(action: string) {
     >
       关闭其他
     </button>
+  </div>
+
+  <!-- 编辑器内容右键菜单 -->
+  <div
+    v-if="visible && menuType === 'editor'"
+    class="fixed border rounded-xl shadow-2xl z-50 backdrop-blur-sm"
+    :style="{ 
+      left: x + 'px', 
+      top: y + 'px',
+      backgroundColor: 'rgba(10, 10, 10, 0.96)',
+      borderColor: 'rgba(58, 58, 58, 0.95)'
+    }"
+    @click.stop
+  >
+    <button
+      @click="handleAction('copy')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0;"
+    >
+      📋 复制
+    </button>
+    <button
+      @click="handleAction('cut')"
+      class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0; border-color: #2a2a2a;"
+    >
+      ✂️ 剪切
+    </button>
+    <button
+      @click="handleAction('paste')"
+      class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0; border-color: #2a2a2a;"
+    >
+      📄 粘贴
+    </button>
+    <div class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
+    <div 
+      class="relative"
+      @mouseenter="showTemplateMenu"
+      @mouseleave="hideTemplateMenu"
+    >
+      <button
+        class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item flex items-center justify-between"
+        style="color: #e0e0e0;"
+      >
+        <span>📝 插入模板</span>
+        <span>▶</span>
+      </button>
+      <!-- 二级菜单 -->
+      <div
+        v-if="templateMenuVisible"
+        class="absolute top-0 border rounded-xl shadow-2xl backdrop-blur-sm"
+        :class="showSubmenuOnLeft ? 'right-full mr-1' : 'left-full ml-1'"
+        :style="{ 
+          backgroundColor: 'rgba(10, 10, 10, 0.96)',
+          borderColor: 'rgba(58, 58, 58, 0.95)',
+          minWidth: '160px'
+        }"
+      >
+        <button
+          @click="handleAction('insertIdeaTemplate')"
+          class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+          style="color: #e0e0e0;"
+        >
+          💡 插入Idea模板
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 

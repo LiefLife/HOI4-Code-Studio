@@ -29,6 +29,7 @@ const emit = defineEmits<{
   'update:content': [value: string]
   cursorChange: [line: number, column: number]
   scroll: []
+  contextmenu: [event: MouseEvent]
 }>()
 
 const editorContainer = ref<HTMLDivElement | null>(null)
@@ -139,6 +140,11 @@ function initEditor() {
       EditorView.domEventHandlers({
         scroll: () => {
           emit('scroll')
+        },
+        contextmenu: (event: MouseEvent) => {
+          event.preventDefault()
+          emit('contextmenu', event)
+          return true
         }
       }),
       oneDark,
@@ -224,7 +230,42 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  getEditorView: () => editorView
+  getEditorView: () => editorView,
+  getSelectedText: () => {
+    if (!editorView) return ''
+    const selection = editorView.state.selection.main
+    return editorView.state.doc.sliceString(selection.from, selection.to)
+  },
+  insertText: (text: string) => {
+    if (!editorView) return
+    const selection = editorView.state.selection.main
+    editorView.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: text }
+    })
+  },
+  getCursorPosition: () => {
+    if (!editorView) return { line: 1, column: 1 }
+    const pos = editorView.state.selection.main.head
+    const line = editorView.state.doc.lineAt(pos)
+    return {
+      line: line.number,
+      column: pos - line.from + 1
+    }
+  },
+  cutSelection: () => {
+    if (!editorView) return ''
+    const selection = editorView.state.selection.main
+    const text = editorView.state.doc.sliceString(selection.from, selection.to)
+    editorView.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: '' }
+    })
+    return text
+  },
+  copySelection: () => {
+    if (!editorView) return ''
+    const selection = editorView.state.selection.main
+    return editorView.state.doc.sliceString(selection.from, selection.to)
+  }
 })
 </script>
 

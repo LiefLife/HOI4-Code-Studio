@@ -13,6 +13,7 @@ const emit = defineEmits<{
   contextMenu: [event: MouseEvent, paneId: string, fileIndex: number]
   openFile: [node: FileNode, paneId?: string]
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
+  editorContextMenuAction: [action: string, paneId: string]
 }>()
 
 const {
@@ -147,6 +148,11 @@ function handleErrorsChange(paneId: string, errors: Array<{line: number, msg: st
   emit('errorsChange', paneId, errors)
 }
 
+// 处理编辑器右键菜单操作
+function handleEditorContextMenuAction(action: string, paneId: string) {
+  emit('editorContextMenuAction', action, paneId)
+}
+
 // 处理关闭窗格
 function handleClosePane(paneId: string) {
   closePane(paneId)
@@ -243,7 +249,8 @@ defineExpose({
   openFileInPane,
   splitPane,
   closePane,
-  jumpToErrorLine
+  jumpToErrorLine,
+  paneRefs
 })
 </script>
 
@@ -283,6 +290,7 @@ defineExpose({
           @activate="handleActivate"
           @split-pane="handleSplitPane"
           @errors-change="handleErrorsChange"
+          @editor-context-menu-action="handleEditorContextMenuAction"
         />
       </div>
       

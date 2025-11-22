@@ -671,6 +671,101 @@ function openPackageDialog() {
   packageDialogVisible.value = true
 }
 
+// 处理编辑器右键菜单操作
+async function handleEditorContextMenuAction(action: string, paneId: string) {
+  if (!editorGroupRef.value) return
+  
+  const pane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!pane) return
+  
+  const paneRef = (editorGroupRef.value as any).paneRefs?.get?.(paneId)
+  if (!paneRef) return
+  
+  const editorMethods = paneRef.getEditorMethods?.()
+  if (!editorMethods) return
+  
+  switch (action) {
+    case 'copy':
+      // 复制选中文本到剪贴板
+      try {
+        const selectedText = editorMethods.getSelectedText?.() || ''
+        if (selectedText) {
+          await navigator.clipboard.writeText(selectedText)
+        }
+      } catch (error) {
+        console.error('复制失败:', error)
+      }
+      break
+      
+    case 'cut':
+      // 剪切选中文本
+      try {
+        const selectedText = editorMethods.cutSelection?.() || ''
+        if (selectedText) {
+          await navigator.clipboard.writeText(selectedText)
+        }
+      } catch (error) {
+        console.error('剪切失败:', error)
+      }
+      break
+      
+    case 'paste':
+      // 粘贴剪贴板内容
+      try {
+        const clipboardText = await navigator.clipboard.readText()
+        if (clipboardText) {
+          editorMethods.insertText?.(clipboardText)
+        }
+      } catch (error) {
+        console.error('粘贴失败:', error)
+      }
+      break
+      
+    case 'insertIdeaTemplate':
+      // 插入 Idea 模板
+      handleInsertIdeaTemplate(pane, editorMethods)
+      break
+  }
+}
+
+// 处理插入 Idea 模板
+function handleInsertIdeaTemplate(pane: any, editorMethods: any) {
+  // 检查当前文件路径
+  if (pane.activeFileIndex === -1) return
+  
+  const currentFile = pane.openFiles[pane.activeFileIndex]
+  if (!currentFile) return
+  
+  const filePath = currentFile.node.path
+  
+  // 检查文件是否在 common/ideas/ 目录下
+  const normalizedPath = filePath.replace(/\\/g, '/')
+  if (!normalizedPath.includes('common/ideas/')) {
+    alert('错误：只能在 common/ideas/ 目录下的文件中插入 Idea 模板')
+    return
+  }
+  
+  // 构建 Idea 模板
+  const template = `ideas = {
+\tcountry = {
+\t\tidea_name = {
+\t\t\tpicture = your_image
+\t\t\tallowed = {
+\t\t\t\talways = yes
+\t\t\t}
+\t\t\tallowed_civil_war = {
+\t\t\t\talways = yes
+\t\t\t}
+\t\t\tmodifier = {
+\t\t\t}
+\t\t}
+\t}
+}`
+  
+  // 在光标位置插入模板
+  editorMethods.insertText?.(template)
+}
+
 // 处理打包
 async function handlePackageProject(fileName: string) {
   if (!projectPath.value || !packageDialogRef.value) return
@@ -996,6 +1091,7 @@ onUnmounted(() => {
         @context-menu="showFileTabContextMenu"
         @open-file="handleOpenFile"
         @errors-change="handleErrorsChange"
+        @editor-context-menu-action="handleEditorContextMenuAction"
       />
 
       <!-- 右侧面板 -->
