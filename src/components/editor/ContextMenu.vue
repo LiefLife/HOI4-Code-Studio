@@ -17,11 +17,30 @@ const emit = defineEmits<{
 
 const templateMenuVisible = ref(false)
 
+// 检查当前文件是否在 common/ideas 目录下
+const isInCommonIdeas = computed(() => {
+  if (!props.currentFilePath) return false
+  const normalizedPath = props.currentFilePath.replace(/\\/g, '/')
+  return normalizedPath.includes('common/ideas/')
+})
+
 // 检查当前文件是否在 history/countries 目录下
 const isInHistoryCountries = computed(() => {
   if (!props.currentFilePath) return false
   const normalizedPath = props.currentFilePath.replace(/\\/g, '/')
   return normalizedPath.includes('history/countries/')
+})
+
+// 检查当前文件是否在 common/bop 目录下
+const isInCommonBop = computed(() => {
+  if (!props.currentFilePath) return false
+  const normalizedPath = props.currentFilePath.replace(/\\/g, '/')
+  return normalizedPath.includes('common/bop/')
+})
+
+// 检查是否有任何可用的模板
+const hasAnyTemplateAvailable = computed(() => {
+  return isInCommonIdeas.value || isInHistoryCountries.value || isInCommonBop.value
 })
 
 // 检查二级菜单是否应该显示在左侧
@@ -193,8 +212,9 @@ function hideTemplateMenu() {
     >
       📄 粘贴
     </button>
-    <div class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
+    <div v-if="hasAnyTemplateAvailable" class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
     <div 
+      v-if="hasAnyTemplateAvailable"
       class="relative"
       @mouseenter="showTemplateMenu"
       @mouseleave="hideTemplateMenu"
@@ -218,6 +238,7 @@ function hideTemplateMenu() {
         }"
       >
         <button
+          v-if="isInCommonIdeas"
           @click="handleAction('insertIdeaTemplate')"
           class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
           style="color: #e0e0e0;"
@@ -227,10 +248,20 @@ function hideTemplateMenu() {
         <button
           v-if="isInHistoryCountries"
           @click="handleAction('insertTagTemplate')"
-          class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+          class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+          :class="{ 'border-t': isInCommonIdeas }"
           style="color: #e0e0e0; border-color: #2a2a2a;"
         >
           🏷️ 插入Tag初始态定义模板
+        </button>
+        <button
+          v-if="isInCommonBop"
+          @click="handleAction('insertBopTemplate')"
+          class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+          :class="{ 'border-t': isInCommonIdeas || isInHistoryCountries }"
+          style="color: #e0e0e0; border-color: #2a2a2a;"
+        >
+          ⚖️ 插入权力平衡模板
         </button>
       </div>
     </div>

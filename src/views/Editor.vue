@@ -730,6 +730,11 @@ async function handleEditorContextMenuAction(action: string, paneId: string) {
       // 插入 Tag 初始态定义模板
       handleInsertTagTemplate(pane, editorMethods)
       break
+      
+    case 'insertBopTemplate':
+      // 插入权力平衡模板
+      handleInsertBopTemplate(pane, editorMethods)
+      break
   }
 }
 
@@ -793,6 +798,8 @@ function handleInsertTagTemplate(pane: any, editorMethods: any) {
 
 set_research_slots = your_research_slots
 
+set_oob = army_file
+
 set_stability = your_stability_value
 set_war_support = your_war_support_value
 
@@ -817,6 +824,79 @@ recruit_character = char1
 recruit_character = char2
 
 set_technology = {
+}`
+  
+  // 在光标位置插入模板
+  editorMethods.insertText?.(template)
+}
+
+// 处理插入权力平衡模板
+function handleInsertBopTemplate(pane: any, editorMethods: any) {
+  // 检查当前文件路径
+  if (pane.activeFileIndex === -1) return
+  
+  const currentFile = pane.openFiles[pane.activeFileIndex]
+  if (!currentFile) return
+  
+  const filePath = currentFile.node.path
+  
+  // 检查文件是否在 common/bop/ 目录下
+  const normalizedPath = filePath.replace(/\\/g, '/')
+  if (!normalizedPath.includes('common/bop/')) {
+    alert('错误：只能在 common/bop/ 目录下的文件中插入权力平衡模板')
+    return
+  }
+  
+  // 构建权力平衡模板
+  const template = `bop_name = {
+
+\tinitial_value = #默认值
+
+\tleft_side = #左侧名称
+\tright_side = #右侧名称
+
+\tdecision_category = #决议组
+\t
+\t# 中间范围
+\trange = {
+
+\t\tid = 
+
+\t\tmin = 
+
+\t\tmax = 
+
+\t\tmodifier = {
+\t\t}
+\t}
+\t
+\t#右侧
+\tside = {
+
+\t\tid = #右侧名称
+
+\t\ticon = 
+\t\t
+\t\t# 阈值1
+\t\trange = {
+
+\t\t\tid = 
+
+\t\t\tmin = 
+
+\t\t\tmax = 
+
+\t\t\tmodifier = {
+\t\t\t}
+\t\t}
+\t\t
+\t\t# 阈值2
+\t\trange = {
+\t\t\t...
+\t\t}
+\t}
+\t
+\t#左侧同理
 }`
   
   // 在光标位置插入模板
