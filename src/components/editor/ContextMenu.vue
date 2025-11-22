@@ -72,6 +72,28 @@ function handleAction(action: string) {
     >
       📁 新建文件夹
     </button>
+    <div class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
+    <button
+      @click="handleAction('rename')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0;"
+    >
+      ✏️ 重命名
+    </button>
+    <button
+      @click="handleAction('copyPath')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0;"
+    >
+      📋 复制路径
+    </button>
+    <button
+      @click="handleAction('showInExplorer')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      style="color: #e0e0e0;"
+    >
+      📂 在资源管理器中显示
+    </button>
   </div>
 
   <!-- 编辑器窗格右键菜单 -->

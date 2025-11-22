@@ -142,6 +142,13 @@ export async function createFolder(folderPath: string): Promise<FileOperationRes
 }
 
 /**
+ * 重命名文件或文件夹
+ */
+export async function renamePath(oldPath: string, newPath: string): Promise<FileOperationResult> {
+  return await invoke('rename_path', { oldPath, newPath })
+}
+
+/**
  * 打开文件夹
  */
 export async function openFolder(path: string): Promise<FileOperationResult> {

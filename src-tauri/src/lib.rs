@@ -1279,6 +1279,44 @@ fn create_folder(folder_path: String) -> serde_json::Value {
     }
 }
 
+
+/// 重命名文件或文件夹
+#[tauri::command]
+fn rename_path(old_path: String, new_path: String) -> serde_json::Value {
+    use std::fs;
+    use std::path::Path;
+
+    println!("重命名: {} -> {}", old_path, new_path);
+
+    let old = Path::new(&old_path);
+    let new = Path::new(&new_path);
+
+    if !old.exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "源文件不存在"
+        });
+    }
+
+    if new.exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "目标路径已存在"
+        });
+    }
+
+    match fs::rename(old, new) {
+        Ok(_) => serde_json::json!({
+            "success": true,
+            "message": "重命名成功"
+        }),
+        Err(e) => serde_json::json!({
+            "success": false,
+            "message": format!("重命名失败: {}", e)
+        })
+    }
+}
+
 // ==================== 搜索功能 ====================
 
 /// 搜索结果结构体
@@ -1884,6 +1922,7 @@ pub fn run() {
             read_directory,
             create_file,
             create_folder,
+            rename_path,
             load_settings,
             save_settings,
             validate_game_directory,

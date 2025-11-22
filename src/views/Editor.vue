@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame } from '../api/tauri'
+import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
@@ -90,10 +90,13 @@ const contextMenuType = ref<'file' | 'tree' | 'pane'>('file')
 const contextMenuPaneId = ref('')
 const contextMenuFileIndex = ref(-1)
 const treeContextMenuNode = ref<FileNode | null>(null)
+const lastContextMenuTime = ref(0)
 
 // 创建对话框状态
 const createDialogVisible = ref(false)
 const createDialogType = ref<'file' | 'folder'>('file')
+const createDialogMode = ref<'create' | 'rename'>('create')
+const createDialogInitialValue = ref('')
 
 // 依赖项管理状态
 const leftPanelActiveTab = ref<'project' | 'dependencies'>('project')
@@ -484,7 +487,20 @@ function showFileTabContextMenu(event: MouseEvent, paneId: string, index: number
 }
 
 function showTreeContextMenu(event: MouseEvent, node: FileNode | null = null) {
-  treeContextMenuNode.value = node
+  // 如果是背景点击（node=null），且距离上次有效点击时间很近，则忽略（视为冒泡）
+  const now = Date.now()
+  if (node === null && now - lastContextMenuTime.value < 100) {
+    return
+  }
+  
+  if (node) {
+    lastContextMenuTime.value = now
+    treeContextMenuNode.value = node
+    selectedNode.value = node // 强制高亮
+  } else {
+    treeContextMenuNode.value = null
+  }
+  
   contextMenuX.value = event.clientX
   contextMenuY.value = event.clientY
   contextMenuType.value = 'tree'
@@ -523,10 +539,47 @@ function handleContextMenuAction(action: string) {
   } else if (contextMenuType.value === 'tree') {
     if (action === 'createFile') {
       createDialogType.value = 'file'
+      createDialogMode.value = 'create'
+      createDialogInitialValue.value = ''
       createDialogVisible.value = true
     } else if (action === 'createFolder') {
       createDialogType.value = 'folder'
+      createDialogMode.value = 'create'
+      createDialogInitialValue.value = ''
       createDialogVisible.value = true
+    } else if (action === 'rename') {
+      if (!treeContextMenuNode.value) return
+      createDialogType.value = treeContextMenuNode.value.isDirectory ? 'folder' : 'file'
+      createDialogMode.value = 'rename'
+      createDialogInitialValue.value = treeContextMenuNode.value.name
+      createDialogVisible.value = true
+    } else if (action === 'copyPath') {
+      if (treeContextMenuNode.value) {
+        navigator.clipboard.writeText(treeContextMenuNode.value.path).catch(err => {
+          console.error('无法复制路径: ', err)
+        })
+      } else if (projectPath.value) {
+        // 如果是在根目录空白处点击，复制项目路径
+        navigator.clipboard.writeText(projectPath.value).catch(err => {
+          console.error('无法复制路径: ', err)
+        })
+      }
+    } else if (action === 'showInExplorer') {
+      const targetPath = treeContextMenuNode.value ? treeContextMenuNode.value.path : projectPath.value
+      if (targetPath) {
+        // 如果是文件，打开父目录；如果是目录，直接打开
+        // 由于 openFolder 目前只负责打开，对于文件，我们尝试获取其父目录
+        if (treeContextMenuNode.value && !treeContextMenuNode.value.isDirectory) {
+          const lastSepIndex = Math.max(targetPath.lastIndexOf('/'), targetPath.lastIndexOf('\\'))
+          if (lastSepIndex > 0) {
+             openFolder(targetPath.substring(0, lastSepIndex))
+          } else {
+             openFolder(targetPath)
+          }
+        } else {
+          openFolder(targetPath)
+        }
+      }
     }
   }
   hideContextMenu()
@@ -534,6 +587,30 @@ function handleContextMenuAction(action: string) {
 
 // 创建文件/文件夹
 async function handleCreateConfirm(name: string) {
+  if (createDialogMode.value === 'rename') {
+    if (!treeContextMenuNode.value) return
+    
+    const oldPath = treeContextMenuNode.value.path
+    // 获取父目录
+    const lastSepIndex = Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\'))
+    const parentPath = lastSepIndex > 0 ? oldPath.substring(0, lastSepIndex) : oldPath
+    const newPath = `${parentPath}\\${name}` // 假设是 Windows 分隔符，或者应该检测系统
+    
+    try {
+      const result = await renamePath(oldPath, newPath)
+      if (result.success) {
+        await loadFileTree()
+        createDialogVisible.value = false
+      } else {
+        alert(result.message || '重命名失败')
+      }
+    } catch (error) {
+      logger.error('重命名失败:', error)
+      alert(`重命名失败: ${error}`)
+    }
+    return
+  }
+
   let parentPath: string
   if (treeContextMenuNode.value) {
     parentPath = treeContextMenuNode.value.isDirectory 
@@ -876,7 +953,7 @@ onUnmounted(() => {
                 :selected-path="selectedNode?.path"
                 @toggle="toggleFolder"
                 @open-file="handleOpenFile"
-                @contextmenu="showTreeContextMenu"
+                @contextmenu="(e, n) => showTreeContextMenu(e, n)"
               />
             </div>
           </template>
@@ -898,7 +975,7 @@ onUnmounted(() => {
                 :selected-path="selectedNode?.path"
                 @toggle="toggleFolder"
                 @open-file="handleOpenFile"
-                @contextmenu="showTreeContextMenu"
+                @contextmenu="(e, n) => showTreeContextMenu(e, n)"
               />
             </div>
           </template>
@@ -952,6 +1029,8 @@ onUnmounted(() => {
     <CreateDialog
       :visible="createDialogVisible"
       :type="createDialogType"
+      :mode="createDialogMode"
+      :initial-value="createDialogInitialValue"
       @confirm="handleCreateConfirm"
       @cancel="createDialogVisible = false"
     />

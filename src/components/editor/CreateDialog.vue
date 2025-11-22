@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   visible: boolean
   type: 'file' | 'folder'
-}>()
+  initialValue?: string
+  mode?: 'create' | 'rename'
+}>(), {
+  mode: 'create',
+  initialValue: ''
+})
 
 const emit = defineEmits<{
   confirm: [name: string]
@@ -17,7 +22,7 @@ const error = ref('')
 // 监听 visible 变化，重置状态
 watch(() => props.visible, (newVal) => {
   if (newVal) {
-    input.value = ''
+    input.value = props.initialValue || ''
     error.value = ''
   }
 })
@@ -69,7 +74,10 @@ function handleKeydown(event: KeyboardEvent) {
       <!-- 对话框标题 -->
       <div class="px-6 py-4 border-b-2" style="border-color: #2a2a2a;">
         <h3 class="text-lg font-bold" style="color: #e0e0e0;">
-          {{ type === 'file' ? '📄 新建文件' : '📁 新建文件夹' }}
+          {{ mode === 'rename'
+              ? (type === 'file' ? '✏️ 重命名文件' : '✏️ 重命名文件夹')
+              : (type === 'file' ? '📄 新建文件' : '📁 新建文件夹')
+          }}
         </h3>
       </div>
 
@@ -117,7 +125,7 @@ function handleKeydown(event: KeyboardEvent) {
           @mouseenter="(e) => (e.target as HTMLElement).style.backgroundColor = '#4a4a4a'"
           @mouseleave="(e) => (e.target as HTMLElement).style.backgroundColor = '#3a3a3a'"
         >
-          创建
+          {{ mode === 'rename' ? '重命名' : '创建' }}
         </button>
       </div>
     </div>
