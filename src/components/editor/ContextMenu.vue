@@ -7,6 +7,7 @@ const props = defineProps<{
   y: number
   menuType: 'file' | 'tree' | 'pane' | 'editor'
   canSplit?: boolean
+  currentFilePath?: string
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +16,13 @@ const emit = defineEmits<{
 }>()
 
 const templateMenuVisible = ref(false)
+
+// 检查当前文件是否在 history/countries 目录下
+const isInHistoryCountries = computed(() => {
+  if (!props.currentFilePath) return false
+  const normalizedPath = props.currentFilePath.replace(/\\/g, '/')
+  return normalizedPath.includes('history/countries/')
+})
 
 // 检查二级菜单是否应该显示在左侧
 const showSubmenuOnLeft = computed(() => {
@@ -206,7 +214,7 @@ function hideTemplateMenu() {
         :style="{ 
           backgroundColor: 'rgba(10, 10, 10, 0.96)',
           borderColor: 'rgba(58, 58, 58, 0.95)',
-          minWidth: '160px'
+          minWidth: '200px'
         }"
       >
         <button
@@ -215,6 +223,14 @@ function hideTemplateMenu() {
           style="color: #e0e0e0;"
         >
           💡 插入Idea模板
+        </button>
+        <button
+          v-if="isInHistoryCountries"
+          @click="handleAction('insertTagTemplate')"
+          class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+          style="color: #e0e0e0; border-color: #2a2a2a;"
+        >
+          🏷️ 插入Tag初始态定义模板
         </button>
       </div>
     </div>

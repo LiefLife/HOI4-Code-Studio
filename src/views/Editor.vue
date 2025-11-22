@@ -725,6 +725,11 @@ async function handleEditorContextMenuAction(action: string, paneId: string) {
       // 插入 Idea 模板
       handleInsertIdeaTemplate(pane, editorMethods)
       break
+      
+    case 'insertTagTemplate':
+      // 插入 Tag 初始态定义模板
+      handleInsertTagTemplate(pane, editorMethods)
+      break
   }
 }
 
@@ -760,6 +765,58 @@ function handleInsertIdeaTemplate(pane: any, editorMethods: any) {
 \t\t\t}
 \t\t}
 \t}
+}`
+  
+  // 在光标位置插入模板
+  editorMethods.insertText?.(template)
+}
+
+// 处理插入 Tag 初始态定义模板
+function handleInsertTagTemplate(pane: any, editorMethods: any) {
+  // 检查当前文件路径
+  if (pane.activeFileIndex === -1) return
+  
+  const currentFile = pane.openFiles[pane.activeFileIndex]
+  if (!currentFile) return
+  
+  const filePath = currentFile.node.path
+  
+  // 检查文件是否在 history/countries/ 目录下
+  const normalizedPath = filePath.replace(/\\/g, '/')
+  if (!normalizedPath.includes('history/countries/')) {
+    alert('错误：只能在 history/countries/ 目录下的文件中插入 Tag 初始态定义模板')
+    return
+  }
+  
+  // 构建 Tag 初始态定义模板
+  const template = `capital = your_tag_owner_provinces
+
+set_research_slots = your_research_slots
+
+set_stability = your_stability_value
+set_war_support = your_war_support_value
+
+set_politics = {
+\truling_party = your_ruling_party
+\telections_allowed = no
+}
+
+set_popularities = {
+\tdemocratic = democratic_value
+\tcommunism = communism_value
+\tneutrality = neutrality_value
+\tfascism = fascism_value
+}
+
+add_ideas = {
+\tidea1
+\tidea2\t
+}
+
+recruit_character = char1
+recruit_character = char2
+
+set_technology = {
 }`
   
   // 在光标位置插入模板

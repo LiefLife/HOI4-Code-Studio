@@ -380,6 +380,7 @@ defineExpose({
       :x="editorContextMenuX"
       :y="editorContextMenuY"
       menu-type="editor"
+      :current-file-path="currentFile?.node.path"
       @action="handleEditorContextMenuAction"
       @close="closeEditorContextMenu"
     />
