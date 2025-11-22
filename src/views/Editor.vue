@@ -671,6 +671,39 @@ function openPackageDialog() {
   packageDialogVisible.value = true
 }
 
+// 处理预览事件
+async function handlePreviewEvent(paneId: string) {
+  if (!editorGroupRef.value) return
+  
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+  
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+  
+  // 分割窗格
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+  
+  // 在新窗格中打开事件关系图
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+  
+  // 创建一个特殊的"文件"对象，表示事件关系图
+  newPane.openFiles.push({
+    node: {
+      ...currentFile.node,
+      name: `📊 ${currentFile.node.name} - 事件关系图`
+    },
+    content: currentFile.content, // 原始文件内容，用于解析
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isEventGraph: true  // 标记为事件关系图
+  })
+  newPane.activeFileIndex = 0
+}
+
 // 处理编辑器右键菜单操作
 async function handleEditorContextMenuAction(action: string, paneId: string) {
   if (!editorGroupRef.value) return
@@ -1229,6 +1262,7 @@ onUnmounted(() => {
         @open-file="handleOpenFile"
         @errors-change="handleErrorsChange"
         @editor-context-menu-action="handleEditorContextMenuAction"
+        @preview-event="handlePreviewEvent"
       />
 
       <!-- 右侧面板 -->

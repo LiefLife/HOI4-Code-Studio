@@ -22,8 +22,9 @@ export interface OpenFile {
   hasUnsavedChanges: boolean
   cursorLine: number
   cursorColumn: number
-  isImage?: boolean  // 是否为图片文件
-  mimeType?: string  // 图片 MIME 类型
+  isImage?: boolean       // 是否为图片文件
+  mimeType?: string       // 图片 MIME 类型
+  isEventGraph?: boolean  // 是否为事件关系图预览
 }
 
 /**

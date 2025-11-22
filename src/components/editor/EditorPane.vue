@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import EditorTabs from './EditorTabs.vue'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
 import ContextMenu from './ContextMenu.vue'
+import EventGraphViewer from './EventGraphViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   splitPane: [paneId: string, fileIndex?: number]
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
   editorContextMenuAction: [action: string, paneId: string]
+  previewEvent: [paneId: string]
 }>()
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -54,6 +56,18 @@ const currentFile = computed(() => {
 // 当前文件是否为图片
 const isCurrentFileImage = computed(() => {
   return currentFile.value?.isImage === true
+})
+
+// 当前文件是否为事件关系图
+const isCurrentFileEventGraph = computed(() => {
+  return currentFile.value?.isEventGraph === true
+})
+
+// 当前文件是否为事件文件（路径包含 /events/）
+const isEventFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const normalizedPath = currentFile.value.node.path.replace(/\\/g, '/')
+  return normalizedPath.includes('/events/') && !isCurrentFileImage.value && !isCurrentFileEventGraph.value
 })
 
 // 图片 URL (使用 base64 数据)
@@ -178,6 +192,16 @@ function handleActivate() {
 
 function handleSplitPane() {
   emit('splitPane', props.pane.id, props.pane.activeFileIndex)
+}
+
+function handlePreviewEvent() {
+  emit('previewEvent', props.pane.id)
+}
+
+function handleJumpToEvent(eventId: string, line: number) {
+  console.log('Jump to event:', eventId, 'at line:', line)
+  // 这里可以跳转到源文件的对应位置
+  jumpToLine(line)
 }
 
 /**
@@ -310,6 +334,18 @@ defineExpose({
             </svg>
             <span>分割</span>
           </button>
+          
+          <button
+            v-if="isEventFile"
+            @click="handlePreviewEvent"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览事件关系图"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span>预览</span>
+          </button>
         </div>
         
         <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
@@ -321,7 +357,7 @@ defineExpose({
       </div>
     </div>
 
-    <!-- 编辑器 / 图片预览 -->
+    <!-- 编辑器 / 图片预览 / 事件关系图预览 -->
     <div v-if="currentFile" class="flex-1 overflow-hidden relative">
       <!-- 图片预览 -->
       <div v-if="isCurrentFileImage" class="w-full h-full overflow-auto bg-hoi4-gray/50 flex items-center justify-center p-4">
@@ -349,6 +385,14 @@ defineExpose({
           </div>
         </div>
       </div>
+      
+      <!-- 事件关系图预览 -->
+      <EventGraphViewer
+        v-else-if="isCurrentFileEventGraph"
+        :content="currentFile.content"
+        :file-path="currentFile.node.path"
+        @jump-to-event="handleJumpToEvent"
+      />
       
       <!-- 代码编辑器 -->
       <CodeMirrorEditor

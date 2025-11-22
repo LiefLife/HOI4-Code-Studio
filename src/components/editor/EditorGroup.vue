@@ -14,6 +14,7 @@ const emit = defineEmits<{
   openFile: [node: FileNode, paneId?: string]
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
   editorContextMenuAction: [action: string, paneId: string]
+  previewEvent: [paneId: string]
 }>()
 
 const {
@@ -151,6 +152,11 @@ function handleErrorsChange(paneId: string, errors: Array<{line: number, msg: st
 // 处理编辑器右键菜单操作
 function handleEditorContextMenuAction(action: string, paneId: string) {
   emit('editorContextMenuAction', action, paneId)
+}
+
+// 处理预览事件
+function handlePreviewEvent(paneId: string) {
+  emit('previewEvent', paneId)
 }
 
 // 处理关闭窗格
@@ -291,6 +297,7 @@ defineExpose({
           @split-pane="handleSplitPane"
           @errors-change="handleErrorsChange"
           @editor-context-menu-action="handleEditorContextMenuAction"
+          @preview-event="handlePreviewEvent"
         />
       </div>
       
