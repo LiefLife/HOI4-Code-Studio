@@ -74,6 +74,14 @@ function handleCloseFile(paneId: string, index: number) {
   // 调整活动文件索引
   if (pane.openFiles.length === 0) {
     pane.activeFileIndex = -1
+    
+    // 如果窗格为空且有多个窗格，自动删除该窗格（至少保留一个窗格）
+    if (panes.value.length > 1) {
+      // 延迟一下执行，确保 UI 更新
+      setTimeout(() => {
+        closePane(paneId)
+      }, 100)
+    }
   } else if (index === pane.activeFileIndex) {
     pane.activeFileIndex = Math.min(index, pane.openFiles.length - 1)
   } else if (index < pane.activeFileIndex) {
@@ -261,6 +269,7 @@ defineExpose({
   openFileInPane,
   splitPane,
   closePane,
+  setActivePane,
   jumpToErrorLine,
   paneRefs
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
 import Prism from 'prismjs'
@@ -106,6 +106,18 @@ const dependencyFileTrees = ref<Map<string, FileNode[]>>(new Map())
 
 // Refs
 const editorGroupRef = ref<InstanceType<typeof EditorGroup> | null>(null)
+
+// 计算可移动到的窗格列表（排除当前窗格）
+const availablePanesForMove = computed(() => {
+  if (!editorGroupRef.value || contextMenuType.value !== 'pane') return []
+  
+  return editorGroupRef.value.panes
+    .filter(p => p.id !== contextMenuPaneId.value)
+    .map((p) => ({
+      id: p.id,
+      name: `窗格 ${editorGroupRef.value!.panes.findIndex(pane => pane.id === p.id) + 1}`
+    }))
+})
 
 const {
   leftPanelWidth,
@@ -511,13 +523,44 @@ function hideContextMenu() {
   contextMenuVisible.value = false
 }
 
-function handleContextMenuAction(action: string) {
+function handleContextMenuAction(action: string, payload?: any) {
   if (contextMenuType.value === 'pane') {
     const pane = editorGroupRef.value?.panes.find(p => p.id === contextMenuPaneId.value)
     if (!pane) return
     
     if (action === 'splitRight') {
       editorGroupRef.value?.splitPane(contextMenuPaneId.value, contextMenuFileIndex.value)
+    } else if (action === 'moveToPane') {
+      // 移动文件到其他窗格
+      const targetPaneId = payload as string
+      const targetPane = editorGroupRef.value?.panes.find(p => p.id === targetPaneId)
+      if (!targetPane || !pane || contextMenuFileIndex.value < 0) return
+      
+      const file = pane.openFiles[contextMenuFileIndex.value]
+      if (!file) return
+      
+      // 检查目标窗格是否已有该文件
+      const existingIndex = targetPane.openFiles.findIndex(f => f.node.path === file.node.path)
+      if (existingIndex !== -1) {
+        // 如果已存在，直接激活
+        targetPane.activeFileIndex = existingIndex
+        editorGroupRef.value?.setActivePane(targetPaneId)
+      } else {
+        // 复制文件到目标窗格
+        targetPane.openFiles.push({ ...file })
+        targetPane.activeFileIndex = targetPane.openFiles.length - 1
+        editorGroupRef.value?.setActivePane(targetPaneId)
+      }
+      
+      // 从源窗格删除文件
+      pane.openFiles.splice(contextMenuFileIndex.value, 1)
+      if (pane.openFiles.length === 0) {
+        pane.activeFileIndex = -1
+      } else if (contextMenuFileIndex.value === pane.activeFileIndex) {
+        pane.activeFileIndex = Math.min(contextMenuFileIndex.value, pane.openFiles.length - 1)
+      } else if (contextMenuFileIndex.value < pane.activeFileIndex) {
+        pane.activeFileIndex--
+      }
     } else if (action === 'closeAll') {
       if (pane.openFiles.some(f => f.hasUnsavedChanges)) {
         if (!confirm('有文件包含未保存的更改，是否关闭？')) return
@@ -681,25 +724,50 @@ async function handlePreviewEvent(paneId: string) {
   const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
   if (!currentFile) return
   
-  // 分割窗格
+  let targetPane = null
+  
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p => 
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree)
+    )
+  }
+  
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    targetPane.openFiles.push({
+      node: {
+        ...currentFile.node,
+        name: `📊 ${currentFile.node.name} - 事件关系图`
+      },
+      content: currentFile.content,
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isEventGraph: true
+    })
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+  
+  // 否则，分割窗格创建新预览
   const splitSuccess = editorGroupRef.value.splitPane(paneId)
   if (!splitSuccess) return
   
-  // 在新窗格中打开事件关系图
   const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
   if (!newPane) return
   
-  // 创建一个特殊的"文件"对象，表示事件关系图
   newPane.openFiles.push({
     node: {
       ...currentFile.node,
       name: `📊 ${currentFile.node.name} - 事件关系图`
     },
-    content: currentFile.content, // 原始文件内容，用于解析
+    content: currentFile.content,
     hasUnsavedChanges: false,
     cursorLine: 1,
     cursorColumn: 1,
-    isEventGraph: true  // 标记为事件关系图
+    isEventGraph: true
   })
   newPane.activeFileIndex = 0
 }
@@ -714,25 +782,50 @@ async function handlePreviewFocus(paneId: string) {
   const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
   if (!currentFile) return
   
-  // 分割窗格
+  let targetPane = null
+  
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p => 
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree)
+    )
+  }
+  
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    targetPane.openFiles.push({
+      node: {
+        ...currentFile.node,
+        name: `🌳 ${currentFile.node.name} - 国策树`
+      },
+      content: currentFile.content,
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isFocusTree: true
+    })
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+  
+  // 否则，分割窗格创建新预览
   const splitSuccess = editorGroupRef.value.splitPane(paneId)
   if (!splitSuccess) return
   
-  // 在新窗格中打开国策树
   const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
   if (!newPane) return
   
-  // 创建一个特殊的"文件"对象，表示国策树
   newPane.openFiles.push({
     node: {
       ...currentFile.node,
       name: `🌳 ${currentFile.node.name} - 国策树`
     },
-    content: currentFile.content, // 原始文件内容，用于解析
+    content: currentFile.content,
     hasUnsavedChanges: false,
     cursorLine: 1,
     cursorColumn: 1,
-    isFocusTree: true  // 标记为国策树
+    isFocusTree: true
   })
   newPane.activeFileIndex = 0
 }
@@ -1322,6 +1415,7 @@ onUnmounted(() => {
       :y="contextMenuY"
       :menu-type="contextMenuType"
       :can-split="(editorGroupRef?.panes.length || 0) < 3"
+      :available-panes="availablePanesForMove"
       @action="handleContextMenuAction"
       @close="hideContextMenu"
     />

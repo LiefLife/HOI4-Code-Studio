@@ -8,14 +8,16 @@ const props = defineProps<{
   menuType: 'file' | 'tree' | 'pane' | 'editor'
   canSplit?: boolean
   currentFilePath?: string
+  availablePanes?: Array<{id: string, name: string}>
 }>()
 
 const emit = defineEmits<{
-  action: [actionName: string]
+  action: [actionName: string, payload?: any]
   close: []
 }>()
 
 const templateMenuVisible = ref(false)
+const moveMenuVisible = ref(false)
 
 // 检查当前文件是否在 common/ideas 目录下
 const isInCommonIdeas = computed(() => {
@@ -50,8 +52,8 @@ const showSubmenuOnLeft = computed(() => {
   return props.x + 200 + submenuWidth > window.innerWidth - padding
 })
 
-function handleAction(action: string) {
-  emit('action', action)
+function handleAction(action: string, payload?: any) {
+  emit('action', action, payload)
 }
 
 function showTemplateMenu() {
@@ -60,6 +62,14 @@ function showTemplateMenu() {
 
 function hideTemplateMenu() {
   templateMenuVisible.value = false
+}
+
+function showMoveMenu() {
+  moveMenuVisible.value = true
+}
+
+function hideMoveMenu() {
+  moveMenuVisible.value = false
 }
 </script>
 
@@ -162,10 +172,47 @@ function hideTemplateMenu() {
     >
       ➡️ 向右分割
     </button>
+    <!-- 移动到其他窗格菜单 -->
+    <div 
+      v-if="availablePanes && availablePanes.length > 0"
+      class="relative"
+      @mouseenter="showMoveMenu"
+      @mouseleave="hideMoveMenu"
+    >
+      <button
+        class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item flex items-center justify-between"
+        :class="{ 'border-t': canSplit }"
+        style="color: #e0e0e0; border-color: #2a2a2a;"
+      >
+        <span>📤 移动到</span>
+        <span>▶</span>
+      </button>
+      <!-- 二级菜单 -->
+      <div
+        v-if="moveMenuVisible"
+        class="absolute top-0 border rounded-xl shadow-2xl backdrop-blur-sm"
+        :class="showSubmenuOnLeft ? 'right-full mr-1' : 'left-full ml-1'"
+        :style="{ 
+          backgroundColor: 'rgba(10, 10, 10, 0.96)',
+          borderColor: 'rgba(58, 58, 58, 0.95)',
+          minWidth: '150px'
+        }"
+      >
+        <button
+          v-for="(pane, index) in availablePanes"
+          :key="pane.id"
+          @click="handleAction('moveToPane', pane.id)"
+          class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+          :class="{ 'border-t': index > 0 }"
+          style="color: #e0e0e0; border-color: #2a2a2a;"
+        >
+          {{ pane.name }}
+        </button>
+      </div>
+    </div>
     <button
       @click="handleAction('closeAll')"
-      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      :class="{ 'border-t': canSplit }"
+      class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
       style="color: #e0e0e0; border-color: #2a2a2a;"
     >
       关闭全部

@@ -177,9 +177,10 @@ async function initCytoscape() {
       {
         selector: 'node',
         style: {
-          'background-color': '#1e3a5f',
-          'border-color': '#4a90e2',
-          'border-width': 3,
+          'background-color': 'transparent',
+          'background-opacity': 0,
+          'border-color': 'transparent',
+          'border-width': 0,
           'label': 'data(label)',
           'text-valign': 'bottom',
           'text-halign': 'center',
@@ -199,9 +200,10 @@ async function initCytoscape() {
       {
         selector: 'node.hovered',
         style: {
-          'background-color': '#2d5a8f',
+          'background-color': 'rgba(45, 90, 143, 0.3)',
+          'background-opacity': 0.3,
           'border-color': '#5ba3ff',
-          'border-width': 4,
+          'border-width': 2,
           'z-index': 999
         }
       },
@@ -209,9 +211,10 @@ async function initCytoscape() {
       {
         selector: 'node.highlighted',
         style: {
-          'background-color': '#ff6b6b',
+          'background-color': 'rgba(255, 107, 107, 0.3)',
+          'background-opacity': 0.3,
           'border-color': '#ff3838',
-          'border-width': 5
+          'border-width': 3
         }
       },
       // 前置条件边（实线）
