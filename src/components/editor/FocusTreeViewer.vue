@@ -268,6 +268,7 @@ async function initCytoscape() {
     } as any,
     minZoom: 0.1,
     maxZoom: 3.0,
+    wheelSensitivity: 2, // 滚轮缩放灵敏度
     autoungrabify: true, // 禁止拖动节点
     autounselectify: false // 允许选中节点
   })
