@@ -9,11 +9,15 @@ const statusMessage = ref('')
 const showStatus = ref(false)
 
 // 当前版本
-const CURRENT_VERSION = 'v0.2.0-dev'
+const CURRENT_VERSION = 'v0.2.1-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
 const updateInfo = ref<{ version: string; url: string } | null>(null)
+
+// 游戏目录提醒
+const showGameDirDialog = ref(false)
+const isFirstTime = ref(false)
 
 // 显示状态消息
 function displayStatus(message: string, duration: number = 3000) {
@@ -108,11 +112,56 @@ function closeUpdateDialog() {
   showUpdateDialog.value = false
 }
 
+// 检查游戏目录设置
+async function checkGameDirectory() {
+  const settings = await loadSettings()
+  
+  if (settings.success && settings.data) {
+    const data = settings.data as any
+    const gameDir = data.gameDirectory || ''
+    
+    // 检查是否是首次启动（通过检查是否有任何配置）
+    const hasAnyConfig = Object.keys(data).length > 0 && 
+                        Object.values(data).some(v => v !== '' && v !== null && v !== undefined)
+    
+    // 如果没有任何配置或者只有默认配置，认为是首次启动
+    isFirstTime.value = !hasAnyConfig || (gameDir === '' && !data.lastProjectPath)
+    
+    // 如果游戏目录未设置，显示提醒
+    if (!gameDir || gameDir.trim() === '') {
+      // 延迟显示，让界面先加载
+      setTimeout(() => {
+        showGameDirDialog.value = true
+      }, 800)
+    }
+  } else {
+    // 无法加载设置，认为是首次启动
+    isFirstTime.value = true
+    setTimeout(() => {
+      showGameDirDialog.value = true
+    }, 800)
+  }
+}
+
+// 关闭游戏目录提醒
+function closeGameDirDialog() {
+  showGameDirDialog.value = false
+}
+
+// 跳转到设置页面
+function goToSettings() {
+  showGameDirDialog.value = false
+  router.push('/settings')
+}
+
 // 组件挂载后显示欢迎消息并检查更新
 onMounted(async () => {
   setTimeout(() => {
     displayStatus('欢迎使用 Hearts of Iron IV GUI Mod Editor', 3000)
   }, 500)
+  
+  // 检查游戏目录设置
+  await checkGameDirectory()
   
   // 检查是否启用了自动更新检测
   const settings = await loadSettings()
@@ -149,7 +198,7 @@ onMounted(async () => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.2.0-dev
+        v0.2.1-dev
       </div>
     </div>
 
@@ -266,6 +315,56 @@ onMounted(async () => {
               class="btn-secondary flex-1"
             >
               稍后提醒
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏目录提醒对话框 -->
+    <div 
+      v-if="showGameDirDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      style="backdrop-filter: blur(4px);"
+      @click.self="closeGameDirDialog"
+    >
+      <div class="card max-w-md mx-4">
+        <div class="space-y-4">
+          <div class="flex items-start space-x-3">
+            <svg class="w-8 h-8 text-onedark-yellow flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-xl font-bold text-onedark-fg mb-2">
+                {{ isFirstTime ? '🎉 欢迎使用' : '⚠️ 未设置游戏目录' }}
+              </h3>
+              <p class="text-onedark-fg leading-relaxed" v-if="isFirstTime">
+                感谢您使用 HOI4 Code Studio！<br/>
+                为了更好地使用本工具，建议您先设置钢铁雄心4的游戏目录。<br/>
+                <span class="text-onedark-comment text-sm mt-2 block">设置游戏目录后，您可以：</span>
+                <span class="text-onedark-green text-sm block">✓ 浏览游戏原版文件</span>
+                <span class="text-onedark-green text-sm block">✓ 查看游戏标签和国策</span>
+                <span class="text-onedark-green text-sm block">✓ 获得更好的代码提示</span>
+              </p>
+              <p class="text-onedark-fg leading-relaxed" v-else>
+                检测到您还未设置钢铁雄心4的游戏目录。<br/>
+                设置后可以浏览游戏原版文件、查看标签和国策等。
+              </p>
+            </div>
+          </div>
+          
+          <div class="flex space-x-3 pt-2">
+            <button
+              @click="goToSettings"
+              class="btn-primary flex-1"
+            >
+              {{ isFirstTime ? '立即设置' : '前往设置' }}
+            </button>
+            <button
+              @click="closeGameDirDialog"
+              class="btn-secondary flex-1"
+            >
+              稍后设置
             </button>
           </div>
         </div>

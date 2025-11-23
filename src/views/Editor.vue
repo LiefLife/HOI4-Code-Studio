@@ -13,6 +13,7 @@ import EditorGroup from '../components/editor/EditorGroup.vue'
 import RightPanel from '../components/editor/RightPanel.vue'
 import ContextMenu from '../components/editor/ContextMenu.vue'
 import CreateDialog from '../components/editor/CreateDialog.vue'
+import ConfirmDialog from '../components/editor/ConfirmDialog.vue'
 import FileTreeNode from '../components/FileTreeNode.vue'
 import LeftPanelTabs from '../components/editor/LeftPanelTabs.vue'
 import DependencyManager from '../components/editor/DependencyManager.vue'
@@ -97,6 +98,48 @@ const createDialogVisible = ref(false)
 const createDialogType = ref<'file' | 'folder'>('file')
 const createDialogMode = ref<'create' | 'rename'>('create')
 const createDialogInitialValue = ref('')
+
+// 确认对话框状态
+const confirmDialogVisible = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogMessage = ref('')
+const confirmDialogType = ref<'warning' | 'danger' | 'info'>('warning')
+let confirmDialogResolve: ((value: boolean) => void) | null = null
+
+/**
+ * 显示确认对话框
+ */
+function showConfirmDialog(message: string, title = '⚠️ 确认操作', type: 'warning' | 'danger' | 'info' = 'warning'): Promise<boolean> {
+  return new Promise((resolve) => {
+    confirmDialogMessage.value = message
+    confirmDialogTitle.value = title
+    confirmDialogType.value = type
+    confirmDialogVisible.value = true
+    confirmDialogResolve = resolve
+  })
+}
+
+/**
+ * 处理确认对话框确认
+ */
+function handleConfirmDialogConfirm() {
+  confirmDialogVisible.value = false
+  if (confirmDialogResolve) {
+    confirmDialogResolve(true)
+    confirmDialogResolve = null
+  }
+}
+
+/**
+ * 处理确认对话框取消
+ */
+function handleConfirmDialogCancel() {
+  confirmDialogVisible.value = false
+  if (confirmDialogResolve) {
+    confirmDialogResolve(false)
+    confirmDialogResolve = null
+  }
+}
 
 // 依赖项管理状态
 const leftPanelActiveTab = ref<'project' | 'dependencies'>('project')
@@ -253,7 +296,11 @@ async function loadProjectInfo() {
       projectInfo.value = result.data
       return
     }
-    const shouldInitialize = confirm('检测到此文件夹不是HOI4 Code Studio项目，是否要将其初始化为项目？')
+    const shouldInitialize = await showConfirmDialog(
+      '检测到此文件夹不是HOI4 Code Studio项目，是否要将其初始化为项目？',
+      '📁 初始化项目',
+      'info'
+    )
     if (shouldInitialize) {
       try {
         const descriptorPath = `${projectPath.value}/descriptor.mod`
@@ -523,7 +570,7 @@ function hideContextMenu() {
   contextMenuVisible.value = false
 }
 
-function handleContextMenuAction(action: string, payload?: any) {
+async function handleContextMenuAction(action: string, payload?: any) {
   if (contextMenuType.value === 'pane') {
     const pane = editorGroupRef.value?.panes.find(p => p.id === contextMenuPaneId.value)
     if (!pane) return
@@ -563,7 +610,12 @@ function handleContextMenuAction(action: string, payload?: any) {
       }
     } else if (action === 'closeAll') {
       if (pane.openFiles.some(f => f.hasUnsavedChanges)) {
-        if (!confirm('有文件包含未保存的更改，是否关闭？')) return
+        const confirmed = await showConfirmDialog(
+          '有文件包含未保存的更改，是否关闭？',
+          '⚠️ 未保存的更改',
+          'warning'
+        )
+        if (!confirmed) return
       }
       pane.openFiles = []
       pane.activeFileIndex = -1
@@ -573,7 +625,12 @@ function handleContextMenuAction(action: string, payload?: any) {
       
       const others = pane.openFiles.filter((_, i) => i !== contextMenuFileIndex.value)
       if (others.some(f => f.hasUnsavedChanges)) {
-        if (!confirm('其他文件包含未保存的更改，是否关闭？')) return
+        const confirmed = await showConfirmDialog(
+          '其他文件包含未保存的更改，是否关闭？',
+          '⚠️ 未保存的更改',
+          'warning'
+        )
+        if (!confirmed) return
       }
       
       pane.openFiles = [keepFile]
@@ -687,12 +744,17 @@ async function handleCreateConfirm(name: string) {
 }
 
 // 返回主界面
-function goBack() {
+async function goBack() {
   const hasUnsaved = editorGroupRef.value?.panes.some(pane => 
     pane.openFiles.some((f: any) => f.hasUnsavedChanges)
   )
   if (hasUnsaved) {
-    if (!confirm('有文件包含未保存的更改，是否放弃所有更改？')) {
+    const confirmed = await showConfirmDialog(
+      '有文件包含未保存的更改，是否放弃所有更改？',
+      '⚠️ 未保存的更改',
+      'warning'
+    )
+    if (!confirmed) {
       return
     }
   }
@@ -1215,24 +1277,7 @@ useKeyboardShortcuts({
   save: () => {
     // 保存当前活动窗格的文件
     if (editorGroupRef.value) {
-      const activePaneId = editorGroupRef.value.activePaneId
-      if (activePaneId) {
-        const pane = editorGroupRef.value.panes.find(p => p.id === activePaneId)
-        if (pane && pane.activeFileIndex !== -1) {
-          const file = pane.openFiles[pane.activeFileIndex]
-          if (file && file.hasUnsavedChanges) {
-            // 这里我们需要调用 EditorPane 的保存方法，或者复用 handleSaveFile
-            // 但 handleSaveFile 是 EditorGroup 的内部方法
-            // 我们可以通过 emit 或者直接调用暴露的方法
-            // 实际上 EditorGroup 暴露了 saveFile 吗？
-            // 让我们查看 EditorGroup.vue
-            // EditorGroup 没有暴露 saveFile，但 EditorPane 暴露了 save
-            // 这是一个设计问题，我们应该在 EditorGroup 中暴露 saveCurrentFile
-            // 目前我们可以尝试查找 EditorPane ref 并调用它的 save
-            // 暂时先留空，等待后续完善
-          }
-        }
-      }
+      editorGroupRef.value.saveCurrentFile()
     }
   },
   undo: () => {},
@@ -1428,6 +1473,16 @@ onUnmounted(() => {
       :initial-value="createDialogInitialValue"
       @confirm="handleCreateConfirm"
       @cancel="createDialogVisible = false"
+    />
+
+    <!-- 确认对话框 -->
+    <ConfirmDialog
+      :visible="confirmDialogVisible"
+      :title="confirmDialogTitle"
+      :message="confirmDialogMessage"
+      :type="confirmDialogType"
+      @confirm="handleConfirmDialogConfirm"
+      @cancel="handleConfirmDialogCancel"
     />
 
     <!-- 搜索面板 -->

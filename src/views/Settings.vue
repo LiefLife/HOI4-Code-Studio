@@ -22,7 +22,7 @@ const statusMessage = ref('')
 const isSaving = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.0-dev'
+const CURRENT_VERSION = 'v0.2.1-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -67,6 +67,12 @@ async function selectGameDirectory() {
       displayStatus(`无效的游戏目录: ${validation.message}`, 3000)
     }
   }
+}
+
+// 清除游戏目录
+function clearGameDirectory() {
+  gameDirectory.value = ''
+  displayStatus('游戏目录已清除', 2000)
 }
 
 // 保存设置（静默保存，仅在失败时提示）
@@ -193,6 +199,17 @@ onMounted(async () => {
               class="btn-primary px-6"
             >
               浏览
+            </button>
+            <button
+              v-if="gameDirectory"
+              type="button"
+              @click="clearGameDirectory"
+              class="btn-secondary px-4"
+              title="清除游戏目录"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
             </button>
           </div>
         </div>

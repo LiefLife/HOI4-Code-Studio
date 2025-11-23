@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import EditorPane from './EditorPane.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import { useEditorGroups } from '../../composables/useEditorGroups'
 import type { FileNode } from '../../composables/useFileManager'
 
@@ -31,6 +32,48 @@ const resizingPaneIndex = ref<number | null>(null)
 const resizeStartX = ref(0)
 const resizeStartWidths = ref<number[]>([])
 
+// 确认对话框状态
+const confirmDialogVisible = ref(false)
+const confirmDialogTitle = ref('')
+const confirmDialogMessage = ref('')
+const confirmDialogType = ref<'warning' | 'danger' | 'info'>('warning')
+let confirmDialogResolve: ((value: boolean) => void) | null = null
+
+/**
+ * 显示确认对话框
+ */
+function showConfirmDialog(message: string, title = '⚠️ 确认操作', type: 'warning' | 'danger' | 'info' = 'warning'): Promise<boolean> {
+  return new Promise((resolve) => {
+    confirmDialogMessage.value = message
+    confirmDialogTitle.value = title
+    confirmDialogType.value = type
+    confirmDialogVisible.value = true
+    confirmDialogResolve = resolve
+  })
+}
+
+/**
+ * 处理确认对话框确认
+ */
+function handleConfirmDialogConfirm() {
+  confirmDialogVisible.value = false
+  if (confirmDialogResolve) {
+    confirmDialogResolve(true)
+    confirmDialogResolve = null
+  }
+}
+
+/**
+ * 处理确认对话框取消
+ */
+function handleConfirmDialogCancel() {
+  confirmDialogVisible.value = false
+  if (confirmDialogResolve) {
+    confirmDialogResolve(false)
+    confirmDialogResolve = null
+  }
+}
+
 // EditorPane 引用 Map
 const paneRefs = ref<Map<string, InstanceType<typeof EditorPane>>>(new Map())
 
@@ -55,7 +98,7 @@ function handleSwitchFile(paneId: string, index: number) {
 }
 
 // 处理文件关闭
-function handleCloseFile(paneId: string, index: number) {
+async function handleCloseFile(paneId: string, index: number) {
   const pane = panes.value.find(p => p.id === paneId)
   if (!pane) return
   
@@ -63,7 +106,12 @@ function handleCloseFile(paneId: string, index: number) {
   
   // 检查未保存更改
   if (file.hasUnsavedChanges) {
-    if (!confirm(`文件 "${file.node.name}" 有未保存的更改，是否放弃更改？`)) {
+    const confirmed = await showConfirmDialog(
+      `文件 "${file.node.name}" 有未保存的更改，是否放弃更改？`,
+      '⚠️ 未保存的更改',
+      'warning'
+    )
+    if (!confirmed) {
       return
     }
   }
@@ -261,6 +309,22 @@ function jumpToErrorLine(line: number) {
   paneRef.jumpToLine(line)
 }
 
+/**
+ * 保存当前活动窗格的文件
+ */
+async function saveCurrentFile(): Promise<boolean> {
+  if (!activePaneId.value) return false
+  
+  const pane = panes.value.find(p => p.id === activePaneId.value)
+  if (!pane || pane.activeFileIndex === -1) return false
+  
+  const file = pane.openFiles[pane.activeFileIndex]
+  if (!file || !file.hasUnsavedChanges) return false
+  
+  await handleSaveFile(activePaneId.value)
+  return true
+}
+
 // 暴露方法供父组件使用
 defineExpose({
   panes,
@@ -271,12 +335,22 @@ defineExpose({
   closePane,
   setActivePane,
   jumpToErrorLine,
+  saveCurrentFile,
   paneRefs
 })
 </script>
 
 <template>
   <div class="editor-group-container flex-1 flex overflow-hidden">
+    <!-- 确认对话框 -->
+    <ConfirmDialog
+      :visible="confirmDialogVisible"
+      :title="confirmDialogTitle"
+      :message="confirmDialogMessage"
+      :type="confirmDialogType"
+      @confirm="handleConfirmDialogConfirm"
+      @cancel="handleConfirmDialogCancel"
+    />
     <template v-for="(pane, index) in panes" :key="pane.id">
       <!-- 编辑器窗格 -->
       <div 
