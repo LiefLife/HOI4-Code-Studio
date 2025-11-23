@@ -200,7 +200,7 @@ function calculateAbsolutePositions(focuses: Map<string, FocusNode>) {
   }
 
   // 计算所有国策的绝对坐标
-  focuses.forEach((focus, focusId) => {
+  focuses.forEach((_focus, focusId) => {
     if (!calculated.has(focusId)) {
       calculate(focusId)
     }
@@ -281,7 +281,7 @@ export function searchFocuses(focuses: Map<string, FocusNode>, searchQuery: stri
   const query = searchQuery.toLowerCase()
   const results: string[] = []
 
-  focuses.forEach((focus, focusId) => {
+  focuses.forEach((_focus, focusId) => {
     if (focusId.toLowerCase().includes(query)) {
       results.push(focusId)
     }

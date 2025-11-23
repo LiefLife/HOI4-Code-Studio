@@ -4,7 +4,7 @@
  */
 
 import { ref, computed, type Ref } from 'vue'
-import type { EventGraph, EventNode } from '../utils/eventParser'
+import type { EventGraph } from '../utils/eventParser'
 import { buildEventLayers } from '../utils/eventParser'
 
 /**
