@@ -756,14 +756,21 @@ fn launch_game() -> LaunchGameResult {
             };
         }
 
+        // 获取用户选择的启动程序
+        let pirate_executable = settings.get("pirateExecutable")
+            .and_then(|v| v.as_str())
+            .unwrap_or("dowser");
+        
+        let exe_name = format!("{}.exe", pirate_executable);
+
         #[cfg(target_os = "windows")]
         {
-            let game_exe = Path::new(game_path).join("dowser.exe");
+            let game_exe = Path::new(game_path).join(&exe_name);
 
             if !game_exe.exists() {
                 return LaunchGameResult {
                     success: false,
-                    message: format!("找不到游戏文件: {}，请确认游戏目录包含 dowser.exe", game_exe.display()),
+                    message: format!("找不到游戏文件: {}，请确认游戏目录包含 {} 文件", game_exe.display(), exe_name),
                 };
             }
 

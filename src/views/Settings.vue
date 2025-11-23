@@ -15,6 +15,7 @@ const configLocation = ref<'appdata' | 'portable'>('appdata')
 // 游戏启动设置
 const useSteamVersion = ref(true)
 const usePirateVersion = ref(false)
+const pirateExecutable = ref<'dowser' | 'hoi4'>('dowser')
 
 // 状态
 const showStatus = ref(false)
@@ -22,7 +23,7 @@ const statusMessage = ref('')
 const isSaving = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.1-dev'
+const CURRENT_VERSION = 'v0.2.2-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -52,6 +53,7 @@ async function loadUserSettings() {
     configLocation.value = data.configLocation || 'appdata'
     useSteamVersion.value = data.useSteamVersion !== false
     usePirateVersion.value = data.usePirateVersion || false
+    pirateExecutable.value = data.pirateExecutable || 'dowser'
   }
 }
 
@@ -85,7 +87,8 @@ async function handleSave() {
     recentProjectsLayout: recentProjectsLayout.value,
     configLocation: configLocation.value,
     useSteamVersion: useSteamVersion.value,
-    usePirateVersion: usePirateVersion.value
+    usePirateVersion: usePirateVersion.value,
+    pirateExecutable: pirateExecutable.value
   }
   
   const result = await saveSettings(settings)
@@ -242,13 +245,42 @@ onMounted(async () => {
             <span class="text-hoi4-text">使用学习版启动</span>
           </label>
 
-          <div v-if="usePirateVersion" class="ml-8 p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
-            <div class="flex items-start space-x-2">
-              <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <div class="text-hoi4-comment text-sm">
-                <strong class="text-hoi4-text">提示：</strong>学习版启动将使用上方设置的 HOI4 游戏目录，请确保该目录包含 dowser.exe 文件。
+          <div v-if="usePirateVersion" class="ml-8 space-y-3">
+            <!-- 启动程序选择 -->
+            <div>
+              <label class="block text-hoi4-text mb-2 text-sm font-semibold">
+                选择启动程序
+              </label>
+              <div class="flex space-x-3">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    v-model="pirateExecutable"
+                    type="radio"
+                    value="dowser"
+                    class="w-4 h-4 border-2 border-hoi4-border"
+                  />
+                  <span class="text-hoi4-text">dowser.exe</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    v-model="pirateExecutable"
+                    type="radio"
+                    value="hoi4"
+                    class="w-4 h-4 border-2 border-hoi4-border"
+                  />
+                  <span class="text-hoi4-text">hoi4.exe</span>
+                </label>
+              </div>
+            </div>
+            <!-- 提示信息 -->
+            <div class="p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
+              <div class="flex items-start space-x-2">
+                <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="text-hoi4-comment text-sm">
+                  <strong class="text-hoi4-text">提示：</strong>学习版启动将使用上方设置的 HOI4 游戏目录，请确保该目录包含 {{ pirateExecutable }}.exe 文件。
+                </div>
               </div>
             </div>
           </div>
