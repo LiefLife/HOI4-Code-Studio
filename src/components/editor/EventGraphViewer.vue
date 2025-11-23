@@ -103,7 +103,7 @@ function initCytoscape() {
       },
       // 节点悬停样式
       {
-        selector: 'node:hover',
+        selector: 'node.hovered',
         style: {
           'background-color': '#1e293b',
           'border-color': '#475569',
@@ -152,8 +152,7 @@ function initCytoscape() {
       animationEasing: 'ease-out'
     } as any,
     minZoom: 0.1,
-    maxZoom: 3.0,
-    wheelSensitivity: 0.9
+    maxZoom: 3.0
   })
 
   // 监听缩放事件
@@ -171,6 +170,14 @@ function initCytoscape() {
     if (line) {
       emit('jumpToEvent', eventId, line)
     }
+  })
+
+  cy.on('mouseover', 'node', (event) => {
+    event.target.addClass('hovered')
+  })
+
+  cy.on('mouseout', 'node', (event) => {
+    event.target.removeClass('hovered')
   })
 
   // 初始居中

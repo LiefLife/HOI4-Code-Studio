@@ -93,6 +93,15 @@ pub struct PackageResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PackageOptions {
+    pub project_path: String,
+    pub output_name: String,
+    pub exclude_dependencies: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ImageReadResult {
     success: bool,
     message: Option<String>,
@@ -1534,19 +1543,13 @@ fn get_bracket_depths(content: String) -> Vec<usize> {
 }
 
 // ==================== 项目打包命令 ====================
-
-/// 打包项目到 ZIP 文件
+/// 打包项目到 ZIP 文件的内部实现
 /// 
 /// # 参数
 /// * `project_path` - 项目路径
 /// * `output_name` - 输出文件名（如 project.zip）
 /// * `exclude_dependencies` - 是否排除依赖项
-#[tauri::command]
-fn pack_project(
-    project_path: String,
-    output_name: String,
-    exclude_dependencies: bool,
-) -> PackageResult {
+fn package_project_impl(opts: PackageOptions) -> PackageResult {
     use std::fs::{self, File};
     use std::io::Write;
     use std::path::{Path, PathBuf};
@@ -1554,10 +1557,10 @@ fn pack_project(
     use zip::write::SimpleFileOptions;
     use zip::ZipWriter;
 
-    println!("开始打包项目: {}", project_path);
-    println!("输出文件名: {}", output_name);
+    println!("开始打包项目: {}", opts.project_path);
+    println!("输出文件名: {}", opts.output_name);
 
-    let project_path_obj = Path::new(&project_path);
+    let project_path_obj = Path::new(&opts.project_path);
     if !project_path_obj.exists() {
         return PackageResult {
             success: false,
@@ -1579,7 +1582,7 @@ fn pack_project(
     }
 
     // 输出文件路径
-    let output_path = package_dir.join(&output_name);
+    let output_path = package_dir.join(&opts.output_name);
     
     // 如果文件已存在，尝试删除
     if output_path.exists() {
@@ -1607,7 +1610,7 @@ fn pack_project(
     };
 
     let mut zip = ZipWriter::new(file);
-    let options = SimpleFileOptions::default()
+    let file_options = SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .compression_level(Some(6));
 
@@ -1623,7 +1626,7 @@ fn pack_project(
     ];
 
     // 读取 dependencies.json 获取依赖项路径（如果需要排除）
-    let dependency_paths: Vec<PathBuf> = if exclude_dependencies {
+    let dependency_paths: Vec<PathBuf> = if opts.exclude_dependencies {
         let deps_file = project_path_obj.join("dependencies.json");
         if deps_file.exists() {
             match fs::read_to_string(&deps_file) {
@@ -1716,7 +1719,7 @@ fn pack_project(
         };
 
         // 添加到 ZIP
-        if let Err(e) = zip.start_file(&zip_path, options) {
+        if let Err(e) = zip.start_file(&zip_path, file_options) {
             println!("警告: 无法添加文件到 ZIP {}: {}", zip_path, e);
             continue;
         }
@@ -1754,7 +1757,234 @@ fn pack_project(
     }
 }
 
+/// 打包项目 Tauri 命令
+#[tauri::command]
+fn pack_project(opts: PackageOptions) -> PackageResult {
+    package_project_impl(opts)
+}
 
+/// 从 project.json 中读取已启用依赖的路径
+fn get_dependency_paths_from_project(project_root: &str) -> Vec<String> {
+    use std::fs;
+    use std::path::Path;
+
+    let mut result = Vec::new();
+    let project_json_path = Path::new(project_root).join("project.json");
+    if !project_json_path.exists() {
+        return result;
+    }
+
+    let content = match fs::read_to_string(&project_json_path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("读取 project.json 失败: {}", e);
+            return result;
+        }
+    };
+
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("解析 project.json 失败: {}", e);
+            return result;
+        }
+    };
+
+    if let Some(deps) = json.get("dependencies").and_then(|v| v.as_array()) {
+        for dep in deps {
+            let enabled = dep
+                .get("enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            if !enabled {
+                continue;
+            }
+            if let Some(path) = dep.get("path").and_then(|v| v.as_str()) {
+                result.push(path.to_string());
+            }
+        }
+    }
+
+    result
+}
+
+/// 在 .gfx 文件内容中查找指定图标的纹理文件路径
+fn find_texture_for_icon_in_gfx(content: &str, icon_name: &str) -> Option<String> {
+    let mut in_block = false;
+    let mut block_lines: Vec<String> = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if !in_block {
+            // 支持 SpriteType 和 spriteType 两种写法
+            if trimmed.starts_with("SpriteType") || trimmed.starts_with("spriteType") {
+                in_block = true;
+                block_lines.clear();
+                block_lines.push(line.to_string());
+            }
+            continue;
+        }
+
+        block_lines.push(line.to_string());
+
+        if trimmed.starts_with('}') {
+            let mut name_value: Option<String> = None;
+            let mut texture_value: Option<String> = None;
+
+            for bline in &block_lines {
+                let t = bline.trim();
+
+                if name_value.is_none() && t.starts_with("name") {
+                    if let Some(eq_pos) = t.find('=') {
+                        let value_str = t[eq_pos + 1..].trim();
+                        let cleaned = value_str
+                            .trim_matches('"')
+                            .trim_matches('\'')
+                            .to_string();
+                        name_value = Some(cleaned);
+                    }
+                } else if texture_value.is_none() && t.starts_with("texturefile") {
+                    if let Some(eq_pos) = t.find('=') {
+                        let value_str = t[eq_pos + 1..].trim();
+                        let cleaned = value_str
+                            .trim_matches('"')
+                            .trim_matches('\'')
+                            .to_string();
+                        texture_value = Some(cleaned);
+                    }
+                }
+            }
+
+            if let Some(name) = name_value {
+                if name == icon_name {
+                    if let Some(texture) = texture_value {
+                        return Some(texture);
+                    }
+                }
+            }
+
+            in_block = false;
+            block_lines.clear();
+        }
+    }
+
+    None
+}
+
+/// 根据 icon 名称加载国策图标的内部实现
+///
+/// 会在项目、依赖和游戏目录中的 `gfx/interface/goals/*.gfx` 中查找 SpriteType 定义，
+/// 然后解析对应的 DDS/TGA/PNG 等图片并返回 base64。
+fn load_focus_icon_impl(
+    icon_name: String,
+    project_root: Option<String>,
+    game_root: Option<String>,
+) -> ImageReadResult {
+    use std::fs;
+    use std::path::PathBuf;
+
+    let icon_name_trimmed = icon_name.trim().to_string();
+    
+    if icon_name_trimmed.is_empty() {
+        return ImageReadResult {
+            success: false,
+            message: Some("图标名称为空".to_string()),
+            base64: None,
+            mime_type: None,
+        };
+    }
+
+    let mut roots: Vec<PathBuf> = Vec::new();
+
+    if let Some(root) = project_root.as_ref() {
+        if !root.is_empty() {
+            let root_path = PathBuf::from(&root);
+            roots.push(root_path.clone());
+
+            let dep_paths = get_dependency_paths_from_project(&root);
+            for dep in dep_paths {
+                if !dep.is_empty() {
+                    roots.push(PathBuf::from(dep));
+                }
+            }
+        }
+    }
+
+    if let Some(root) = game_root.as_ref() {
+        if !root.is_empty() {
+            roots.push(PathBuf::from(root));
+        }
+    }
+
+    if roots.is_empty() {
+        return ImageReadResult {
+            success: false,
+            message: Some("未提供有效的项目或游戏目录".to_string()),
+            base64: None,
+            mime_type: None,
+        };
+    }
+
+    for root in roots.iter() {
+        let interface_dir = root.join("interface");
+        
+        if !interface_dir.exists() || !interface_dir.is_dir() {
+            continue;
+        }
+
+        let entries = match fs::read_dir(&interface_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let ext = path
+                .extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            if ext != "gfx" {
+                continue;
+            }
+
+            let content = match fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            if let Some(texture_rel) =
+                find_texture_for_icon_in_gfx(&content, &icon_name_trimmed)
+            {
+                let normalized_rel = texture_rel.replace('\\', "/");
+                let texture_path = root.join(normalized_rel);
+                let texture_path_str = texture_path.to_string_lossy().to_string();
+                return read_image_as_base64(texture_path_str);
+            }
+        }
+    }
+    
+    ImageReadResult {
+        success: false,
+        message: Some(format!(
+            "未在 gfx/interface/goals/*.gfx 中找到图标定义: {}",
+            icon_name_trimmed
+        )),
+        base64: None,
+        mime_type: None,
+    }
+}
+
+/// 加载国策图标 Tauri 命令
+#[tauri::command]
+fn load_focus_icon(
+    icon_name: String,
+    project_root: Option<String>,
+    game_root: Option<String>,
+) -> ImageReadResult {
+    load_focus_icon_impl(icon_name, project_root, game_root)
+}
 
 /// 读取图片文件为 base64
 /// 
@@ -1952,7 +2182,8 @@ pub fn run() {
             dependency::validate_dependency_path,
             dependency::index_dependency,
             pack_project,
-            read_image_as_base64
+            read_image_as_base64,
+            load_focus_icon
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

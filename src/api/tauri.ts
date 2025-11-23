@@ -585,9 +585,11 @@ export interface PackageResult {
  */
 export async function packProject(options: PackageOptions): Promise<PackageResult> {
   return await invoke('pack_project', {
-    projectPath: options.projectPath,
-    outputName: options.outputName,
-    excludeDependencies: options.excludeDependencies
+    opts: {
+      projectPath: options.projectPath,
+      outputName: options.outputName,
+      excludeDependencies: options.excludeDependencies
+    }
   })
 }
 
@@ -608,4 +610,15 @@ export interface ImageReadResult {
  */
 export async function readImageAsBase64(filePath: string): Promise<ImageReadResult> {
   return await invoke('read_image_as_base64', { filePath })
+}
+
+/**
+ * 根据国策 icon 名称加载图标（会在项目、依赖和游戏目录中查找 gfx/interface/goals/*.gfx）
+ */
+export async function loadFocusIcon(
+  iconName: string,
+  projectRoot?: string,
+  gameRoot?: string
+): Promise<ImageReadResult> {
+  return await invoke('load_focus_icon', { iconName, projectRoot, gameRoot })
 }

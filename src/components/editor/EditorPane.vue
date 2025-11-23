@@ -4,6 +4,7 @@ import EditorTabs from './EditorTabs.vue'
 import CodeMirrorEditor from './CodeMirrorEditor.vue'
 import ContextMenu from './ContextMenu.vue'
 import EventGraphViewer from './EventGraphViewer.vue'
+import FocusTreeViewer from './FocusTreeViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -28,6 +29,7 @@ const emit = defineEmits<{
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
+  previewFocus: [paneId: string]
 }>()
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -68,6 +70,22 @@ const isEventFile = computed(() => {
   if (!currentFile.value?.node.path) return false
   const normalizedPath = currentFile.value.node.path.replace(/\\/g, '/')
   return normalizedPath.includes('/events/') && !isCurrentFileImage.value && !isCurrentFileEventGraph.value
+})
+
+// 当前文件是否为国策树预览
+const isCurrentFileFocusTree = computed(() => {
+  return currentFile.value?.isFocusTree === true
+})
+
+// 当前文件是否为国策文件（路径包含 /common/national_focus/）
+const isFocusFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const normalizedPath = currentFile.value.node.path.replace(/\\/g, '/')
+  return (normalizedPath.includes('/common/national_focus/') || 
+          normalizedPath.includes('\\common\\national_focus\\')) &&
+         !isCurrentFileImage.value && 
+         !isCurrentFileEventGraph.value &&
+         !isCurrentFileFocusTree.value
 })
 
 // 图片 URL (使用 base64 数据)
@@ -198,9 +216,18 @@ function handlePreviewEvent() {
   emit('previewEvent', props.pane.id)
 }
 
+function handlePreviewFocus() {
+  emit('previewFocus', props.pane.id)
+}
+
 function handleJumpToEvent(eventId: string, line: number) {
   console.log('Jump to event:', eventId, 'at line:', line)
   // 这里可以跳转到源文件的对应位置
+  jumpToLine(line)
+}
+
+function handleJumpToFocus(focusId: string, line: number) {
+  console.log('Jump to focus:', focusId, 'at line:', line)
   jumpToLine(line)
 }
 
@@ -346,6 +373,18 @@ defineExpose({
             </svg>
             <span>预览</span>
           </button>
+          
+          <button
+            v-if="isFocusFile"
+            @click="handlePreviewFocus"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览国策树"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+            </svg>
+            <span>预览</span>
+          </button>
         </div>
         
         <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
@@ -392,6 +431,16 @@ defineExpose({
         :content="currentFile.content"
         :file-path="currentFile.node.path"
         @jump-to-event="handleJumpToEvent"
+      />
+      
+      <!-- 国策树预览 -->
+      <FocusTreeViewer
+        v-else-if="isCurrentFileFocusTree"
+        :content="currentFile.content"
+        :file-path="currentFile.node.path"
+        :game-directory="gameDirectory"
+        :project-path="projectPath"
+        @jump-to-focus="handleJumpToFocus"
       />
       
       <!-- 代码编辑器 -->

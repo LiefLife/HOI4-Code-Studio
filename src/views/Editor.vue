@@ -704,6 +704,39 @@ async function handlePreviewEvent(paneId: string) {
   newPane.activeFileIndex = 0
 }
 
+// 处理预览国策树
+async function handlePreviewFocus(paneId: string) {
+  if (!editorGroupRef.value) return
+  
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+  
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+  
+  // 分割窗格
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+  
+  // 在新窗格中打开国策树
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+  
+  // 创建一个特殊的"文件"对象，表示国策树
+  newPane.openFiles.push({
+    node: {
+      ...currentFile.node,
+      name: `🌳 ${currentFile.node.name} - 国策树`
+    },
+    content: currentFile.content, // 原始文件内容，用于解析
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isFocusTree: true  // 标记为国策树
+  })
+  newPane.activeFileIndex = 0
+}
+
 // 处理编辑器右键菜单操作
 async function handleEditorContextMenuAction(action: string, paneId: string) {
   if (!editorGroupRef.value) return
@@ -1263,6 +1296,7 @@ onUnmounted(() => {
         @errors-change="handleErrorsChange"
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
+        @preview-focus="handlePreviewFocus"
       />
 
       <!-- 右侧面板 -->

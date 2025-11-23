@@ -25,6 +25,7 @@ export interface OpenFile {
   isImage?: boolean       // 是否为图片文件
   mimeType?: string       // 图片 MIME 类型
   isEventGraph?: boolean  // 是否为事件关系图预览
+  isFocusTree?: boolean   // 是否为国策树预览
 }
 
 /**

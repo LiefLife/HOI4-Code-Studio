@@ -15,6 +15,7 @@ const emit = defineEmits<{
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
+  previewFocus: [paneId: string]
 }>()
 
 const {
@@ -159,6 +160,11 @@ function handlePreviewEvent(paneId: string) {
   emit('previewEvent', paneId)
 }
 
+// 处理预览国策树
+function handlePreviewFocus(paneId: string) {
+  emit('previewFocus', paneId)
+}
+
 // 处理关闭窗格
 function handleClosePane(paneId: string) {
   closePane(paneId)
@@ -298,6 +304,7 @@ defineExpose({
           @errors-change="handleErrorsChange"
           @editor-context-menu-action="handleEditorContextMenuAction"
           @preview-event="handlePreviewEvent"
+          @preview-focus="handlePreviewFocus"
         />
       </div>
       
