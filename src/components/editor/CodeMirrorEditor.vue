@@ -2,10 +2,9 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentMore, indentLess } from '@codemirror/commands'
 import { bracketMatching, indentOnInput, indentUnit } from '@codemirror/language'
 import { closeBrackets, autocompletion, type CompletionContext } from '@codemirror/autocomplete'
-import { indentWithTab } from '@codemirror/commands'
 import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
 import { javascript } from '@codemirror/lang-javascript'
@@ -103,6 +102,82 @@ function getLanguageExtension() {
   }
 }
 
+// 自定义换行后自动缩进的扩展
+const autoIndentOnEnter = EditorView.domEventHandlers({
+  keydown: (event, view) => {
+    if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      const { state } = view
+      const { from, to } = state.selection.main
+      
+      // 获取当前行
+      const line = state.doc.lineAt(from)
+      const lineText = line.text
+      
+      // 获取当前行的缩进
+      const indent = lineText.match(/^\s*/)?.[0] || ''
+      
+      // 检查是否在大括号、中括号等后面
+      const beforeCursor = lineText.slice(0, from - line.from).trim()
+      const afterCursor = lineText.slice(to - line.from).trim()
+      
+      let extraIndent = ''
+      let needsExtraLine = false
+      
+      // 如果光标前是开括号 { [ (，增加缩进
+      if (beforeCursor.endsWith('{') || beforeCursor.endsWith('[') || beforeCursor.endsWith('(')) {
+        extraIndent = '    ' // 4个空格
+        
+        // 如果光标后是闭括号，需要在中间插入额外的空行
+        if (afterCursor.startsWith('}') || afterCursor.startsWith(']') || afterCursor.startsWith(')')) {
+          needsExtraLine = true
+        }
+      }
+      
+      // 构建要插入的文本
+      let insertText = '\n' + indent + extraIndent
+      
+      if (needsExtraLine) {
+        insertText += '\n' + indent
+      }
+      
+      // 插入换行和缩进
+      view.dispatch({
+        changes: { from, to, insert: insertText },
+        selection: { anchor: from + insertText.length - (needsExtraLine ? indent.length : 0) },
+        scrollIntoView: true
+      })
+      
+      event.preventDefault()
+      return true
+    }
+    return false
+  }
+})
+
+// 自定义 Tab 键处理，支持多行缩进
+const smartTab = keymap.of([
+  {
+    key: 'Tab',
+    run: (view) => {
+      const { state } = view
+      const { from, to } = state.selection.main
+      
+      // 如果有选中文本，缩进所有选中的行
+      if (from !== to) {
+        return indentMore(view)
+      }
+      
+      // 否则插入缩进
+      view.dispatch(state.update(state.replaceSelection('    '), { scrollIntoView: true }))
+      return true
+    }
+  },
+  {
+    key: 'Shift-Tab',
+    run: indentLess
+  }
+])
+
 // 初始化编辑器
 function initEditor() {
   if (!editorContainer.value) return
@@ -122,7 +197,9 @@ function initEditor() {
       indentUnit.of('    '), // 4 spaces
       EditorView.lineWrapping,
       EditorView.editable.of(!props.isReadOnly),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      autoIndentOnEnter,
+      smartTab,
+      keymap.of([...defaultKeymap, ...historyKeymap]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const newContent = update.state.doc.toString()
