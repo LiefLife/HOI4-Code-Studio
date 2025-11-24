@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
@@ -11,6 +11,7 @@ const gameDirectory = ref('')
 const checkForUpdatesOnStartup = ref(true)
 const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
 const configLocation = ref<'appdata' | 'portable'>('appdata')
+const autoSave = ref(true)
 
 // 游戏启动设置
 const useSteamVersion = ref(true)
@@ -23,7 +24,7 @@ const statusMessage = ref('')
 const isSaving = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.2-dev'
+const CURRENT_VERSION = 'v0.2.3-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -54,6 +55,7 @@ async function loadUserSettings() {
     useSteamVersion.value = data.useSteamVersion !== false
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
+    autoSave.value = data.autoSave !== false
   }
 }
 
@@ -88,7 +90,8 @@ async function handleSave() {
     configLocation: configLocation.value,
     useSteamVersion: useSteamVersion.value,
     usePirateVersion: usePirateVersion.value,
-    pirateExecutable: pirateExecutable.value
+    pirateExecutable: pirateExecutable.value,
+    autoSave: autoSave.value
   }
   
   const result = await saveSettings(settings)
@@ -153,6 +156,11 @@ async function goBack() {
   await handleSave()
   router.push('/')
 }
+
+// 监听自动保存开关变化，立即保存
+watch(autoSave, async () => {
+  await handleSave()
+})
 
 onMounted(async () => {
   await loadUserSettings()
@@ -297,6 +305,18 @@ onMounted(async () => {
               class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
             />
             <span class="text-hoi4-text">启动时检查更新</span>
+          </label>
+
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input
+              v-model="autoSave"
+              type="checkbox"
+              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+            />
+            <div class="flex-1">
+              <span class="text-hoi4-text">启用自动保存</span>
+              <p class="text-hoi4-comment text-sm mt-1">编辑文件时自动保存更改</p>
+            </div>
           </label>
 
           <!-- 配置文件保存位置 -->

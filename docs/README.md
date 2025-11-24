@@ -16,6 +16,7 @@
     - [代码高亮](./Frontend/Editor/SyntaxHighlight.md)
     - [依赖项](./Frontend/Editor/Dependencies.md)
     - [自动补全](./Frontend/Editor/AutoComplete.md)
+    - [自动保存](./Frontend/Editor/AutoSave.md)
     - [游戏目录](./Frontend/Editor/GameDirectory.md)
     - [搜索功能](./Frontend/Editor/Search.md)
     - [一键打包](./Frontend/Editor/Build.md)

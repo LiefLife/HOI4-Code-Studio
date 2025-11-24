@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { loadSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
+import { loadSettings, saveSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
 import Prism from 'prismjs'
 import 'prismjs/themes/prism-tomorrow.css'
 import 'prismjs/components/prism-json'
@@ -82,6 +82,7 @@ const isLoadingGameTree = ref(false)
 const rightPanelExpanded = ref(true)
 const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
 const isLaunchingGame = ref(false)
+const autoSave = ref(true)
 
 // 右键菜单状态
 const contextMenuVisible = ref(false)
@@ -393,6 +394,7 @@ async function loadGameDirectory() {
     const result = await loadSettings()
     if (result.success && result.data && typeof result.data === 'object' && 'gameDirectory' in result.data) {
       gameDirectory.value = result.data.gameDirectory as string
+      autoSave.value = ('autoSave' in result.data && result.data.autoSave === false) ? false : true
       const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
       setTagRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
       await loadGameFileTree()
@@ -1272,6 +1274,27 @@ function handlePreviousError() {
   }
 }
 
+// 切换自动保存
+async function toggleAutoSave() {
+  autoSave.value = !autoSave.value
+}
+
+// 监听自动保存开关变化，立即保存设置
+watch(autoSave, async (newValue) => {
+  try {
+    const result = await loadSettings()
+    if (result.success && result.data) {
+      const settings = {
+        ...result.data,
+        autoSave: newValue
+      }
+      await saveSettings(settings)
+    }
+  } catch (error) {
+    logger.error('保存自动保存设置失败:', error)
+  }
+})
+
 // 键盘快捷键
 useKeyboardShortcuts({
   save: () => {
@@ -1346,12 +1369,14 @@ onUnmounted(() => {
       :is-launching-game="isLaunchingGame"
       :tag-count="tagList.length"
       :idea-count="ideaList.length"
+      :auto-save="autoSave"
       @go-back="goBack"
       @toggle-right-panel="toggleRightPanel"
       @launch-game="handleLaunchGame"
       @manage-dependencies="openDependenciesFromToolbar"
       @toggle-loading-monitor="toggleLoadingMonitor"
       @package-project="openPackageDialog"
+      @toggle-auto-save="toggleAutoSave"
     />
 
     <!-- 主内容区域 -->
@@ -1429,6 +1454,7 @@ onUnmounted(() => {
         ref="editorGroupRef"
         :project-path="projectPath"
         :game-directory="gameDirectory"
+        :auto-save="autoSave"
         @context-menu="showFileTabContextMenu"
         @open-file="handleOpenFile"
         @errors-change="handleErrorsChange"

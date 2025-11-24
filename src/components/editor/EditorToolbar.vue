@@ -11,6 +11,7 @@ const props = defineProps<{
   isLaunchingGame?: boolean
   tagCount?: number
   ideaCount?: number
+  autoSave?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +21,7 @@ const emit = defineEmits<{
   manageDependencies: []
   toggleLoadingMonitor: []
   packageProject: []
+  toggleAutoSave: []
 }>()
 
 // 计算总加载数量
@@ -104,6 +106,16 @@ const totalLoadedCount = computed(() => {
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+        </svg>
+      </button>
+      <button
+        @click="emit('toggleAutoSave')"
+        class="p-2 rounded-full transition-all shadow-sm active:scale-95"
+        :class="autoSave ? 'bg-green-600/80 hover:bg-green-700/80' : 'bg-hoi4-accent/80 hover:bg-hoi4-border/80'"
+        :title="autoSave ? '自动保存已启用' : '自动保存已禁用'"
+      >
+        <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
         </svg>
       </button>
       <button

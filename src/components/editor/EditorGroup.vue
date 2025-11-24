@@ -8,6 +8,7 @@ import type { FileNode } from '../../composables/useFileManager'
 const props = defineProps<{
   projectPath: string
   gameDirectory: string
+  autoSave?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -76,6 +77,10 @@ function handleConfirmDialogCancel() {
 
 // EditorPane 引用 Map
 const paneRefs = ref<Map<string, InstanceType<typeof EditorPane>>>(new Map())
+
+// 自动保存防抖计时器
+const autoSaveTimers = ref<Map<string, number>>(new Map())
+const AUTO_SAVE_DELAY = 100 // 0.1秒防抖
 
 // 计算每个窗格是否只读
 function isPaneReadOnly(paneId: string): boolean {
@@ -153,6 +158,23 @@ function handleContentChange(paneId: string, content: string) {
     if (file.content !== content) {
       file.content = content
       file.hasUnsavedChanges = true
+      
+      // 如果启用了自动保存，设置防抖计时器
+      if (props.autoSave) {
+        // 清除旧的计时器
+        const existingTimer = autoSaveTimers.value.get(paneId)
+        if (existingTimer) {
+          clearTimeout(existingTimer)
+        }
+        
+        // 设置新的计时器
+        const timer = window.setTimeout(() => {
+          handleSaveFile(paneId)
+          autoSaveTimers.value.delete(paneId)
+        }, AUTO_SAVE_DELAY)
+        
+        autoSaveTimers.value.set(paneId, timer)
+      }
     }
   }
 }
