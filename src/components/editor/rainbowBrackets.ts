@@ -1,7 +1,8 @@
 import { EditorView, Decoration, type DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
 
-const colors = [
+// Rainbow Brackets 全局固定颜色（不随主题变化）
+const bracketColors = [
   '#c678dd', // Purple
   '#61afef', // Blue
   '#e5c07b', // Yellow
@@ -10,7 +11,7 @@ const colors = [
   '#56b6c2', // Cyan
 ]
 
-// 属性名颜色序列
+// 属性名颜色序列（全局固定）
 const propertyColors = [
   '#e06c75', // Red - Level 0
   '#d19a66', // Orange - Level 1
@@ -21,7 +22,7 @@ const propertyColors = [
 ]
 
 // 使用 class 而不是内联样式
-const bracketDecorations = colors.map((_, index) => Decoration.mark({
+const bracketDecorations = bracketColors.map((_, index) => Decoration.mark({
   class: `hoi4-bracket-${index}`
 }))
 
@@ -29,14 +30,14 @@ const propertyDecorations = propertyColors.map((_, index) => Decoration.mark({
   class: `hoi4-property-${index}`
 }))
 
-// 创建主题扩展，确保样式优先级
+// 创建主题扩展，全局固定颜色
 export const rainbowTheme = EditorView.theme({
-  '.hoi4-bracket-0': { color: `${colors[0]} !important`, fontWeight: 'bold' },
-  '.hoi4-bracket-1': { color: `${colors[1]} !important`, fontWeight: 'bold' },
-  '.hoi4-bracket-2': { color: `${colors[2]} !important`, fontWeight: 'bold' },
-  '.hoi4-bracket-3': { color: `${colors[3]} !important`, fontWeight: 'bold' },
-  '.hoi4-bracket-4': { color: `${colors[4]} !important`, fontWeight: 'bold' },
-  '.hoi4-bracket-5': { color: `${colors[5]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-0': { color: `${bracketColors[0]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-1': { color: `${bracketColors[1]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-2': { color: `${bracketColors[2]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-3': { color: `${bracketColors[3]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-4': { color: `${bracketColors[4]} !important`, fontWeight: 'bold' },
+  '.hoi4-bracket-5': { color: `${bracketColors[5]} !important`, fontWeight: 'bold' },
   
   '.hoi4-property-0': { color: `${propertyColors[0]} !important`, fontWeight: '500' },
   '.hoi4-property-1': { color: `${propertyColors[1]} !important`, fontWeight: '500' },
@@ -97,7 +98,7 @@ function buildRainbowBrackets(view: EditorView): DecorationSet {
         
         // 1. 括号处理
         if (char === '{') {
-          const colorIndex = depth % colors.length
+          const colorIndex = depth % bracketColors.length
           builder.add(currentPos, currentPos + 1, bracketDecorations[colorIndex])
           depth++
           
@@ -106,7 +107,7 @@ function buildRainbowBrackets(view: EditorView): DecorationSet {
         } else if (char === '}') {
           depth--
           if (depth >= 0) {
-            const colorIndex = depth % colors.length
+            const colorIndex = depth % bracketColors.length
             builder.add(currentPos, currentPos + 1, bracketDecorations[colorIndex])
           } else {
             depth = 0
@@ -124,7 +125,7 @@ function buildRainbowBrackets(view: EditorView): DecorationSet {
           // 2. 等号处理：检查是否有待高亮的属性名
           if (lastWordEnd !== -1) {
             // 找到了 "Key = " 结构
-            const colorIndex = depth % colors.length
+            const colorIndex = depth % bracketColors.length
             // 注意：RangeSetBuilder 要求按顺序添加。
             // 我们必须确保 lastWordStart 大于上一个添加的 decoration end。
             // 由于我们只在 { 和 } 处添加 decoration，而 property name 中不包含这些字符，

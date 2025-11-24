@@ -11,6 +11,7 @@ export function useKeyboardShortcuts(handlers: {
   search?: () => void
   nextError?: () => void
   previousError?: () => void
+  toggleTheme?: () => void
 }) {
   function handleKeyDown(e: KeyboardEvent) {
     // Ctrl+S 保存
@@ -35,6 +36,12 @@ export function useKeyboardShortcuts(handlers: {
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'f') {
       e.preventDefault()
       handlers.search?.()
+    }
+
+    // Ctrl+Shift+T 切换主题面板
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
+      e.preventDefault()
+      handlers.toggleTheme?.()
     }
     
     // Ctrl+Z 撤销

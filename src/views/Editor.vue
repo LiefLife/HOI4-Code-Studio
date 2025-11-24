@@ -26,7 +26,9 @@ import { useSearch } from '../composables/useSearch'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
 import SearchPanel from '../components/editor/SearchPanel.vue'
+import ThemePanel from '../components/ThemePanel.vue'
 import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
+import { useTheme } from '../composables/useTheme'
 import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
 import { logger } from '../utils/logger'
 import { readFileContent } from '../api/tauri'
@@ -191,6 +193,9 @@ const fileTreeAutoRefreshEnabled = ref(true)
 
 const { isLoading: tagLoading, refresh: refreshTags, tags: tagList } = useTagRegistry()
 const { isLoading: ideaLoading, refresh: refreshIdeas, ideas: ideaList } = useIdeaRegistry()
+
+// 主题系统
+const { toggleThemePanel, loadThemeFromSettings } = useTheme()
 // 依赖项管理
 const dependencyManager = useDependencyManager(projectPath.value)
 const {
@@ -1309,7 +1314,8 @@ useKeyboardShortcuts({
     searchPanelVisible.value = !searchPanelVisible.value
   },
   nextError: handleNextError,
-  previousError: handlePreviousError
+  previousError: handlePreviousError,
+  toggleTheme: toggleThemePanel
 })
 
 // 开始目录树自动刷新
@@ -1334,6 +1340,9 @@ function stopFileTreeAutoRefresh() {
 
 // 生命周期
 onMounted(async () => {
+  // 加载主题设置
+  await loadThemeFromSettings()
+  
   projectPath.value = route.query.path as string || ''
   if (projectPath.value) {
     dependencyManager.setProjectPath(projectPath.value)
@@ -1562,6 +1571,9 @@ onUnmounted(() => {
       @close="packageDialogVisible = false"
       @confirm="handlePackageProject"
     />
+
+    <!-- 主题切换面板 -->
+    <ThemePanel />
   </div>
 </template>
 

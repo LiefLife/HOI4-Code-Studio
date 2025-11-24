@@ -3,6 +3,10 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
+import { useTheme, themes } from '../composables/useTheme'
+
+// 主题系统
+const { currentThemeId, setTheme } = useTheme()
 
 const router = useRouter()
 
@@ -24,7 +28,7 @@ const statusMessage = ref('')
 const isSaving = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.3-dev'
+const CURRENT_VERSION = 'v0.2.4-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -297,6 +301,75 @@ onMounted(async () => {
         <!-- 应用设置 -->
         <div class="space-y-4">
           <h2 class="text-hoi4-text text-lg font-semibold">应用设置</h2>
+
+          <!-- 主题选择 -->
+          <div>
+            <label class="block text-hoi4-text mb-2 text-base font-semibold">
+              界面主题
+            </label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button
+                v-for="theme in themes"
+                :key="theme.id"
+                @click="setTheme(theme.id)"
+                class="relative p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02]"
+                :class="[
+                  currentThemeId === theme.id
+                    ? 'border-hoi4-accent ring-2 ring-hoi4-accent ring-opacity-50'
+                    : 'border-hoi4-border hover:border-hoi4-accent'
+                ]"
+                :style="{ backgroundColor: theme.colors.bgSecondary }"
+              >
+                <!-- 主题预览色块 -->
+                <div class="flex space-x-1 mb-2 justify-center">
+                  <div
+                    class="w-3 h-3 rounded"
+                    :style="{ backgroundColor: theme.colors.accent }"
+                  ></div>
+                  <div
+                    class="w-3 h-3 rounded"
+                    :style="{ backgroundColor: theme.colors.success }"
+                  ></div>
+                  <div
+                    class="w-3 h-3 rounded"
+                    :style="{ backgroundColor: theme.colors.warning }"
+                  ></div>
+                  <div
+                    class="w-3 h-3 rounded"
+                    :style="{ backgroundColor: theme.colors.error }"
+                  ></div>
+                </div>
+                <!-- 主题名称 -->
+                <div
+                  class="text-xs font-medium text-center"
+                  :style="{ color: theme.colors.fg }"
+                >
+                  {{ theme.name }}
+                </div>
+                <!-- 当前选中标记 -->
+                <div
+                  v-if="currentThemeId === theme.id"
+                  class="absolute top-1 right-1"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    :style="{ color: theme.colors.accent }"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clip-rule="evenodd"
+                    ></path>
+                  </svg>
+                </div>
+              </button>
+            </div>
+            <p class="text-hoi4-comment text-sm mt-2">
+              在编辑器中可按 <kbd class="px-1.5 py-0.5 rounded bg-hoi4-gray border border-hoi4-border text-hoi4-text">Ctrl+Shift+T</kbd> 快速切换主题
+            </p>
+          </div>
           
           <label class="flex items-center space-x-3 cursor-pointer">
             <input

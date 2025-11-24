@@ -1,25 +1,48 @@
 @import "tailwindcss";
 
-/* OneDark 主题 CSS 变量 */
+/* 主题 CSS 变量 - 默认 OneDark */
 :root {
-  --onedark-bg: #282c34;
-  --onedark-bg-secondary: #21252b;
-  --onedark-fg: #abb2bf;
-  --onedark-comment: #5c6370;
-  --onedark-border: #181a1f;
-  --onedark-selection: #3e4451;
-  --onedark-accent: #61afef;
-  --onedark-success: #98c379;
-  --onedark-warning: #e5c07b;
-  --onedark-error: #e06c75;
-  --onedark-keyword: #c678dd;
+  /* 主题颜色变量 */
+  --theme-bg: #282c34;
+  --theme-bg-secondary: #21252b;
+  --theme-fg: #abb2bf;
+  --theme-comment: #5c6370;
+  --theme-border: #181a1f;
+  --theme-selection: #3e4451;
+  --theme-accent: #61afef;
+  --theme-success: #98c379;
+  --theme-warning: #e5c07b;
+  --theme-error: #e06c75;
+  --theme-keyword: #c678dd;
+  
+  /* HOI4 兼容变量（映射到主题变量） */
+  --hoi4-dark: var(--theme-bg);
+  --hoi4-gray: var(--theme-bg-secondary);
+  --hoi4-border: var(--theme-border);
+  --hoi4-accent: var(--theme-accent);
+  --hoi4-text: var(--theme-fg);
+  --hoi4-comment: var(--theme-comment);
+  
+  /* 旧版 OneDark 变量（向后兼容） */
+  --onedark-bg: var(--theme-bg);
+  --onedark-bg-secondary: var(--theme-bg-secondary);
+  --onedark-fg: var(--theme-fg);
+  --onedark-comment: var(--theme-comment);
+  --onedark-border: var(--theme-border);
+  --onedark-selection: var(--theme-selection);
+  --onedark-accent: var(--theme-accent);
+  --onedark-success: var(--theme-success);
+  --onedark-warning: var(--theme-warning);
+  --onedark-error: var(--theme-error);
+  --onedark-keyword: var(--theme-keyword);
 }
 
-/* OneDark 主题全局样式 */
+/* 全局样式 */
 body {
-  background-color: var(--onedark-bg);
-  color: var(--onedark-fg);
+  background-color: var(--theme-bg);
+  color: var(--theme-fg);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* 卡片样式 */

@@ -25,8 +25,21 @@ export const documentationSections: DocSection[] = [
           'Ctrl+Z 撤销上一步编辑操作，Ctrl+Shift+Z 或 Ctrl+Y 用于重做。',
           'Ctrl+F 打开全局搜索面板，用于在当前项目或游戏目录中查找文本。',
           'Ctrl+E 跳转到下一个错误，Ctrl+R 跳转到上一个错误，方便在错误列表之间快速巡查。',
+          'Ctrl+Shift+T 打开主题切换面板，可以快速切换界面和编辑器的配色主题。',
           '在编辑区域中，可以使用 Ctrl+C / Ctrl+X / Ctrl+V 进行复制、剪切和粘贴。',
           '在搜索结果列表中，可以用方向键选择条目，回车跳转到对应位置，Esc 关闭搜索面板。'
+        ]
+      },
+      {
+        id: 'theme-switch',
+        title: '主题切换',
+        summary: '支持多种界面主题，可以根据个人喜好自定义编辑器的配色方案。',
+        details: [
+          '在设置页面的"应用设置"区域，可以看到"界面主题"选项，点击不同的主题卡片即可切换。',
+          '在编辑器中按 Ctrl+Shift+T 可以打开主题切换面板，快速在各个主题之间切换。',
+          '内置 7 种主题：One Dark、One Light、VS Code Dark、GitHub Dark、Catppuccin Mocha、Dracula、Monokai。',
+          '切换主题后会立即生效，同时自动保存到设置中，下次启动时会恢复上次选择的主题。',
+          '主题切换会同时更新界面颜色和代码编辑器的语法高亮配色。'
         ]
       },
       {
