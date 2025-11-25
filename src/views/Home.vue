@@ -3,13 +3,14 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { openFileDialog, openProject, initializeProject, loadSettings, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
+import ChangelogPanel from '../components/ChangelogPanel.vue'
 
 const router = useRouter()
 const statusMessage = ref('')
 const showStatus = ref(false)
 
 // 当前版本
-const CURRENT_VERSION = 'v0.2.4-dev'
+const CURRENT_VERSION = 'v0.2.5-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
@@ -18,6 +19,9 @@ const updateInfo = ref<{ version: string; url: string } | null>(null)
 // 游戏目录提醒
 const showGameDirDialog = ref(false)
 const isFirstTime = ref(false)
+
+// 更新日志面板
+const showChangelogPanel = ref(false)
 
 // 显示状态消息
 function displayStatus(message: string, duration: number = 3000) {
@@ -83,6 +87,16 @@ function handleSettings() {
 
 function handleDocumentation() {
   router.push('/documentation')
+}
+
+// 打开更新日志面板
+function handleChangelog() {
+  showChangelogPanel.value = true
+}
+
+// 关闭更新日志面板
+function closeChangelogPanel() {
+  showChangelogPanel.value = false
 }
 
 // 检查更新
@@ -202,7 +216,7 @@ onMounted(async () => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.2.4-dev
+        v0.2.5-dev
       </div>
     </div>
 
@@ -279,6 +293,20 @@ onMounted(async () => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 4h.01M8 4h8a2 2 0 012 2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
           </svg>
           <span>文档</span>
+        </div>
+      </button>
+
+      <!-- 更新日志按钮 -->
+      <button 
+        @click="handleChangelog"
+        class="btn-secondary w-full"
+        title="查看版本更新日志"
+      >
+        <div class="flex items-center justify-center space-x-3">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span>更新日志</span>
         </div>
       </button>
     </div>
@@ -388,6 +416,12 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- 更新日志侧边面板 -->
+    <ChangelogPanel 
+      :visible="showChangelogPanel" 
+      @close="closeChangelogPanel" 
+    />
   </div>
 </template>
 
