@@ -144,6 +144,125 @@ export const themes: Theme[] = [
       error: '#f92672',
       keyword: '#ae81ff'
     }
+  },
+  {
+    id: 'github-light',
+    name: 'GitHub Light',
+    colors: {
+      bg: '#ffffff',
+      bgSecondary: '#f6f8fa',
+      fg: '#24292e',
+      comment: '#6a737d',
+      border: '#e1e4e8',
+      selection: '#0366d626',
+      accent: '#0366d6',
+      success: '#28a745',
+      warning: '#d73a49',
+      error: '#cb2431',
+      keyword: '#d73a49'
+    }
+  },
+  {
+    id: 'solarized-light',
+    name: 'Solarized Light',
+    colors: {
+      bg: '#fdf6e3',
+      bgSecondary: '#eee8d5',
+      fg: '#657b83',
+      comment: '#93a1a1',
+      border: '#d8d0c0',
+      selection: '#eee8d5',
+      accent: '#268bd2',
+      success: '#859900',
+      warning: '#b58900',
+      error: '#dc322f',
+      keyword: '#859900'
+    }
+  },
+  {
+    id: 'solarized-dark',
+    name: 'Solarized Dark',
+    colors: {
+      bg: '#002b36',
+      bgSecondary: '#073642',
+      fg: '#839496',
+      comment: '#586e75',
+      border: '#002b36',
+      selection: '#073642',
+      accent: '#268bd2',
+      success: '#859900',
+      warning: '#b58900',
+      error: '#dc322f',
+      keyword: '#859900'
+    }
+  },
+  {
+    id: 'nord',
+    name: 'Nord',
+    colors: {
+      bg: '#2e3440',
+      bgSecondary: '#3b4252',
+      fg: '#eceff4',
+      comment: '#4c566a',
+      border: '#434c5e',
+      selection: '#4c566a',
+      accent: '#81a1c1',
+      success: '#a3be8c',
+      warning: '#ebcb8b',
+      error: '#bf616a',
+      keyword: '#b48ead'
+    }
+  },
+  {
+    id: 'gruvbox-dark',
+    name: 'Gruvbox Dark',
+    colors: {
+      bg: '#282828',
+      bgSecondary: '#3c3836',
+      fg: '#ebdbb2',
+      comment: '#928374',
+      border: '#504945',
+      selection: '#665c54',
+      accent: '#83a598',
+      success: '#b8bb26',
+      warning: '#fabd2f',
+      error: '#fb4934',
+      keyword: '#8ec07c'
+    }
+  },
+  {
+    id: 'material-dark',
+    name: 'Material Dark',
+    colors: {
+      bg: '#263238',
+      bgSecondary: '#2e3c43',
+      fg: '#eeffff',
+      comment: '#546e7a',
+      border: '#37474f',
+      selection: '#37474f',
+      accent: '#82aaff',
+      success: '#c3e88d',
+      warning: '#ffcb6b',
+      error: '#f07178',
+      keyword: '#c792ea'
+    }
+  },
+  {
+    id: 'oceanic-next',
+    name: 'Oceanic Next',
+    colors: {
+      bg: '#1b2b34',
+      bgSecondary: '#343d46',
+      fg: '#c0c5ce',
+      comment: '#65737e',
+      border: '#343d46',
+      selection: '#4f5b66',
+      accent: '#6699cc',
+      success: '#99c794',
+      warning: '#fac863',
+      error: '#ec5f67',
+      keyword: '#c594c5'
+    }
   }
 ]
 
