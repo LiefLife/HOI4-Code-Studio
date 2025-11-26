@@ -130,9 +130,21 @@ function formatDate(dateStr: string): string {
           <div
             v-for="dep in dependencies"
             :key="dep.id"
-            class="bg-hoi4-border/20 rounded-lg p-4 border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-colors"
+            class="bg-hoi4-border/20 rounded-lg p-4 border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-colors relative"
           >
-            <div class="flex items-start gap-3">
+            <!-- SVG图标 - 位于黄色框位置 -->
+            <div class="absolute left-3 top-3 flex items-center justify-center">
+              <svg v-if="dep.type === 'hoics'" class="w-18 h-18 text-hoi4-accent" fill="currentColor" viewBox="0 0 24 24">
+                <!-- HOICS项目图标 - 程序窗口 -->
+                <path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm1 1h12v2H6V6zm0 4h12v2H6v-2zm0 4h8v2H6v-2z"/>
+              </svg>
+              <svg v-else class="w-18 h-18 text-hoi4-accent" fill="currentColor" viewBox="0 0 24 24">
+                <!-- HOI4 Mod图标 - HOI4图标 -->
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+            </div>
+            
+            <div class="flex items-start gap-3 ml-6">
               <!-- 启用/禁用开关 -->
               <div class="flex-shrink-0 pt-1">
                 <button
