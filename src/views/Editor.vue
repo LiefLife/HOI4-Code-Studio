@@ -1410,45 +1410,48 @@ onUnmounted(() => {
           <h3 class="text-hoi4-text font-bold mb-2 text-sm">
             {{ leftPanelActiveTab === 'project' ? '项目文件' : '依赖项文件' }}
           </h3>
-          <!-- 项目文件树 -->
-          <template v-if="leftPanelActiveTab === 'project'">
-            <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
-            <div v-else-if="fileTree.length === 0" class="text-hoi4-text-dim text-sm p-2">无文件</div>
-            <div v-else>
-              <FileTreeNode
-                v-for="node in fileTree"
-                :key="node.path"
-                :node="node"
-                :level="0"
-                :selected-path="selectedNode?.path"
-                @toggle="toggleFolder"
-                @open-file="handleOpenFile"
-                @contextmenu="(e, n) => showTreeContextMenu(e, n)"
-              />
+          <!-- 文件树切换过渡效果 -->
+          <Transition name="sidebar-fade-slide" mode="out-in">
+            <!-- 项目文件树 -->
+            <div v-if="leftPanelActiveTab === 'project'" :key="'project'">
+              <div v-if="loading" class="text-hoi4-text-dim text-sm p-2">加载中...</div>
+              <div v-else-if="fileTree.length === 0" class="text-hoi4-text-dim text-sm p-2">无文件</div>
+              <div v-else>
+                <FileTreeNode
+                  v-for="node in fileTree"
+                  :key="node.path"
+                  :node="node"
+                  :level="0"
+                  :selected-path="selectedNode?.path"
+                  @toggle="toggleFolder"
+                  @open-file="handleOpenFile"
+                  @contextmenu="(e, n) => showTreeContextMenu(e, n)"
+                />
+              </div>
             </div>
-          </template>
 
-          <!-- 依赖项文件树 -->
-          <template v-else-if="leftPanelActiveTab === 'dependencies' && activeDependencyId">
-            <div v-if="!dependencyFileTrees.has(activeDependencyId)" class="text-hoi4-text-dim text-sm p-2">
-              加载中...
+            <!-- 依赖项文件树 -->
+            <div v-else-if="leftPanelActiveTab === 'dependencies' && activeDependencyId" :key="activeDependencyId">
+              <div v-if="!dependencyFileTrees.has(activeDependencyId)" class="text-hoi4-text-dim text-sm p-2">
+                加载中...
+              </div>
+              <div v-else-if="(dependencyFileTrees.get(activeDependencyId) || []).length === 0" class="text-hoi4-text-dim text-sm p-2">
+                无文件
+              </div>
+              <div v-else>
+                <FileTreeNode
+                  v-for="node in dependencyFileTrees.get(activeDependencyId)"
+                  :key="node.path"
+                  :node="node"
+                  :level="0"
+                  :selected-path="selectedNode?.path"
+                  @toggle="toggleFolder"
+                  @open-file="handleOpenFile"
+                  @contextmenu="(e, n) => showTreeContextMenu(e, n)"
+                />
+              </div>
             </div>
-            <div v-else-if="(dependencyFileTrees.get(activeDependencyId) || []).length === 0" class="text-hoi4-text-dim text-sm p-2">
-              无文件
-            </div>
-            <div v-else>
-              <FileTreeNode
-                v-for="node in dependencyFileTrees.get(activeDependencyId)"
-                :key="node.path"
-                :node="node"
-                :level="0"
-                :selected-path="selectedNode?.path"
-                @toggle="toggleFolder"
-                @open-file="handleOpenFile"
-                @contextmenu="(e, n) => showTreeContextMenu(e, n)"
-              />
-            </div>
-          </template>
+          </Transition>
         </div>
       </div>
 

@@ -76,25 +76,30 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
 
     <!-- 内容区域 -->
     <div class="flex-1 overflow-hidden">
-      <ProjectInfo
-        v-if="activeTab === 'info'"
-        :project-info="projectInfo"
-      />
-      
-      <GameDirectory
-        v-else-if="activeTab === 'game'"
-        :game-directory="gameDirectory"
-        :game-file-tree="gameFileTree"
-        :is-loading="isLoadingGameTree"
-        @toggle-folder="emit('toggleGameFolder', $event)"
-        @open-file="emit('openFile', $event)"
-      />
-      
-      <ErrorList
-        v-else-if="activeTab === 'errors'"
-        :errors="txtErrors"
-        @jump-to-error="emit('jumpToError', $event)"
-      />
+      <Transition name="sidebar-fade-slide" mode="out-in">
+        <ProjectInfo
+          v-if="activeTab === 'info'"
+          :key="'info'"
+          :project-info="projectInfo"
+        />
+        
+        <GameDirectory
+          v-else-if="activeTab === 'game'"
+          :key="'game'"
+          :game-directory="gameDirectory"
+          :game-file-tree="gameFileTree"
+          :is-loading="isLoadingGameTree"
+          @toggle-folder="emit('toggleGameFolder', $event)"
+          @open-file="emit('openFile', $event)"
+        />
+        
+        <ErrorList
+          v-else-if="activeTab === 'errors'"
+          :key="'errors'"
+          :errors="txtErrors"
+          @jump-to-error="emit('jumpToError', $event)"
+        />
+      </Transition>
     </div>
   </div>
 </template>
