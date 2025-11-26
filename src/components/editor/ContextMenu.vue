@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useTheme } from '../../composables/useTheme'
 
 const props = defineProps<{
   visible: boolean
@@ -10,6 +11,9 @@ const props = defineProps<{
   currentFilePath?: string
   availablePanes?: Array<{id: string, name: string}>
 }>()
+
+// 获取当前主题
+const { currentTheme } = useTheme()
 
 const emit = defineEmits<{
   action: [actionName: string, payload?: any]
@@ -81,22 +85,23 @@ function hideMoveMenu() {
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: 'rgba(10, 10, 10, 0.96)',
-      borderColor: 'rgba(58, 58, 58, 0.95)'
+      backgroundColor: currentTheme.colors.bgSecondary,
+      borderColor: currentTheme.colors.border,
+      color: currentTheme.colors.fg
     }"
     @click.stop
   >
     <button
       @click="handleAction('closeAll')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       关闭全部
     </button>
     <button
       @click="handleAction('closeOthers')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       关闭其他
     </button>
@@ -109,44 +114,45 @@ function hideMoveMenu() {
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: 'rgba(10, 10, 10, 0.96)',
-      borderColor: 'rgba(58, 58, 58, 0.95)'
+      backgroundColor: currentTheme.colors.bgSecondary,
+      borderColor: currentTheme.colors.border,
+      color: currentTheme.colors.fg
     }"
     @click.stop
   >
     <button
       @click="handleAction('createFile')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       📄 新建文件
     </button>
     <button
       @click="handleAction('createFolder')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       📁 新建文件夹
     </button>
-    <div class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
+    <div class="h-px w-full my-1" :style="{ backgroundColor: currentTheme.colors.border }"></div>
     <button
       @click="handleAction('rename')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       ✏️ 重命名
     </button>
     <button
       @click="handleAction('copyPath')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       📋 复制路径
     </button>
     <button
       @click="handleAction('showInExplorer')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       📂 在资源管理器中显示
     </button>
@@ -159,8 +165,9 @@ function hideMoveMenu() {
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: 'rgba(10, 10, 10, 0.96)',
-      borderColor: 'rgba(58, 58, 58, 0.95)'
+      backgroundColor: currentTheme.colors.bgSecondary,
+      borderColor: currentTheme.colors.border,
+      color: currentTheme.colors.fg
     }"
     @click.stop
   >
@@ -168,7 +175,7 @@ function hideMoveMenu() {
       v-if="canSplit"
       @click="handleAction('splitRight')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       ➡️ 向右分割
     </button>
@@ -182,7 +189,7 @@ function hideMoveMenu() {
       <button
         class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item flex items-center justify-between"
         :class="{ 'border-t': canSplit }"
-        style="color: #e0e0e0; border-color: #2a2a2a;"
+        :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
       >
         <span>📤 移动到</span>
         <span>▶</span>
@@ -193,9 +200,10 @@ function hideMoveMenu() {
         class="absolute top-0 border rounded-xl shadow-2xl backdrop-blur-sm"
         :class="showSubmenuOnLeft ? 'right-full mr-1' : 'left-full ml-1'"
         :style="{ 
-          backgroundColor: 'rgba(10, 10, 10, 0.96)',
-          borderColor: 'rgba(58, 58, 58, 0.95)',
-          minWidth: '150px'
+          backgroundColor: currentTheme.colors.bgSecondary,
+          borderColor: currentTheme.colors.border,
+          minWidth: '150px',
+          color: currentTheme.colors.fg
         }"
       >
         <button
@@ -204,7 +212,7 @@ function hideMoveMenu() {
           @click="handleAction('moveToPane', pane.id)"
           class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
           :class="{ 'border-t': index > 0 }"
-          style="color: #e0e0e0; border-color: #2a2a2a;"
+          :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
         >
           {{ pane.name }}
         </button>
@@ -213,14 +221,14 @@ function hideMoveMenu() {
     <button
       @click="handleAction('closeAll')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       关闭全部
     </button>
     <button
       @click="handleAction('closeOthers')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       关闭其他
     </button>
@@ -233,33 +241,34 @@ function hideMoveMenu() {
     :style="{ 
       left: x + 'px', 
       top: y + 'px',
-      backgroundColor: 'rgba(10, 10, 10, 0.96)',
-      borderColor: 'rgba(58, 58, 58, 0.95)'
+      backgroundColor: currentTheme.colors.bgSecondary,
+      borderColor: currentTheme.colors.border,
+      color: currentTheme.colors.fg
     }"
     @click.stop
   >
     <button
       @click="handleAction('copy')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0;"
+      :style="{ color: currentTheme.colors.fg }"
     >
       📋 复制
     </button>
     <button
       @click="handleAction('cut')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       ✂️ 剪切
     </button>
     <button
       @click="handleAction('paste')"
       class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
-      style="color: #e0e0e0; border-color: #2a2a2a;"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
     >
       📄 粘贴
     </button>
-    <div v-if="hasAnyTemplateAvailable" class="h-px w-full my-1" style="background-color: #2a2a2a;"></div>
+    <div v-if="hasAnyTemplateAvailable" class="h-px w-full my-1" :style="{ backgroundColor: currentTheme.colors.border }"></div>
     <div 
       v-if="hasAnyTemplateAvailable"
       class="relative"
@@ -268,7 +277,7 @@ function hideMoveMenu() {
     >
       <button
         class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item flex items-center justify-between"
-        style="color: #e0e0e0;"
+        :style="{ color: currentTheme.colors.fg }"
       >
         <span>📝 插入模板</span>
         <span>▶</span>
@@ -279,16 +288,17 @@ function hideMoveMenu() {
         class="absolute top-0 border rounded-xl shadow-2xl backdrop-blur-sm"
         :class="showSubmenuOnLeft ? 'right-full mr-1' : 'left-full ml-1'"
         :style="{ 
-          backgroundColor: 'rgba(10, 10, 10, 0.96)',
-          borderColor: 'rgba(58, 58, 58, 0.95)',
-          minWidth: '200px'
+          backgroundColor: currentTheme.colors.bgSecondary,
+          borderColor: currentTheme.colors.border,
+          minWidth: '200px',
+          color: currentTheme.colors.fg
         }"
       >
         <button
           v-if="isInCommonIdeas"
           @click="handleAction('insertIdeaTemplate')"
           class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
-          style="color: #e0e0e0;"
+          :style="{ color: currentTheme.colors.fg }"
         >
           💡 插入Idea模板
         </button>
@@ -297,7 +307,7 @@ function hideMoveMenu() {
           @click="handleAction('insertTagTemplate')"
           class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
           :class="{ 'border-t': isInCommonIdeas }"
-          style="color: #e0e0e0; border-color: #2a2a2a;"
+          :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
         >
           🏷️ 插入Tag初始态定义模板
         </button>
@@ -306,7 +316,7 @@ function hideMoveMenu() {
           @click="handleAction('insertBopTemplate')"
           class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
           :class="{ 'border-t': isInCommonIdeas || isInHistoryCountries }"
-          style="color: #e0e0e0; border-color: #2a2a2a;"
+          :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
         >
           ⚖️ 插入权力平衡模板
         </button>
@@ -321,6 +331,6 @@ function hideMoveMenu() {
 }
 
 .context-menu-item:hover {
-  background-color: #333333;
+  background-color: var(--theme-selection);
 }
 </style>

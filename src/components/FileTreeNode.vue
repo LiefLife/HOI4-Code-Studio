@@ -52,7 +52,7 @@ function getFileIcon(node: FileNode): string {
   <div>
     <div
       class="flex items-center px-2 py-1 rounded cursor-pointer text-sm file-tree-node transition-colors"
-      :class="[selectedPath === node.path ? 'bg-hoi4-accent text-white' : 'hover:bg-hoi4-accent/50']"
+      :class="[selectedPath === node.path ? 'bg-hoi4-selected text-white' : 'hover:bg-hoi4-accent/50']"
       :style="{ paddingLeft: (level * 16 + 8) + 'px' }"
       @click="handleClick"
       @contextmenu.stop.prevent="(e) => emit('contextmenu', e, props.node)"
