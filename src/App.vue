@@ -29,6 +29,26 @@ onUnmounted(() => {
 
 <template>
   <div id="app" class="h-screen w-screen overflow-hidden">
-    <router-view />
+    <Transition name="page-transition" mode="out-in">
+      <router-view />
+    </Transition>
   </div>
 </template>
+
+<style>
+/* 页面过渡动画 */
+.page-transition-enter-active,
+.page-transition-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-transition-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+</style>
