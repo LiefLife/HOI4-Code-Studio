@@ -60,6 +60,10 @@ async function loadUserSettings() {
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
     autoSave.value = data.autoSave !== false
+    // 加载主题设置
+    if (data.theme && themes.some(t => t.id === data.theme)) {
+      currentThemeId.value = data.theme
+    }
   }
 }
 
@@ -95,7 +99,8 @@ async function handleSave() {
     useSteamVersion: useSteamVersion.value,
     usePirateVersion: usePirateVersion.value,
     pirateExecutable: pirateExecutable.value,
-    autoSave: autoSave.value
+    autoSave: autoSave.value,
+    theme: currentThemeId.value
   }
   
   const result = await saveSettings(settings)
