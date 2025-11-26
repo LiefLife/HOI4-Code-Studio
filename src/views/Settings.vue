@@ -16,6 +16,7 @@ const checkForUpdatesOnStartup = ref(true)
 const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
 const configLocation = ref<'appdata' | 'portable'>('appdata')
 const autoSave = ref(true)
+const disableErrorHandling = ref(false)
 // 主题选项显示状态
 const showThemeOptions = ref(true)
 
@@ -28,6 +29,9 @@ const pirateExecutable = ref<'dowser' | 'hoi4'>('dowser')
 const showStatus = ref(false)
 const statusMessage = ref('')
 const isSaving = ref(false)
+// 确认提示
+const showConfirmDialog = ref(false)
+const pendingDisableErrorHandling = ref(false)
 
 // 版本信息
 const CURRENT_VERSION = 'v0.2.5-dev'
@@ -62,6 +66,7 @@ async function loadUserSettings() {
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
     autoSave.value = data.autoSave !== false
+    disableErrorHandling.value = data.disableErrorHandling || false
     // 加载主题设置
     if (data.theme && themes.some(t => t.id === data.theme)) {
       currentThemeId.value = data.theme
@@ -102,6 +107,7 @@ async function handleSave() {
     usePirateVersion: usePirateVersion.value,
     pirateExecutable: pirateExecutable.value,
     autoSave: autoSave.value,
+    disableErrorHandling: disableErrorHandling.value,
     theme: currentThemeId.value
   }
   
@@ -172,6 +178,33 @@ async function goBack() {
 watch(autoSave, async () => {
   await handleSave()
 })
+
+// 监听错误处理开关变化，需要确认
+watch(disableErrorHandling, async (newValue, oldValue) => {
+  if (newValue && !oldValue) {
+    // 用户尝试启用（关闭错误处理），显示确认提示
+    pendingDisableErrorHandling.value = true
+    showConfirmDialog.value = true
+  } else {
+    // 直接保存
+    await handleSave()
+  }
+})
+
+// 确认禁用错误处理
+async function confirmDisableErrorHandling() {
+  disableErrorHandling.value = true
+  pendingDisableErrorHandling.value = false
+  showConfirmDialog.value = false
+  await handleSave()
+}
+
+// 取消禁用错误处理
+function cancelDisableErrorHandling() {
+  disableErrorHandling.value = false
+  pendingDisableErrorHandling.value = false
+  showConfirmDialog.value = false
+}
 
 onMounted(async () => {
   await loadUserSettings()
@@ -421,6 +454,18 @@ onMounted(async () => {
             <div class="flex-1">
               <span class="text-hoi4-text">启用自动保存</span>
               <p class="text-hoi4-comment text-sm mt-1">编辑文件时自动保存更改</p>
+            </div>
+          </label>
+
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input
+              v-model="disableErrorHandling"
+              type="checkbox"
+              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+            />
+            <div class="flex-1">
+              <span class="text-hoi4-text">禁用错误处理</span>
+              <p class="text-hoi4-comment text-sm mt-1">禁用所有错误检查和提示，可能导致代码质量问题</p>
             </div>
           </label>
 
@@ -675,6 +720,45 @@ onMounted(async () => {
               class="btn-secondary flex-1"
             >
               稍后提醒
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 确认提示对话框 -->
+    <div 
+      v-if="showConfirmDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click.self="cancelDisableErrorHandling"
+    >
+      <div class="card max-w-md mx-4">
+        <div class="space-y-4">
+          <div class="flex items-start space-x-3">
+            <svg class="w-8 h-8 text-hoi4-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-xl font-bold text-hoi4-text mb-2">确认禁用错误处理</h3>
+            </div>
+          </div>
+          
+          <p class="text-hoi4-text">
+            禁用错误处理功能将关闭所有错误检查和提示，可能导致代码质量问题。确定要继续吗？
+          </p>
+          
+          <div class="flex space-x-3 pt-2">
+            <button
+              @click="confirmDisableErrorHandling"
+              class="btn-primary flex-1"
+            >
+              确定
+            </button>
+            <button
+              @click="cancelDisableErrorHandling"
+              class="btn-secondary flex-1"
+            >
+              取消
             </button>
           </div>
         </div>

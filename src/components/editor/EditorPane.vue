@@ -15,6 +15,7 @@ const props = defineProps<{
   projectPath: string
   gameDirectory: string
   isReadOnly: boolean
+  disableErrorHandling?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -129,20 +130,21 @@ watch(currentFile, (file) => {
     
     nextTick(() => {
       if (file.node) {
-        const language = getLanguage(file.node.name)
-        if (language === 'hoi4') {
-          txtErrors.value = collectErrors(fileContent.value, { 
-            filePath: file.node.path, 
-            projectRoot: props.projectPath, 
-            gameDirectory: props.gameDirectory 
-          })
-        } else {
-          txtErrors.value = []
+          const language = getLanguage(file.node.name)
+          if (language === 'hoi4') {
+            txtErrors.value = collectErrors(fileContent.value, { 
+              filePath: file.node.path, 
+              projectRoot: props.projectPath, 
+              gameDirectory: props.gameDirectory,
+              disableErrorHandling: props.disableErrorHandling
+            })
+          } else {
+            txtErrors.value = []
+          }
+          highlightCode(fileContent.value, file.node.name, txtErrors.value)
+          // 触发错误变化事件
+          emit('errorsChange', props.pane.id, txtErrors.value)
         }
-        highlightCode(fileContent.value, file.node.name, txtErrors.value)
-        // 触发错误变化事件
-        emit('errorsChange', props.pane.id, txtErrors.value)
-      }
       // 文件加载完成，可以开始追踪修改
       isLoadingFile.value = false
     })
@@ -185,7 +187,8 @@ function handleContentChange(content: string) {
       txtErrors.value = collectErrors(content, { 
         filePath: currentFile.value.node.path, 
         projectRoot: props.projectPath, 
-        gameDirectory: props.gameDirectory 
+        gameDirectory: props.gameDirectory,
+        disableErrorHandling: props.disableErrorHandling
       })
       // 触发错误变化事件
       emit('errorsChange', props.pane.id, txtErrors.value)

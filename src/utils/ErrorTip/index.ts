@@ -39,6 +39,11 @@ const RULES: Rule[] = [
  * 聚合执行所有规则
  */
 function runAll(content: string, ctx?: RuleContext): { errors: ErrorItem[]; ranges: RangeItem[] } {
+  // 如果禁用了错误处理，直接返回空结果
+  if (ctx?.disableErrorHandling) {
+    return { errors: [], ranges: [] }
+  }
+  
   const lineStarts = computeLineStarts(content.split('\n'))
   
   // 生成清洗后的内容（注释和字符串被替换为空格）

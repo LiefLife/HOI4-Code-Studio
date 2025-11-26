@@ -72,6 +72,8 @@ export interface RuleContext {
   projectRoot?: string
   /** 游戏目录绝对路径，用于扫描 ./common/ideas 等跨根路径 */
   gameDirectory?: string
+  /** 是否禁用错误处理 */
+  disableErrorHandling?: boolean
 }
 
 /**

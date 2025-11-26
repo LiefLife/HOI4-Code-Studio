@@ -9,6 +9,7 @@ const props = defineProps<{
   projectPath: string
   gameDirectory: string
   autoSave?: boolean
+  disableErrorHandling?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -398,6 +399,7 @@ defineExpose({
           :project-path="projectPath"
           :game-directory="gameDirectory"
           :is-read-only="isPaneReadOnly(pane.id)"
+          :disable-error-handling="props.disableErrorHandling"
           @switch-file="handleSwitchFile"
           @close-file="handleCloseFile"
           @context-menu="handleContextMenu"

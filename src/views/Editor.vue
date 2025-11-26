@@ -85,6 +85,7 @@ const rightPanelExpanded = ref(true)
 const txtErrors = ref<{line: number, msg: string, type: string}[]>([])
 const isLaunchingGame = ref(false)
 const autoSave = ref(true)
+const disableErrorHandling = ref(false)
 
 // 右键菜单状态
 const contextMenuVisible = ref(false)
@@ -400,6 +401,7 @@ async function loadGameDirectory() {
     if (result.success && result.data && typeof result.data === 'object' && 'gameDirectory' in result.data) {
       gameDirectory.value = result.data.gameDirectory as string
       autoSave.value = ('autoSave' in result.data && result.data.autoSave === false) ? false : true
+      disableErrorHandling.value = ('disableErrorHandling' in result.data && result.data.disableErrorHandling === true) ? true : false
       const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
       setTagRoots(projectPath.value, gameDirectory.value, enabledDependencyPaths)
       await loadGameFileTree()
@@ -1467,6 +1469,7 @@ onUnmounted(() => {
         :project-path="projectPath"
         :game-directory="gameDirectory"
         :auto-save="autoSave"
+        :disable-error-handling="disableErrorHandling"
         @context-menu="showFileTabContextMenu"
         @open-file="handleOpenFile"
         @errors-change="handleErrorsChange"
