@@ -19,6 +19,7 @@ const emit = defineEmits<{
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
+  contentChange: [paneId: string, content: string]
 }>()
 
 const {
@@ -159,6 +160,9 @@ function handleContentChange(paneId: string, content: string) {
     if (file.content !== content) {
       file.content = content
       file.hasUnsavedChanges = true
+      
+      // 发射内容变化事件，让父组件可以同步预览文件
+      emit('contentChange', paneId, content)
       
       // 如果启用了自动保存，设置防抖计时器
       if (props.autoSave) {

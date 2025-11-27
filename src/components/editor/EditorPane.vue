@@ -161,6 +161,33 @@ watch(currentFile, (file) => {
   }
 }, { immediate: true })
 
+// 监听当前文件内容变化（用于预览文件同步更新）
+watch(() => currentFile.value?.content, (newContent, oldContent) => {
+  if (currentFile.value && newContent !== oldContent && newContent !== fileContent.value) {
+    console.log(`[EditorPane] 检测到文件内容变化，更新内容: ${currentFile.value.node.name}`)
+    if (newContent !== undefined) {
+      fileContent.value = newContent
+    }
+    hasUnsavedChanges.value = currentFile.value.hasUnsavedChanges
+    
+    // 如果是预览文件，重新高亮和解析错误
+    if (currentFile.value.node) {
+      const language = getLanguage(currentFile.value.node.name)
+      if (language === 'hoi4') {
+        txtErrors.value = collectErrors(fileContent.value, { 
+          filePath: currentFile.value.node.path, 
+          projectRoot: props.projectPath, 
+          gameDirectory: props.gameDirectory,
+          disableErrorHandling: props.disableErrorHandling
+        })
+      }
+      highlightCode(fileContent.value, currentFile.value.node.name, txtErrors.value)
+      // 触发错误变化事件
+      emit('errorsChange', props.pane.id, txtErrors.value)
+    }
+  }
+})
+
 function handleSwitchFile(index: number) {
   emit('switchFile', props.pane.id, index)
 }

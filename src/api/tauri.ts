@@ -622,3 +622,30 @@ export async function loadFocusIcon(
 ): Promise<ImageReadResult> {
   return await invoke('load_focus_icon', { iconName, projectRoot, gameRoot })
 }
+
+// ==================== 图标缓存 ====================
+
+/**
+ * 读取图标缓存
+ */
+export async function readIconCache(iconName: string): Promise<ImageReadResult> {
+  return await invoke('read_icon_cache', { iconName })
+}
+
+/**
+ * 写入图标缓存
+ */
+export async function writeIconCache(
+  iconName: string,
+  base64: string,
+  mimeType: string
+): Promise<ImageReadResult> {
+  return await invoke('write_icon_cache', { iconName, base64, mimeType })
+}
+
+/**
+ * 清理图标缓存
+ */
+export async function clearIconCache(): Promise<ImageReadResult> {
+  return await invoke('clear_icon_cache')
+}

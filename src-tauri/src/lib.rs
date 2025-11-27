@@ -3,6 +3,8 @@
 
 // serde 序列化/反序列化
 use serde::{Deserialize, Serialize};
+// base64 编码解码
+use base64::{Engine};
 // 多线程支持
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -858,6 +860,176 @@ fn get_recent_projects_path() -> std::path::PathBuf {
             let config_dir = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
             config_dir.join("HOI4_GUI_Editor").join("recent_projects.json")
         })
+}
+
+/// 获取缓存目录路径
+fn get_cache_dir() -> std::path::PathBuf {
+    // 获取配置目录
+    let config_path = get_config_path();
+    // 缓存目录位于配置目录的temp子目录
+    let cache_dir = config_path.parent()
+        .map(|p| p.join("temp").join("focus-icon-cache"))
+        .unwrap_or_else(|| {
+            let config_dir = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+            config_dir.join("HOI4_GUI_Editor").join("temp").join("focus-icon-cache")
+        });
+    
+    // 确保缓存目录存在
+    if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+        println!("创建缓存目录失败: {}", e);
+    }
+    
+    cache_dir
+}
+
+/// 计算字符串的哈希值，用于缓存文件名
+fn hash_string(s: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
+/// 获取图标缓存路径
+fn get_icon_cache_path(icon_name: &str) -> std::path::PathBuf {
+    let cache_dir = get_cache_dir();
+    let hash = hash_string(icon_name);
+    cache_dir.join(format!("{}.png", hash))
+}
+
+/// 读取图标缓存的内部实现
+fn read_icon_cache_impl(icon_name: String) -> serde_json::Value {
+    let cache_path = get_icon_cache_path(&icon_name);
+    
+    if cache_path.exists() {
+        match std::fs::read(&cache_path) {
+            Ok(data) => {
+                let base64 = base64::engine::general_purpose::STANDARD.encode(&data);
+                serde_json::json!({
+                    "success": true,
+                    "base64": base64,
+                    "mime_type": "image/png"
+                })
+            },
+            Err(e) => {
+                serde_json::json!(
+                    {
+                        "success": false,
+                        "message": format!("读取缓存失败: {}", e)
+                    }
+                )
+            }
+        }
+    } else {
+        serde_json::json!({
+            "success": false,
+            "message": "缓存不存在"
+        })
+    }
+}
+
+/// 读取图标缓存 Tauri 命令
+#[tauri::command]
+fn read_icon_cache(icon_name: String) -> serde_json::Value {
+    read_icon_cache_impl(icon_name)
+}
+
+/// 写入图标缓存的内部实现
+fn write_icon_cache_impl(icon_name: String, base64: String, mime_type: String) -> serde_json::Value {
+    // 只处理png格式
+    if mime_type != "image/png" {
+        return serde_json::json!(
+            {
+                "success": false,
+                "message": "只支持png格式的图标缓存"
+            }
+        );
+    }
+    
+    let cache_path = get_icon_cache_path(&icon_name);
+    
+    // 解码base64
+    match base64::engine::general_purpose::STANDARD.decode(&base64) {
+        Ok(data) => {
+            match std::fs::write(&cache_path, data) {
+                Ok(_) => {
+                    serde_json::json!(
+                        {
+                            "success": true,
+                            "message": "缓存写入成功"
+                        }
+                    )
+                },
+                Err(e) => {
+                    serde_json::json!(
+                        {
+                            "success": false,
+                            "message": format!("写入缓存失败: {}", e)
+                        }
+                    )
+                }
+            }
+        },
+        Err(e) => {
+            serde_json::json!(
+                {
+                    "success": false,
+                    "message": format!("base64解码失败: {}", e)
+                }
+            )
+        }
+    }
+}
+
+/// 写入图标缓存 Tauri 命令
+#[tauri::command]
+fn write_icon_cache(icon_name: String, base64: String, mime_type: String) -> serde_json::Value {
+    write_icon_cache_impl(icon_name, base64, mime_type)
+}
+
+/// 清理图标缓存的内部实现
+fn clear_icon_cache_impl() -> serde_json::Value {
+    let cache_dir = get_cache_dir();
+    
+    if cache_dir.exists() {
+        match std::fs::remove_dir_all(&cache_dir) {
+            Ok(_) => {
+                // 重新创建缓存目录
+                if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                    println!("重新创建缓存目录失败: {}", e);
+                }
+                serde_json::json!(
+                    {
+                        "success": true,
+                        "message": "缓存清理成功"
+                    }
+                )
+            },
+            Err(e) => {
+                serde_json::json!(
+                    {
+                        "success": false,
+                        "message": format!("清理缓存失败: {}", e)
+                    }
+                )
+            }
+        }
+    } else {
+        serde_json::json!(
+            {
+                "success": true,
+                "message": "缓存目录不存在，无需清理"
+            }
+        )
+    }
+}
+
+/// 清理图标缓存 Tauri 命令
+#[tauri::command]
+fn clear_icon_cache() -> serde_json::Value {
+    clear_icon_cache_impl()
 }
 
 /// 更新最近项目列表
@@ -2190,7 +2362,10 @@ pub fn run() {
             dependency::index_dependency,
             pack_project,
             read_image_as_base64,
-            load_focus_icon
+            load_focus_icon,
+            read_icon_cache,
+            write_icon_cache,
+            clear_icon_cache
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { parseFocusTreeFile, searchFocuses } from '../../utils/focusTreeParser'
 import cytoscape from 'cytoscape'
-import { loadFocusIcon as loadFocusIconApi } from '../../api/tauri'
+import { loadFocusIcon as loadFocusIconApi, readIconCache, writeIconCache } from '../../api/tauri'
 
 const props = defineProps<{
   content: string
@@ -57,12 +57,21 @@ const iconCache = ref<Map<string, string>>(new Map())
 async function loadFocusIcon(iconName: string): Promise<string | null> {
   if (!iconName) return null
 
-  // 本地缓存，避免重复请求
+  // 本地内存缓存，避免重复请求
   if (iconCache.value.has(iconName)) {
     return iconCache.value.get(iconName)!
   }
 
   try {
+    // 尝试从磁盘缓存读取
+    const cacheResult = await readIconCache(iconName)
+    if (cacheResult.success && cacheResult.base64 && cacheResult.mimeType) {
+      const dataUrl = `data:${cacheResult.mimeType};base64,${cacheResult.base64}`
+      iconCache.value.set(iconName, dataUrl)
+      return dataUrl
+    }
+
+    // 缓存不存在，调用API获取
     const result = await loadFocusIconApi(
       iconName,
       props.projectPath,
@@ -71,7 +80,13 @@ async function loadFocusIcon(iconName: string): Promise<string | null> {
 
     if (result.success && result.base64 && result.mimeType) {
       const dataUrl = `data:${result.mimeType};base64,${result.base64}`
+      
+      // 写入内存缓存
       iconCache.value.set(iconName, dataUrl)
+      
+      // 写入磁盘缓存
+      await writeIconCache(iconName, result.base64, result.mimeType)
+      
       return dataUrl
     }
 
@@ -85,9 +100,36 @@ async function loadFocusIcon(iconName: string): Promise<string | null> {
   }
 }
 
+// 视图状态
+const viewState = ref({
+  zoom: 1.0,
+  pan: { x: 0, y: 0 }
+})
+
+// 保存视图状态
+function saveViewState() {
+  if (cy) {
+    viewState.value = {
+      zoom: cy.zoom(),
+      pan: cy.pan()
+    }
+  }
+}
+
+// 恢复视图状态
+function restoreViewState() {
+  if (cy) {
+    cy.zoom(viewState.value.zoom)
+    cy.pan(viewState.value.pan)
+  }
+}
+
 // 初始化 Cytoscape
 async function initCytoscape() {
   if (!cyContainerRef.value || !focusTree.value) return
+
+  // 保存当前视图状态（如果存在）
+  saveViewState()
 
   const elements: any[] = []
 
@@ -114,20 +156,41 @@ async function initCytoscape() {
 
     // 异步加载图标
     if (node.icon) {
-      nodePromises.push(
-        loadFocusIcon(node.icon).then(iconData => {
-          if (iconData && cy) {
-            // 更新节点样式以显示图标
-            const cyNode = cy.getElementById(focusId)
-            if (cyNode) {
-              cyNode.style({
-                'background-image': `url(${iconData})`,
-                'background-fit': 'cover'
-              })
+      // 检查内存缓存中是否已有该图标
+      const cachedIcon = iconCache.value.get(node.icon)
+      if (cachedIcon) {
+        // 直接使用缓存的图标数据
+        nodePromises.push(
+          Promise.resolve(cachedIcon).then(iconData => {
+            if (iconData && cy) {
+              // 更新节点样式以显示图标
+              const cyNode = cy.getElementById(focusId)
+              if (cyNode) {
+                cyNode.style({
+                  'background-image': `url(${iconData})`,
+                  'background-fit': 'cover'
+                })
+              }
             }
-          }
-        })
-      )
+          })
+        )
+      } else {
+        // 缓存中没有，调用API加载并缓存
+        nodePromises.push(
+          loadFocusIcon(node.icon).then(iconData => {
+            if (iconData && cy) {
+              // 更新节点样式以显示图标
+              const cyNode = cy.getElementById(focusId)
+              if (cyNode) {
+                cyNode.style({
+                  'background-image': `url(${iconData})`,
+                  'background-fit': 'cover'
+                })
+              }
+            }
+          })
+        )
+      }
     }
   })
 
@@ -296,9 +359,16 @@ async function initCytoscape() {
     event.target.removeClass('hovered')
   })
 
-  // 初始居中
+  // 恢复视图状态或初始居中
   setTimeout(() => {
-    if (cy) cy.fit(undefined, 50)
+    if (cy) {
+      // 如果有保存的视图状态，恢复它，否则初始居中
+      if (viewState.value.zoom !== 1.0 || viewState.value.pan.x !== 0 || viewState.value.pan.y !== 0) {
+        restoreViewState()
+      } else {
+        cy.fit(undefined, 50)
+      }
+    }
   }, 100)
 
   // 加载图标
@@ -361,8 +431,20 @@ function clearSearch() {
 }
 
 watch(focusTree, () => {
+  // 保存当前视图状态
+  saveViewState()
+  // 销毁当前实例
   if (cy) cy.destroy()
+  // 重新初始化，会自动恢复视图状态
   setTimeout(() => initCytoscape(), 50)
+})
+
+// 直接监听内容变化，确保实时更新
+watch(() => props.content, (newContent, oldContent) => {
+  console.log('FocusTreeViewer: 内容发生变化，重新解析渲染')
+  console.log('新内容长度:', newContent?.length)
+  console.log('旧内容长度:', oldContent?.length)
+  // focusTree 计算属性会自动更新，但我们添加额外的日志
 })
 
 onMounted(() => {

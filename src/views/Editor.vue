@@ -21,7 +21,7 @@ import LoadingMonitor from '../components/editor/LoadingMonitor.vue'
 import PackageDialog from '../components/editor/PackageDialog.vue'
 
 // Composables 导入
-import { type FileNode } from '../composables/useFileManager'
+import { type FileNode, type OpenFile } from '../composables/useFileManager'
 import { useSearch } from '../composables/useSearch'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
@@ -806,7 +806,7 @@ async function handlePreviewEvent(paneId: string) {
   
   // 如果找到了包含预览的窗格，直接在该窗格中添加
   if (targetPane) {
-    targetPane.openFiles.push({
+    const previewFile: OpenFile = {
       node: {
         ...currentFile.node,
         name: `📊 ${currentFile.node.name} - 事件关系图`
@@ -815,8 +815,11 @@ async function handlePreviewEvent(paneId: string) {
       hasUnsavedChanges: false,
       cursorLine: 1,
       cursorColumn: 1,
-      isEventGraph: true
-    })
+      isEventGraph: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
     targetPane.activeFileIndex = targetPane.openFiles.length - 1
     editorGroupRef.value.setActivePane(targetPane.id)
     return
@@ -829,7 +832,7 @@ async function handlePreviewEvent(paneId: string) {
   const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
   if (!newPane) return
   
-  newPane.openFiles.push({
+  const previewFile: OpenFile = {
     node: {
       ...currentFile.node,
       name: `📊 ${currentFile.node.name} - 事件关系图`
@@ -838,8 +841,11 @@ async function handlePreviewEvent(paneId: string) {
     hasUnsavedChanges: false,
     cursorLine: 1,
     cursorColumn: 1,
-    isEventGraph: true
-  })
+    isEventGraph: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
   newPane.activeFileIndex = 0
 }
 
@@ -864,7 +870,7 @@ async function handlePreviewFocus(paneId: string) {
   
   // 如果找到了包含预览的窗格，直接在该窗格中添加
   if (targetPane) {
-    targetPane.openFiles.push({
+    const previewFile: OpenFile = {
       node: {
         ...currentFile.node,
         name: `🌳 ${currentFile.node.name} - 国策树`
@@ -873,8 +879,11 @@ async function handlePreviewFocus(paneId: string) {
       hasUnsavedChanges: false,
       cursorLine: 1,
       cursorColumn: 1,
-      isFocusTree: true
-    })
+      isFocusTree: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
     targetPane.activeFileIndex = targetPane.openFiles.length - 1
     editorGroupRef.value.setActivePane(targetPane.id)
     return
@@ -887,7 +896,7 @@ async function handlePreviewFocus(paneId: string) {
   const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
   if (!newPane) return
   
-  newPane.openFiles.push({
+  const previewFile: OpenFile = {
     node: {
       ...currentFile.node,
       name: `🌳 ${currentFile.node.name} - 国策树`
@@ -896,8 +905,11 @@ async function handlePreviewFocus(paneId: string) {
     hasUnsavedChanges: false,
     cursorLine: 1,
     cursorColumn: 1,
-    isFocusTree: true
-  })
+    isFocusTree: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
   newPane.activeFileIndex = 0
 }
 
@@ -1212,6 +1224,37 @@ function handleErrorsChange(_paneId: string, errors: Array<{line: number, msg: s
   txtErrors.value = errors
 }
 
+// 处理内容变化 - 同步预览文件内容
+function handleContentChange(paneId: string, content: string) {
+  if (!editorGroupRef.value) return
+  
+  // 查找当前活动的窗格
+  const pane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!pane || pane.activeFileIndex === -1) return
+  
+  const currentFile = pane.openFiles[pane.activeFileIndex]
+  if (!currentFile) return
+  
+  // 获取当前文件路径
+  const currentFilePath = currentFile.node.path
+  
+  // 同步更新所有预览文件的内容
+  let previewFilesUpdated = 0
+  editorGroupRef.value.panes.forEach(targetPane => {
+    targetPane.openFiles.forEach(file => {
+      // 检查是否是预览文件，且源文件路径匹配
+      // 预览文件的 sourceFilePath 应该指向原始文件
+      if (file.isPreview && file.sourceFilePath === currentFilePath) {
+        // 更新预览文件的内容
+        file.content = content
+        previewFilesUpdated++
+        console.log(`[Editor] 同步更新预览文件内容: ${file.node.name} (源文件: ${currentFilePath})`)
+      }
+    })
+  })
+  console.log(`[Editor] 内容变化处理完成，更新了 ${previewFilesUpdated} 个预览文件`)
+}
+
 // 处理搜索
 function handlePerformSearch() {
   const searchPath = searchScope.value === 'project' ? projectPath.value : gameDirectory.value
@@ -1476,6 +1519,7 @@ onUnmounted(() => {
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
         @preview-focus="handlePreviewFocus"
+        @content-change="handleContentChange"
       />
 
       <!-- 右侧面板 -->
