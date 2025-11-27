@@ -38,6 +38,7 @@ const CURRENT_VERSION = 'v0.2.5-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
+const isInitializing = ref(true)
 
 // 更新对话框
 const showUpdateDialog = ref(false)
@@ -181,6 +182,21 @@ watch(autoSave, async () => {
 
 // 监听错误处理开关变化，需要确认
 watch(disableErrorHandling, async (newValue, oldValue) => {
+  // 忽略初始加载时的变化（从undefined到具体值）
+  if (oldValue === undefined) {
+    return
+  }
+  
+  // 如果正在初始化，不触发任何操作
+  if (isInitializing.value) {
+    return
+  }
+  
+  // 如果当前正在处理确认对话框，不重复触发
+  if (pendingDisableErrorHandling.value) {
+    return
+  }
+  
   if (newValue && !oldValue) {
     // 用户尝试启用（关闭错误处理），显示确认提示
     pendingDisableErrorHandling.value = true
@@ -208,6 +224,8 @@ function cancelDisableErrorHandling() {
 
 onMounted(async () => {
   await loadUserSettings()
+  // 初始化完成后，标记为false
+  isInitializing.value = false
   // 自动检查一次GitHub版本
   handleCheckUpdate()
 })
