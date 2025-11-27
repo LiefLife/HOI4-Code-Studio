@@ -18,9 +18,16 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.5-dev',
-    description: '版本日志更新',
+    description: '主题与功能增强',
     changes: [
-      { type: 'feature', content: '更新版本日志内容' }
+      { type: 'feature', content: '实现预览文件内容同步和图标缓存功能' },
+      { type: 'feature', content: '为依赖项添加类型图标显示' },
+      { type: 'feature', content: '添加禁用错误处理的配置选项' },
+      { type: 'feature', content: '为侧边栏和面板切换添加过渡动画效果' },
+      { type: 'feature', content: '改进主题相关组件的样式和交互' },
+      { type: 'feature', content: '添加页面过渡动画效果' },
+      { type: 'fix', content: '修复主题设置持久化' },
+      { type: 'feature', content: '新增多种代码主题配色方案' }
     ]
   },
   {
