@@ -18,6 +18,16 @@ const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns
 const autoSave = ref(true)
 const disableErrorHandling = ref(false)
 const enableRGBColorDisplay = ref(true)
+
+// 编辑器字体设置
+import { useEditorFont } from '../composables/useEditorFont'
+const { 
+  fontConfig, 
+  availableFonts, 
+  fontWeights, 
+  fontSizes, 
+  setFontConfig 
+} = useEditorFont()
 // 主题选项显示状态
 const showThemeOptions = ref(true)
 
@@ -69,6 +79,17 @@ async function loadUserSettings() {
     autoSave.value = data.autoSave !== false
     disableErrorHandling.value = data.disableErrorHandling || false
     enableRGBColorDisplay.value = data.enableRGBColorDisplay !== false
+    // 加载编辑器字体设置
+    if (data.editorFont) {
+      setFontConfig(data.editorFont)
+    } else {
+      // 兼容旧的字体设置格式
+      setFontConfig({
+        family: data.editorFontFamily || 'Consolas',
+        size: data.editorFontSize || 14,
+        weight: data.editorFontWeight || '400'
+      })
+    }
     // 加载主题设置
     if (data.theme && themes.some(t => t.id === data.theme)) {
       currentThemeId.value = data.theme
@@ -110,7 +131,8 @@ async function handleSave() {
     autoSave: autoSave.value,
     disableErrorHandling: disableErrorHandling.value,
     enableRGBColorDisplay: enableRGBColorDisplay.value,
-    theme: currentThemeId.value
+    theme: currentThemeId.value,
+    editorFont: fontConfig.value
   }
   
   const result = await saveSettings(settings)
@@ -361,6 +383,85 @@ onMounted(async () => {
         <div class="space-y-4">
           <h2 class="text-hoi4-text text-lg font-semibold">应用设置</h2>
 
+          <!-- 编辑器字体设置 -->
+          <div class="space-y-4">
+            <h2 class="text-hoi4-text text-lg font-semibold">编辑器字体设置</h2>
+            
+            <!-- 字体类型选择 -->
+            <div>
+              <label class="block text-hoi4-text mb-2 text-base font-semibold">
+                字体类型
+              </label>
+              <select
+                v-model="fontConfig.family"
+                class="input-field w-full"
+                @change="handleSave"
+              >
+                <option
+                  v-for="font in availableFonts"
+                  :key="font.value"
+                  :value="font.value"
+                >
+                  {{ font.label }}
+                </option>
+              </select>
+            </div>
+            
+            <!-- 字体大小设置 -->
+            <div>
+              <label class="block text-hoi4-text mb-2 text-base font-semibold">
+                字体大小: {{ fontConfig.size }}px
+              </label>
+              <div class="flex items-center space-x-3">
+                <input
+                  v-model.number="fontConfig.size"
+                  type="range"
+                  min="12"
+                  max="24"
+                  step="1"
+                  class="flex-1"
+                  @input="handleSave"
+                />
+                <select
+                  v-model.number="fontConfig.size"
+                  class="input-field w-24"
+                  @change="handleSave"
+                >
+                  <option
+                    v-for="size in fontSizes"
+                    :key="size.value"
+                    :value="size.value"
+                  >
+                    {{ size.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- 字体粗细设置 -->
+            <div>
+              <label class="block text-hoi4-text mb-2 text-base font-semibold">
+                字体粗细
+              </label>
+              <div class="flex flex-wrap gap-4">
+                <label
+                  v-for="weight in fontWeights"
+                  :key="weight.value"
+                  class="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    v-model="fontConfig.weight"
+                    type="radio"
+                    :value="weight.value"
+                    class="w-5 h-5 border-2 border-hoi4-border bg-hoi4-accent"
+                    @change="handleSave"
+                  />
+                  <span class="text-hoi4-text">{{ weight.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
           <!-- 主题选择 -->
           <div>
             <!-- 主题标题和切换按钮 -->

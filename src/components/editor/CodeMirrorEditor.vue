@@ -15,6 +15,7 @@ import { useGrammarCompletion } from '../../composables/useGrammarCompletion'
 import { rainbowBrackets, rainbowTheme } from './rainbowBrackets'
 import { useEditorTheme } from '../../composables/useEditorTheme'
 import { useRGBColorDisplay } from '../../composables/useRGBColorDisplay'
+import { useEditorFont } from '../../composables/useEditorFont'
 
 const props = defineProps<{
   content: string
@@ -42,13 +43,18 @@ const { allItems } = useGrammarCompletion()
 const { editorThemeVersion, getCurrentEditorTheme } = useEditorTheme()
 
 // RGB颜色显示
-  const { 
-    createRGBColorField, 
-    loadSettingsFromStorage,
-    // setEnabled,
-    getEnabled,
-    // enabled: rgbEnabled
-  } = useRGBColorDisplay()
+const { 
+  createRGBColorField, 
+  loadSettingsFromStorage,
+  getEnabled,
+} = useRGBColorDisplay()
+
+// 编辑器字体设置
+const { 
+  fontConfig, 
+  fontConfigVersion, 
+  createEditorFontTheme 
+} = useEditorFont()
 
 /**
  * 基于 CodeMirror CompletionContext 的补全源
@@ -239,6 +245,8 @@ async function initEditor() {
         return true
       }
     }),
+    // 添加字体设置
+    createEditorFontTheme(fontConfig.value),
     getCurrentEditorTheme(),
     ...getLanguageExtension()
   ]
@@ -321,6 +329,15 @@ watch(() => props.gameDirectory, () => {
 
 // 监听主题变化，重新初始化编辑器
 watch(editorThemeVersion, () => {
+  if (!editorView) return
+  editorView.destroy()
+  nextTick(() => {
+    initEditor()
+  })
+})
+
+// 监听字体设置变化，重新初始化编辑器
+watch(fontConfigVersion, () => {
   if (!editorView) return
   editorView.destroy()
   nextTick(() => {

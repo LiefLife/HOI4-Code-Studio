@@ -8,7 +8,7 @@ import type { FileNode } from '../../composables/useFileManager'
 const props = defineProps<{
   projectPath: string
   gameDirectory: string
-  autoSave?: boolean
+  autoSave: boolean
   disableErrorHandling?: boolean
 }>()
 

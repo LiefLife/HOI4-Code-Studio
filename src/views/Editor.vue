@@ -1388,6 +1388,14 @@ onMounted(async () => {
   // 加载主题设置
   await loadThemeFromSettings()
   
+  // 加载设置
+  const settingsResult = await loadSettings()
+  if (settingsResult.success && settingsResult.data) {
+    const data = settingsResult.data as any
+    autoSave.value = data.autoSave !== false
+    disableErrorHandling.value = data.disableErrorHandling || false
+  }
+  
   projectPath.value = route.query.path as string || ''
   if (projectPath.value) {
     dependencyManager.setProjectPath(projectPath.value)
