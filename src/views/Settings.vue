@@ -17,6 +17,7 @@ const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns
 const configLocation = ref<'appdata' | 'portable'>('appdata')
 const autoSave = ref(true)
 const disableErrorHandling = ref(false)
+const enableRGBColorDisplay = ref(true)
 // 主题选项显示状态
 const showThemeOptions = ref(true)
 
@@ -68,6 +69,7 @@ async function loadUserSettings() {
     pirateExecutable.value = data.pirateExecutable || 'dowser'
     autoSave.value = data.autoSave !== false
     disableErrorHandling.value = data.disableErrorHandling || false
+    enableRGBColorDisplay.value = data.enableRGBColorDisplay !== false
     // 加载主题设置
     if (data.theme && themes.some(t => t.id === data.theme)) {
       currentThemeId.value = data.theme
@@ -109,6 +111,7 @@ async function handleSave() {
     pirateExecutable: pirateExecutable.value,
     autoSave: autoSave.value,
     disableErrorHandling: disableErrorHandling.value,
+    enableRGBColorDisplay: enableRGBColorDisplay.value,
     theme: currentThemeId.value
   }
   
@@ -472,6 +475,18 @@ onMounted(async () => {
             <div class="flex-1">
               <span class="text-hoi4-text">启用自动保存</span>
               <p class="text-hoi4-comment text-sm mt-1">编辑文件时自动保存更改</p>
+            </div>
+          </label>
+
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input
+              v-model="enableRGBColorDisplay"
+              type="checkbox"
+              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+            />
+            <div class="flex-1">
+              <span class="text-hoi4-text">RGB颜色显示</span>
+              <p class="text-hoi4-comment text-sm mt-1">在代码中识别并显示RGB颜色值（格式：RGB{R G B}）</p>
             </div>
           </label>
 

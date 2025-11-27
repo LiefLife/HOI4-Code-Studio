@@ -14,6 +14,7 @@ import { setIdeaRoots, ensureIdeaRegistry } from '../../composables/useIdeaRegis
 import { useGrammarCompletion } from '../../composables/useGrammarCompletion'
 import { rainbowBrackets, rainbowTheme } from './rainbowBrackets'
 import { useEditorTheme } from '../../composables/useEditorTheme'
+import { useRGBColorDisplay } from '../../composables/useRGBColorDisplay'
 
 const props = defineProps<{
   content: string
@@ -39,6 +40,15 @@ const { allItems } = useGrammarCompletion()
 
 // 编辑器主题
 const { editorThemeVersion, getCurrentEditorTheme } = useEditorTheme()
+
+// RGB颜色显示
+  const { 
+    createRGBColorField, 
+    loadSettingsFromStorage,
+    // setEnabled,
+    getEnabled,
+    // enabled: rgbEnabled
+  } = useRGBColorDisplay()
 
 /**
  * 基于 CodeMirror CompletionContext 的补全源
@@ -182,54 +192,65 @@ const smartTab = keymap.of([
 ])
 
 // 初始化编辑器
-function initEditor() {
+async function initEditor() {
   if (!editorContainer.value) return
   // 清空容器，避免残留的旧编辑器 DOM 节点导致多个滚动条/多实例叠加
   editorContainer.value.innerHTML = ''
   
+  // 加载RGB颜色显示设置
+  await loadSettingsFromStorage()
+  
+  // 构建编辑器扩展
+  const extensions: any[] = [
+    lineNumbers(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    history(),
+    bracketMatching(),
+    closeBrackets(),
+    indentOnInput(),
+    indentUnit.of('    '), // 4 spaces
+    EditorView.lineWrapping,
+    EditorView.editable.of(!props.isReadOnly),
+    autoIndentOnEnter,
+    smartTab,
+    keymap.of([...defaultKeymap, ...historyKeymap]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        const newContent = update.state.doc.toString()
+        emit('update:content', newContent)
+      }
+      
+      if (update.selectionSet) {
+        const pos = update.state.selection.main.head
+        const line = update.state.doc.lineAt(pos)
+        const lineNumber = line.number
+        const column = pos - line.from + 1
+        emit('cursorChange', lineNumber, column)
+      }
+    }),
+    EditorView.domEventHandlers({
+      scroll: () => {
+        emit('scroll')
+      },
+      contextmenu: (event: MouseEvent) => {
+        event.preventDefault()
+        emit('contextmenu', event)
+        return true
+      }
+    }),
+    getCurrentEditorTheme(),
+    ...getLanguageExtension()
+  ]
+  
+  // 条件性添加RGB颜色显示扩展
+  if (getEnabled()) {
+    extensions.push(createRGBColorField())
+  }
+
   const startState = EditorState.create({
     doc: props.content,
-    extensions: [
-      lineNumbers(),
-      highlightActiveLine(),
-      highlightActiveLineGutter(),
-      history(),
-      bracketMatching(),
-      closeBrackets(),
-      indentOnInput(),
-      indentUnit.of('    '), // 4 spaces
-      EditorView.lineWrapping,
-      EditorView.editable.of(!props.isReadOnly),
-      autoIndentOnEnter,
-      smartTab,
-      keymap.of([...defaultKeymap, ...historyKeymap]),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          const newContent = update.state.doc.toString()
-          emit('update:content', newContent)
-        }
-        
-        if (update.selectionSet) {
-          const pos = update.state.selection.main.head
-          const line = update.state.doc.lineAt(pos)
-          const lineNumber = line.number
-          const column = pos - line.from + 1
-          emit('cursorChange', lineNumber, column)
-        }
-      }),
-      EditorView.domEventHandlers({
-        scroll: () => {
-          emit('scroll')
-        },
-        contextmenu: (event: MouseEvent) => {
-          event.preventDefault()
-          emit('contextmenu', event)
-          return true
-        }
-      }),
-      getCurrentEditorTheme(),
-      ...getLanguageExtension()
-    ]
+    extensions
   })
   
   editorView = new EditorView({
