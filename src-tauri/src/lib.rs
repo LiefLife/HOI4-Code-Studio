@@ -813,41 +813,8 @@ fn launch_game() -> LaunchGameResult {
 
 /// 获取配置文件路径
 fn get_config_path() -> std::path::PathBuf {
-    // 首先尝试读取便携模式配置
-    let portable_path = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
-        .map(|dir| dir.join("config").join("settings.json"));
-    
-    // 如果便携模式配置存在，优先使用
-    if let Some(ref path) = portable_path {
-        if path.exists() {
-            return path.clone();
-        }
-    }
-    
-    // 否则尝试读取 AppData 中的配置，检查是否设置了便携模式
     let config_dir = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    let appdata_path = config_dir.join("HOI4_GUI_Editor").join("settings.json");
-    
-    // 如果 AppData 配置存在，读取并检查 configLocation 设置
-    if appdata_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&appdata_path) {
-            if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(location) = settings.get("configLocation").and_then(|v| v.as_str()) {
-                    if location == "portable" {
-                        // 用户选择了便携模式，返回便携路径
-                        if let Some(path) = portable_path {
-                            return path;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // 默认使用 AppData 路径
-    appdata_path
+    config_dir.join("HOI4_GUI_Editor").join("settings.json")
 }
 
 /// 获取最近项目文件路径

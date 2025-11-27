@@ -14,7 +14,7 @@ const router = useRouter()
 const gameDirectory = ref('')
 const checkForUpdatesOnStartup = ref(true)
 const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
-const configLocation = ref<'appdata' | 'portable'>('appdata')
+
 const autoSave = ref(true)
 const disableErrorHandling = ref(false)
 const enableRGBColorDisplay = ref(true)
@@ -35,7 +35,7 @@ const showConfirmDialog = ref(false)
 const pendingDisableErrorHandling = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.5-dev'
+const CURRENT_VERSION = 'v0.2.6-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -63,7 +63,6 @@ async function loadUserSettings() {
     gameDirectory.value = data.gameDirectory || ''
     checkForUpdatesOnStartup.value = data.checkForUpdates !== false
     recentProjectsLayout.value = data.recentProjectsLayout || 'four-columns'
-    configLocation.value = data.configLocation || 'appdata'
     useSteamVersion.value = data.useSteamVersion !== false
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
@@ -105,7 +104,6 @@ async function handleSave() {
     gameDirectory: gameDirectory.value,
     checkForUpdates: checkForUpdatesOnStartup.value,
     recentProjectsLayout: recentProjectsLayout.value,
-    configLocation: configLocation.value,
     useSteamVersion: useSteamVersion.value,
     usePirateVersion: usePirateVersion.value,
     pirateExecutable: pirateExecutable.value,
@@ -502,65 +500,7 @@ onMounted(async () => {
             </div>
           </label>
 
-          <!-- 配置文件保存位置 -->
-          <div>
-            <label class="block text-hoi4-text mb-3 text-base font-semibold">
-              配置文件保存位置
-            </label>
-            <div class="space-y-3">
-              <label 
-                class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
-                :class="configLocation === 'appdata' ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'"
-              >
-                <input
-                  type="radio"
-                  v-model="configLocation"
-                  value="appdata"
-                  class="mt-1 w-5 h-5 flex-shrink-0"
-                />
-                <div class="flex-1">
-                  <div class="text-hoi4-text font-semibold mb-1">AppData（推荐）</div>
-                  <div class="text-hoi4-comment text-sm">
-                    保存到系统配置目录，适合单用户使用。配置文件不会随程序移动而丢失。
-                  </div>
-                  <div class="text-hoi4-text-dim text-xs mt-1 font-mono">
-                    Windows: %APPDATA%\HOI4_GUI_Editor\
-                  </div>
-                </div>
-              </label>
 
-              <label 
-                class="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-colors"
-                :class="configLocation === 'portable' ? 'border-hoi4-accent bg-hoi4-gray' : 'border-hoi4-border hover:border-hoi4-accent'"
-              >
-                <input
-                  type="radio"
-                  v-model="configLocation"
-                  value="portable"
-                  class="mt-1 w-5 h-5 flex-shrink-0"
-                />
-                <div class="flex-1">
-                  <div class="text-hoi4-text font-semibold mb-1">便携模式</div>
-                  <div class="text-hoi4-comment text-sm">
-                    保存到程序所在目录，适合U盘等便携设备。移动程序时配置会一起移动。
-                  </div>
-                  <div class="text-hoi4-text-dim text-xs mt-1 font-mono">
-                    程序目录\config\settings.json
-                  </div>
-                </div>
-              </label>
-            </div>
-            <div class="mt-2 p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
-              <div class="flex items-start space-x-2">
-                <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <div class="text-hoi4-comment text-sm">
-                  <strong class="text-hoi4-text">注意：</strong>更改此设置需要重启应用才能生效。现有配置文件不会自动迁移。
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- 版本信息区域 -->
           <div class="border-2 border-hoi4-border rounded-lg p-4 bg-hoi4-gray">

@@ -17,6 +17,14 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.6-dev',
+    description: 'RGB、配置与更新系统',
+    changes: [
+      { type: 'feature', content: '删除便捷模式设置存储方式' },
+      { type: 'feature', content: '增加RGB颜色显示功能' },
+      ]
+  },
+  {
     version: 'v0.2.5-dev',
     description: '主题与功能增强',
     changes: [
