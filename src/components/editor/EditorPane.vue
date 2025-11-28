@@ -483,6 +483,7 @@ defineExpose({
         :file-path="currentFile.node.path"
         :project-root="projectPath"
         :game-directory="gameDirectory"
+        :disable-error-handling="disableErrorHandling"
         @update:content="handleContentChange"
         @cursor-change="handleCursorChange"
         @contextmenu="handleEditorContextMenu"

@@ -24,6 +24,7 @@ const props = defineProps<{
   filePath?: string
   projectRoot?: string
   gameDirectory?: string
+  disableErrorHandling?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -292,15 +293,19 @@ async function initEditor() {
       setTimeout(() => {
         if (!editorView) return
         
-        // 重新创建编辑器视图，添加自动补全和Linter功能
+        // 重新创建编辑器视图，添加自动补全功能
         const newExtensions = [...currentCoreExtensions, 
           autocompletion({
             override: [grammarCompletionSource]
-          }),
-          ...createLinter({
-            contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
           })
         ]
+        
+        // 根据disableErrorHandling属性决定是否添加Linter功能
+        if (!props.disableErrorHandling) {
+          newExtensions.push(...createLinter({
+            contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
+          }))
+        }
         
         // 如果已添加RGB颜色显示扩展，也要包含进去
         if (getEnabled()) {

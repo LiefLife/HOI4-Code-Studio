@@ -33,6 +33,7 @@ import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composable
 import { logger } from '../utils/logger'
 import { readFileContent } from '../api/tauri'
 import { useDependencyManager } from '../composables/useDependencyManager'
+import { loadFontConfigFromSettings } from '../composables/useEditorFont'
 
 // Prism 语法定义
 Prism.languages.mod = {
@@ -1394,6 +1395,8 @@ onMounted(async () => {
     const data = settingsResult.data as any
     autoSave.value = data.autoSave !== false
     disableErrorHandling.value = data.disableErrorHandling || false
+    // 加载编辑器字体设置
+    loadFontConfigFromSettings(data)
   }
   
   projectPath.value = route.query.path as string || ''
