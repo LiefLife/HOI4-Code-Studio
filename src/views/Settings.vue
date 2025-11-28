@@ -45,7 +45,7 @@ const showConfirmDialog = ref(false)
 const pendingDisableErrorHandling = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.6-dev'
+const CURRENT_VERSION = 'v0.2.7-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -627,6 +627,8 @@ onMounted(async () => {
               <p class="text-hoi4-comment text-sm mt-1">禁用所有错误检查和提示，可能导致代码质量问题</p>
             </div>
           </label>
+
+
 
 
 

@@ -3,24 +3,24 @@ import { ref, watch } from 'vue'
 import type { SearchResult } from '../../composables/useSearch'
 
 const props = defineProps<{
-  visible: boolean
   searchQuery: string
   searchResults: SearchResult[]
   isSearching: boolean
   searchCaseSensitive: boolean
   searchRegex: boolean
   searchScope: string
+  includeAllFiles: boolean
   projectPath: string
   gameDirectory: string
 }>()
 
 const emit = defineEmits<{
-  close: []
   jumpToResult: [result: SearchResult]
   'update:searchQuery': [value: string]
   'update:searchCaseSensitive': [value: boolean]
   'update:searchRegex': [value: boolean]
   'update:searchScope': [value: string]
+  'update:includeAllFiles': [value: boolean]
   performSearch: []
 }>()
 
@@ -37,8 +37,6 @@ function handleKeyDown(e: KeyboardEvent) {
     selectedIndex.value = Math.max(selectedIndex.value - 1, 0)
   } else if (e.key === 'Enter' && props.searchResults[selectedIndex.value]) {
     emit('jumpToResult', props.searchResults[selectedIndex.value])
-  } else if (e.key === 'Escape') {
-    emit('close')
   }
 }
 
@@ -55,116 +53,127 @@ watch([() => props.searchQuery, () => props.searchCaseSensitive, () => props.sea
   }, 1000)
 }, { flush: 'post' })
 
-// 当面板打开时聚焦输入框
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    setTimeout(() => {
-      inputRef.value?.focus()
-    }, 100)
-    selectedIndex.value = 0
-  }
-})
+// 当组件挂载时聚焦输入框
+setTimeout(() => {
+  inputRef.value?.focus()
+}, 100)
 </script>
 
 <template>
-  <!-- 遮罩层 -->
-  <div
-    v-if="visible"
-    class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-    @click="emit('close')"
-  ></div>
-  
   <!-- 搜索面板 -->
   <div
-    v-if="visible"
-    class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] max-h-[70vh] bg-onedark-bg border border-onedark-border rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden backdrop-blur-md"
+    class="h-full flex flex-col overflow-hidden bg-hoi4-gray text-hoi4-text"
     @keydown="handleKeyDown"
-    @click.stop
   >
     <!-- 搜索输入区 -->
-    <div class="p-4 border-b border-onedark-border">
+    <div class="p-4 border-b border-hoi4-border/60">
       <input
         ref="inputRef"
         :value="searchQuery"
         @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         type="text"
         placeholder="搜索..."
-        class="w-full px-3 py-2 bg-onedark-bg text-onedark-fg border border-onedark-border rounded focus:outline-none focus:border-onedark-accent"
+        class="w-full px-3 py-2 bg-hoi4-dark border border-hoi4-border rounded focus:outline-none focus:border-hoi4-accent text-hoi4-text"
       />
       
       <!-- 选项 -->
-      <div class="flex items-center gap-4 mt-3 text-sm flex-wrap">
-        <label class="flex items-center gap-2 text-onedark-fg cursor-pointer">
+      <div class="flex items-center gap-3 mt-3 text-xs flex-wrap">
+        <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
           <input 
             :checked="searchCaseSensitive" 
             @change="emit('update:searchCaseSensitive', ($event.target as HTMLInputElement).checked)"
             type="checkbox" 
-            class="accent-onedark-accent" 
+            class="accent-hoi4-accent" 
           />
           <span>大小写敏感</span>
         </label>
-        <label class="flex items-center gap-2 text-onedark-fg cursor-pointer">
+        <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
           <input 
             :checked="searchRegex" 
             @change="emit('update:searchRegex', ($event.target as HTMLInputElement).checked)"
             type="checkbox" 
-            class="accent-onedark-accent" 
+            class="accent-hoi4-accent" 
           />
           <span>正则表达式</span>
         </label>
-        <label class="flex items-center gap-2 text-onedark-fg cursor-pointer">
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
+            <input 
+              :checked="searchScope === 'project'" 
+              @change="emit('update:searchScope', 'project')"
+              type="radio" 
+              name="searchScope" 
+              class="accent-hoi4-accent" 
+            />
+            <span>项目目录</span>
+          </label>
+          <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
+            <input 
+              :checked="searchScope === 'game'" 
+              @change="emit('update:searchScope', 'game')"
+              type="radio" 
+              name="searchScope" 
+              class="accent-hoi4-accent" 
+            />
+            <span>游戏目录</span>
+          </label>
+          <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
+            <input 
+              :checked="searchScope === 'dependencies'" 
+              @change="emit('update:searchScope', 'dependencies')"
+              type="radio" 
+              name="searchScope" 
+              class="accent-hoi4-accent" 
+            />
+            <span>依赖目录</span>
+          </label>
+        </div>
+        <label class="flex items-center gap-2 text-hoi4-text cursor-pointer">
           <input 
-            :checked="searchScope === 'game'" 
-            @change="emit('update:searchScope', ($event.target as HTMLInputElement).checked ? 'game' : 'project')"
+            :checked="includeAllFiles" 
+            @change="emit('update:includeAllFiles', ($event.target as HTMLInputElement).checked)"
             type="checkbox" 
-            class="accent-onedark-accent" 
+            class="accent-hoi4-accent" 
           />
-          <span>游戏目录</span>
+          <span>所有文件类型</span>
         </label>
       </div>
     </div>
     
     <!-- 搜索结果列表 -->
     <div class="flex-1 overflow-y-auto">
-      <div v-if="isSearching" class="p-4 text-center text-onedark-comment">
+      <div v-if="isSearching" class="p-4 text-center text-hoi4-text-dim">
         搜索中...
       </div>
-      <div v-else-if="searchResults.length === 0 && searchQuery" class="p-4 text-center text-onedark-comment">
+      <div v-else-if="searchResults.length === 0 && searchQuery" class="p-4 text-center text-hoi4-text-dim">
         未找到结果
       </div>
-      <div v-else-if="searchResults.length > 0" class="p-2">
-        <div class="text-xs text-onedark-comment px-2 mb-2">
+      <div v-else-if="searchResults.length > 0" class="p-2 space-y-2">
+        <div class="text-xs text-hoi4-text-dim px-2 mb-2">
           找到 {{ searchResults.length }} 个结果
         </div>
         <div
           v-for="(result, index) in searchResults"
           :key="`${result.file.path}-${result.line}-${index}`"
           :class="[
-            'px-3 py-2 rounded cursor-pointer transition-colors',
+            'px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-sm border border-transparent',
             index === selectedIndex
-              ? 'bg-onedark-selection'
-              : 'hover:bg-onedark-selection/50'
+              ? 'bg-hoi4-accent/20 border-hoi4-accent shadow-md'
+              : 'bg-hoi4-dark/50 hover:bg-hoi4-dark/80 hover:shadow-md'
           ]"
           @click="emit('jumpToResult', result)"
         >
-          <div class="text-xs font-semibold text-onedark-accent mb-1">
+          <div class="text-xs font-semibold text-hoi4-accent mb-1 flex items-center gap-2">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+            </svg>
             {{ result.file.name }}:{{ result.line }}
           </div>
-          <div class="text-xs text-onedark-fg font-mono truncate">
+          <div class="text-xs text-hoi4-text font-mono bg-hoi4-dark/30 p-2 rounded border border-hoi4-border/30">
             {{ result.content }}
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- 关闭按钮 -->
-    <button
-      @click="emit('close')"
-      class="absolute top-2 right-2 p-1 text-onedark-comment hover:text-onedark-fg transition-colors"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </button>
   </div>
 </template>

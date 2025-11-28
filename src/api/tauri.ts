@@ -301,13 +301,15 @@ export async function searchFiles(
   directory: string,
   query: string,
   case_sensitive: boolean,
-  use_regex: boolean
+  use_regex: boolean,
+  include_all_files: boolean = false
 ): Promise<SearchResponse> {
   return await invoke('search_files', {
     directoryPath: directory,
     query,
     caseSensitive: case_sensitive,
-    useRegex: use_regex
+    useRegex: use_regex,
+    includeAllFiles: include_all_files
   })
 }
 

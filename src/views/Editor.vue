@@ -25,7 +25,7 @@ import { type FileNode, type OpenFile } from '../composables/useFileManager'
 import { useSearch } from '../composables/useSearch'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
-import SearchPanel from '../components/editor/SearchPanel.vue'
+
 import ThemePanel from '../components/ThemePanel.vue'
 import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
 import { useTheme } from '../composables/useTheme'
@@ -181,10 +181,11 @@ const {
   searchCaseSensitive,
   searchRegex,
   searchScope,
+  includeAllFiles,
   performSearch
 } = useSearch()
 
-const searchPanelVisible = ref(false)
+
 const loadingMonitorVisible = ref(false)
 const packageDialogVisible = ref(false)
 const packageDialogRef = ref<InstanceType<typeof PackageDialog> | null>(null)
@@ -1175,6 +1176,9 @@ async function handlePackageProject(fileName: string) {
   }
 }
 
+// 右侧面板活动标签页
+const rightPanelActiveTab = ref<'info' | 'game' | 'errors' | 'search'>('info')
+
 // 切换右侧面板
 function toggleRightPanel() {
   rightPanelExpanded.value = !rightPanelExpanded.value
@@ -1257,10 +1261,35 @@ function handleContentChange(paneId: string, content: string) {
 }
 
 // 处理搜索
-function handlePerformSearch() {
-  const searchPath = searchScope.value === 'project' ? projectPath.value : gameDirectory.value
-  if (searchPath) {
-    performSearch(searchPath)
+async function handlePerformSearch() {
+  if (searchScope.value === 'dependencies') {
+    // 搜索所有启用的依赖项
+    const enabledDependencies = dependencies.value.filter(dep => dep.enabled)
+    if (enabledDependencies.length === 0) {
+      searchResults.value = []
+      return
+    }
+    
+    // 清空现有结果
+    searchResults.value = []
+    isSearching.value = true
+    
+    try {
+      // 遍历所有依赖项，执行搜索
+      for (let i = 0; i < enabledDependencies.length; i++) {
+        const dep = enabledDependencies[i]
+        // 第一个依赖项不追加（清空现有结果），后续依赖项追加
+        await performSearch(dep.path, i > 0)
+      }
+    } finally {
+      isSearching.value = false
+    }
+  } else {
+    // 搜索项目或游戏目录
+    const searchPath = searchScope.value === 'project' ? projectPath.value : gameDirectory.value
+    if (searchPath) {
+      performSearch(searchPath)
+    }
   }
 }
 
@@ -1278,7 +1307,7 @@ async function handleJumpToSearchResult(result: any) {
     editorGroupRef.value.jumpToErrorLine(result.line)
   }
   
-  searchPanelVisible.value = false
+
 }
 
 // 跳转到下一个错误
@@ -1361,7 +1390,9 @@ useKeyboardShortcuts({
   undo: () => {},
   redo: () => {},
   search: () => {
-    searchPanelVisible.value = !searchPanelVisible.value
+    // 打开右侧边栏并切换到搜索标签页
+    rightPanelExpanded.value = true
+    rightPanelActiveTab.value = 'search'
   },
   nextError: handleNextError,
   previousError: handlePreviousError,
@@ -1546,10 +1577,26 @@ onUnmounted(() => {
         :is-loading-game-tree="isLoadingGameTree"
         :txt-errors="txtErrors"
         :width="rightPanelWidth"
+        :search-query="searchQuery"
+        :search-results="searchResults"
+        :is-searching="isSearching"
+        :search-case-sensitive="searchCaseSensitive"
+        :search-regex="searchRegex"
+        :search-scope="searchScope"
+        :include-all-files="includeAllFiles"
+        :project-path="projectPath"
+        v-model:active-tab="rightPanelActiveTab"
         @close="toggleRightPanel"
         @jumpToError="jumpToError"
         @toggleGameFolder="toggleGameFolder"
         @openFile="handleOpenFile"
+        @update:search-query="searchQuery = $event"
+        @update:search-case-sensitive="searchCaseSensitive = $event"
+        @update:search-regex="searchRegex = $event"
+        @update:search-scope="searchScope = $event as 'project' | 'game' | 'dependencies'"
+        @update:include-all-files="includeAllFiles = $event"
+        @perform-search="handlePerformSearch"
+        @jumpToSearchResult="handleJumpToSearchResult"
       />
     </div>
 
@@ -1585,25 +1632,6 @@ onUnmounted(() => {
       @cancel="handleConfirmDialogCancel"
     />
 
-    <!-- 搜索面板 -->
-    <SearchPanel
-      :visible="searchPanelVisible"
-      :search-query="searchQuery"
-      :search-results="searchResults"
-      :is-searching="isSearching"
-      :search-case-sensitive="searchCaseSensitive"
-      :search-regex="searchRegex"
-      :search-scope="searchScope"
-      :project-path="projectPath"
-      :game-directory="gameDirectory"
-      @close="searchPanelVisible = false"
-      @jump-to-result="handleJumpToSearchResult"
-      @update:search-query="searchQuery = $event"
-      @update:search-case-sensitive="searchCaseSensitive = $event"
-      @update:search-regex="searchRegex = $event"
-      @update:search-scope="searchScope = $event as 'project' | 'game'"
-      @perform-search="handlePerformSearch"
-    />
 
     <!-- 依赖项管理对话框 -->
     <DependencyManager

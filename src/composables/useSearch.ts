@@ -17,7 +17,7 @@ export interface SearchResult {
   matchEnd: number
 }
 
-export type SearchScope = 'project' | 'game'
+export type SearchScope = 'project' | 'game' | 'dependencies'
 
 /**
  * 搜索功能 Composable
@@ -30,6 +30,7 @@ export function useSearch() {
   const searchCaseSensitive = ref(false)
   const searchRegex = ref(false)
   const searchScope = ref<SearchScope>('project')
+  const includeAllFiles = ref(false)
   
   /**
    * 将 API 搜索结果转换为本地格式
@@ -50,8 +51,10 @@ export function useSearch() {
   
   /**
    * 执行搜索
+   * @param searchPath 搜索路径
+   * @param append 是否追加搜索结果（默认：false）
    */
-  async function performSearch(searchPath: string) {
+  async function performSearch(searchPath: string, append: boolean = false) {
     if (!searchQuery.value.trim()) {
       searchResults.value = []
       return
@@ -62,26 +65,38 @@ export function useSearch() {
       return
     }
     
-    isSearching.value = true
-    searchResults.value = []
+    if (!append) {
+      isSearching.value = true
+      searchResults.value = []
+    }
     
     try {
       const result = await searchFiles(
         searchPath,
         searchQuery.value,
         searchCaseSensitive.value,
-        searchRegex.value
+        searchRegex.value,
+        includeAllFiles.value
       )
       
       if (result.success) {
-        searchResults.value = result.results.map(convertApiSearchResult)
+        const newResults = result.results.map(convertApiSearchResult)
+        if (append) {
+          // 追加搜索结果
+          searchResults.value = [...searchResults.value, ...newResults]
+        } else {
+          // 替换搜索结果
+          searchResults.value = newResults
+        }
       } else {
         logger.error(`搜索失败: ${result.message}`)
       }
     } catch (error) {
       logger.error('搜索失败:', error)
     } finally {
-      isSearching.value = false
+      if (!append) {
+        isSearching.value = false
+      }
     }
   }
   
@@ -128,6 +143,7 @@ export function useSearch() {
     searchCaseSensitive,
     searchRegex,
     searchScope,
+    includeAllFiles,
     performSearch,
     jumpToResult,
     clearResults

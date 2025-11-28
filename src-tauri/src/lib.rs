@@ -1507,6 +1507,7 @@ fn search_files(
     query: String,
     case_sensitive: bool,
     use_regex: bool,
+    include_all_files: bool,
 ) -> serde_json::Value {
     use std::fs;
     use std::path::Path;
@@ -1524,22 +1525,33 @@ fn search_files(
         });
     }
 
-    // 递归收集所有文件
-    fn collect_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
+    // 递归收集所有文件，支持文件类型过滤
+    fn collect_files(dir: &Path, files: &mut Vec<std::path::PathBuf>, include_all_files: bool) {
         if let Ok(entries) = fs::read_dir(dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
-                    files.push(path);
+                    // 检查文件类型
+                    if include_all_files {
+                        files.push(path);
+                    } else {
+                        // 默认只搜索 .txt, .gfx, .mod 文件
+                        if let Some(ext) = path.extension() {
+                            let ext_str = ext.to_string_lossy().to_lowercase();
+                            if ext_str == "txt" || ext_str == "gfx" || ext_str == "mod" {
+                                files.push(path);
+                            }
+                        }
+                    }
                 } else if path.is_dir() {
-                    collect_files(&path, files);
+                    collect_files(&path, files, include_all_files);
                 }
             }
         }
     }
 
     let mut all_files = Vec::new();
-    collect_files(dir_path, &mut all_files);
+    collect_files(dir_path, &mut all_files, include_all_files);
 
     println!("找到 {} 个文件", all_files.len());
 

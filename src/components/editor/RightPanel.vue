@@ -1,18 +1,31 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import ProjectInfo from './ProjectInfo.vue'
 import GameDirectory from './GameDirectory.vue'
 import ErrorList from './ErrorList.vue'
+import SearchPanel from './SearchPanel.vue'
 import type { FileNode } from '../../composables/useFileManager'
+import type { SearchResult } from '../../composables/useSearch'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   projectInfo: any
   gameDirectory: string
   gameFileTree: FileNode[]
   isLoadingGameTree: boolean
   txtErrors: Array<{line: number, msg: string, type: string}>
   width: number
-}>()
+  searchQuery: string
+  searchResults: SearchResult[]
+  isSearching: boolean
+  searchCaseSensitive: boolean
+  searchRegex: boolean
+  searchScope: string
+  includeAllFiles: boolean
+  projectPath: string
+  activeTab?: 'info' | 'game' | 'errors' | 'search'
+}>(), {
+  activeTab: 'info'
+})
 
 const emit = defineEmits<{
   close: []
@@ -20,9 +33,29 @@ const emit = defineEmits<{
   jumpToError: [error: {line: number, msg: string, type: string}]
   toggleGameFolder: [node: FileNode]
   openFile: [node: FileNode]
+  'update:searchQuery': [value: string]
+  'update:searchCaseSensitive': [value: boolean]
+  'update:searchRegex': [value: boolean]
+  'update:searchScope': [value: string]
+  'update:includeAllFiles': [value: boolean]
+  performSearch: []
+  jumpToSearchResult: [result: SearchResult]
+  'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search']
 }>()
 
-const activeTab = ref<'info' | 'game' | 'errors'>('info')
+const localActiveTab = ref<'info' | 'game' | 'errors' | 'search'>(props.activeTab)
+
+// 监听props.activeTab变化，更新本地状态
+watch(() => props.activeTab, (newTab) => {
+  if (newTab) {
+    localActiveTab.value = newTab
+  }
+})
+
+// 监听本地activeTab变化，通知父组件
+watch(localActiveTab, (newTab) => {
+  emit('update:activeTab', newTab)
+})
 </script>
 
 <template>
@@ -34,9 +67,9 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
     <div class="bg-hoi4-gray/90 border-b border-hoi4-border/60 flex items-center justify-between backdrop-blur-sm rounded-t-2xl">
       <div class="flex gap-1 p-1">
         <button
-          @click="activeTab = 'info'"
+          @click="localActiveTab = 'info'"
           class="p-2 transition-all rounded-lg"
-          :class="activeTab === 'info' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'info' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="项目信息"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,9 +77,9 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
           </svg>
         </button>
         <button
-          @click="activeTab = 'game'"
+          @click="localActiveTab = 'game'"
           class="p-2 transition-all rounded-lg"
-          :class="activeTab === 'game' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'game' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="游戏目录"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,13 +87,23 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
           </svg>
         </button>
         <button
-          @click="activeTab = 'errors'"
+          @click="localActiveTab = 'errors'"
           class="p-2 transition-all rounded-lg"
-          :class="activeTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="错误列表"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+        </button>
+        <button
+          @click="localActiveTab = 'search'"
+          class="p-2 transition-all rounded-lg"
+          :class="localActiveTab === 'search' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          title="搜索"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
           </svg>
         </button>
       </div>
@@ -78,13 +121,13 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
     <div class="flex-1 overflow-hidden">
       <Transition name="sidebar-fade-slide" mode="out-in">
         <ProjectInfo
-          v-if="activeTab === 'info'"
+          v-if="localActiveTab === 'info'"
           :key="'info'"
           :project-info="projectInfo"
         />
         
         <GameDirectory
-          v-else-if="activeTab === 'game'"
+          v-else-if="localActiveTab === 'game'"
           :key="'game'"
           :game-directory="gameDirectory"
           :game-file-tree="gameFileTree"
@@ -94,11 +137,36 @@ const activeTab = ref<'info' | 'game' | 'errors'>('info')
         />
         
         <ErrorList
-          v-else-if="activeTab === 'errors'"
+          v-else-if="localActiveTab === 'errors'"
           :key="'errors'"
           :errors="txtErrors"
           @jump-to-error="emit('jumpToError', $event)"
         />
+        
+        <div
+          v-else-if="localActiveTab === 'search'"
+          :key="'search'"
+          class="h-full overflow-hidden flex flex-col"
+        >
+          <SearchPanel
+            :search-query="searchQuery"
+            :search-results="searchResults"
+            :is-searching="isSearching"
+            :search-case-sensitive="searchCaseSensitive"
+            :search-regex="searchRegex"
+            :search-scope="searchScope"
+            :include-all-files="includeAllFiles"
+            :project-path="projectPath"
+            :game-directory="gameDirectory"
+            @jump-to-result="emit('jumpToSearchResult', $event)"
+            @update:search-query="emit('update:searchQuery', $event)"
+            @update:search-case-sensitive="emit('update:searchCaseSensitive', $event)"
+            @update:search-regex="emit('update:searchRegex', $event)"
+            @update:search-scope="emit('update:searchScope', $event)"
+            @update:include-all-files="emit('update:includeAllFiles', $event)"
+            @perform-search="emit('performSearch')"
+          />
+        </div>
       </Transition>
     </div>
   </div>
