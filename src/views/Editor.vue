@@ -1273,7 +1273,11 @@ async function handleJumpToSearchResult(result: any) {
   
   await handleOpenFile(node)
   
-  // TODO: 实现跳转到搜索结果
+  // 跳转到搜索结果行
+  if (editorGroupRef.value) {
+    editorGroupRef.value.jumpToErrorLine(result.line)
+  }
+  
   searchPanelVisible.value = false
 }
 
