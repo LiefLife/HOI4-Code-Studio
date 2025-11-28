@@ -35,6 +35,7 @@ const emit = defineEmits<{
 
 const editorContainer = ref<HTMLDivElement | null>(null)
 let editorView: EditorView | null = null
+let currentCoreExtensions: any[] = []
 
 // GrammarCompletion 组合式，提供统一的补全项视图
 const { allItems } = useGrammarCompletion()
@@ -101,19 +102,18 @@ function getLanguageExtension() {
     case 'ts':
       return [javascript()]
     case 'txt':
-      // HOI4 脚本
-      // 设置 Idea 注册表根并触发扫描
-      setIdeaRoots(props.projectRoot, props.gameDirectory)
-      ensureIdeaRegistry()
+      // HOI4 脚本 - 仅加载必要的扩展，延迟加载耗时的扩展
       return [
         hoi4(),
         rainbowBrackets,
         rainbowTheme,
-        autocompletion({
-          override: [grammarCompletionSource]
-        }),
-        ...createLinter({
-          contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
+        // 延迟设置 Idea 注册表根并触发扫描，避免阻塞编辑器初始化
+        EditorView.updateListener.of((_update) => {
+          // 只在首次加载时执行一次
+          setIdeaRoots(props.projectRoot, props.gameDirectory)
+          ensureIdeaRegistry()
+          // 移除监听器，避免重复执行
+          return EditorView.updateListener.of(() => {})
         })
       ]
     default:
@@ -203,11 +203,8 @@ async function initEditor() {
   // 清空容器，避免残留的旧编辑器 DOM 节点导致多个滚动条/多实例叠加
   editorContainer.value.innerHTML = ''
   
-  // 加载RGB颜色显示设置
-  await loadSettingsFromStorage()
-  
-  // 构建编辑器扩展
-  const extensions: any[] = [
+  // 构建编辑器扩展 - 仅包含核心功能
+  const coreExtensions: any[] = [
     lineNumbers(),
     highlightActiveLine(),
     highlightActiveLineGutter(),
@@ -245,26 +242,84 @@ async function initEditor() {
         return true
       }
     }),
-    // 添加字体设置
-    createEditorFontTheme(fontConfig.value),
+    // 添加主题设置
     getCurrentEditorTheme(),
-    ...getLanguageExtension()
+    // 添加语言扩展（包含语法高亮）
+    ...getLanguageExtension(),
+    // 添加字体设置，确保覆盖语法高亮样式
+    createEditorFontTheme(fontConfig.value)
   ]
   
-  // 条件性添加RGB颜色显示扩展
-  if (getEnabled()) {
-    extensions.push(createRGBColorField())
-  }
-
+  // 保存核心扩展到全局变量，以便在延迟加载时使用
+  currentCoreExtensions = coreExtensions
+  
   const startState = EditorState.create({
     doc: props.content,
-    extensions
+    extensions: coreExtensions
   })
   
   editorView = new EditorView({
     state: startState,
     parent: editorContainer.value
   })
+  
+  // 延迟加载非核心功能，避免阻塞编辑器初始化
+  setTimeout(async () => {
+    if (!editorView) return
+    
+    // 加载RGB颜色显示设置
+    await loadSettingsFromStorage()
+    
+    // 条件性添加RGB颜色显示扩展
+    if (getEnabled()) {
+      // 重新创建编辑器视图，添加RGB颜色显示扩展
+      const newExtensions = [...currentCoreExtensions, createRGBColorField()]
+      const newState = EditorState.create({
+        doc: editorView.state.doc.toString(),
+        extensions: newExtensions
+      })
+      
+      editorView.destroy()
+      editorView = new EditorView({
+        state: newState,
+        parent: editorContainer.value!
+      })
+    }
+    
+    // 延迟添加自动补全和Linter功能（仅对HOI4脚本文件）
+    const ext = props.fileName?.split('.').pop()?.toLowerCase()
+    if (ext === 'txt') {
+      setTimeout(() => {
+        if (!editorView) return
+        
+        // 重新创建编辑器视图，添加自动补全和Linter功能
+        const newExtensions = [...currentCoreExtensions, 
+          autocompletion({
+            override: [grammarCompletionSource]
+          }),
+          ...createLinter({
+            contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
+          })
+        ]
+        
+        // 如果已添加RGB颜色显示扩展，也要包含进去
+        if (getEnabled()) {
+          newExtensions.push(createRGBColorField())
+        }
+        
+        const newState = EditorState.create({
+          doc: editorView.state.doc.toString(),
+          extensions: newExtensions
+        })
+        
+        editorView.destroy()
+        editorView = new EditorView({
+          state: newState,
+          parent: editorContainer.value!
+        })
+      }, 500)
+    }
+  }, 100)
 }
 
 // 监听内容变化
@@ -417,9 +472,6 @@ defineExpose({
 
 .codemirror-editor .cm-scroller {
   overflow: auto;
-  font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Segoe UI', monospace;
-  font-size: 14px;
-  line-height: 21px;
 }
 
 .codemirror-editor .cm-tooltip.cm-tooltip-autocomplete {

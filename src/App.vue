@@ -13,9 +13,11 @@ function handleContextMenu(event: MouseEvent) {
   return false
 }
 
-onMounted(async () => {
-  // 加载主题设置
-  await loadThemeFromSettings()
+onMounted(() => {
+  // 延迟加载主题设置，避免阻塞应用启动
+  setTimeout(async () => {
+    await loadThemeFromSettings()
+  }, 100)
   
   // 添加全局右键菜单禁用
   document.addEventListener('contextmenu', handleContextMenu)

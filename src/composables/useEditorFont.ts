@@ -114,19 +114,47 @@ export function createEditorFontTheme(config: EditorFontConfig): Extension {
   const compatibleFontFamily = getCompatibleFontFamily(config.family)
   
   return EditorView.theme({
+    // 应用到整个编辑器
+    '&': {
+      fontFamily: compatibleFontFamily,
+      fontSize: `${config.size}px`,
+      fontWeight: config.weight,
+      lineHeight: config.lineHeight
+    },
+    // 应用到内容区域
     '.cm-content': {
       fontFamily: compatibleFontFamily,
       fontSize: `${config.size}px`,
       fontWeight: config.weight,
       lineHeight: config.lineHeight
     },
+    // 应用到每一行
     '.cm-line': {
       fontFamily: compatibleFontFamily,
       fontSize: `${config.size}px`,
       fontWeight: config.weight,
       lineHeight: config.lineHeight
     },
+    // 应用到行号区域
     '.cm-gutters': {
+      fontFamily: compatibleFontFamily,
+      fontSize: `${config.size}px`,
+      fontWeight: config.weight
+    },
+    // 应用到行号
+    '.cm-gutterElement': {
+      fontWeight: config.weight
+    },
+    // 覆盖所有语法高亮元素 - 使用更通用的选择器
+    '.cm-content *': {
+      fontWeight: config.weight
+    },
+    // 覆盖所有可能的语法高亮类名
+    '.cm-content [class^="cm-t-"]': {
+      fontWeight: config.weight
+    },
+    // 覆盖自动补全提示的字体
+    '.cm-tooltip': {
       fontFamily: compatibleFontFamily,
       fontSize: `${config.size}px`,
       fontWeight: config.weight

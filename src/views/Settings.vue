@@ -45,7 +45,7 @@ const showConfirmDialog = ref(false)
 const pendingDisableErrorHandling = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.6-dev'
+const CURRENT_VERSION = 'v0.2.7-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
@@ -458,6 +458,33 @@ onMounted(async () => {
                   />
                   <span class="text-hoi4-text">{{ weight.label }}</span>
                 </label>
+              </div>
+            </div>
+            
+            <!-- 行高设置 -->
+            <div>
+              <label class="block text-hoi4-text mb-2 text-base font-semibold">
+                行高: {{ fontConfig.lineHeight.toFixed(1) }}
+              </label>
+              <div class="flex items-center space-x-3">
+                <input
+                  v-model.number="fontConfig.lineHeight"
+                  type="range"
+                  min="1.0"
+                  max="3.0"
+                  step="0.1"
+                  class="flex-1"
+                  @input="handleSave"
+                />
+                <input
+                  v-model.number="fontConfig.lineHeight"
+                  type="number"
+                  min="1.0"
+                  max="3.0"
+                  step="0.1"
+                  class="input-field w-24 text-center"
+                  @input="handleSave"
+                />
               </div>
             </div>
           </div>

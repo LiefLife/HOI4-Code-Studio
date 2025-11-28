@@ -10,7 +10,7 @@ const statusMessage = ref('')
 const showStatus = ref(false)
 
 // 当前版本
-const CURRENT_VERSION = 'v0.2.6-dev'
+const CURRENT_VERSION = 'v0.2.7-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
@@ -173,27 +173,30 @@ function goToSettings() {
 }
 
 // 组件挂载后显示欢迎消息并检查更新
-onMounted(async () => {
+onMounted(() => {
   setTimeout(() => {
     displayStatus('欢迎使用 Hearts of Iron IV GUI Mod Editor', 3000)
   }, 500)
   
-  // 检查游戏目录设置
-  await checkGameDirectory()
-  
-  // 检查是否启用了自动更新检测
-  const settings = await loadSettings()
-  if (settings.success && settings.data) {
-    const data = settings.data as any
-    const shouldCheckUpdates = data.checkForUpdates !== false
+  // 延迟执行耗时操作，避免阻塞UI渲染
+  setTimeout(async () => {
+    // 检查游戏目录设置
+    await checkGameDirectory()
     
-    if (shouldCheckUpdates) {
-      // 延迟检查更新，避免影响启动体验
-      setTimeout(() => {
-        checkAppUpdates()
-      }, 1000)
+    // 检查是否启用了自动更新检测
+    const settings = await loadSettings()
+    if (settings.success && settings.data) {
+      const data = settings.data as any
+      const shouldCheckUpdates = data.checkForUpdates !== false
+      
+      if (shouldCheckUpdates) {
+        // 延迟检查更新，避免影响启动体验
+        setTimeout(() => {
+          checkAppUpdates()
+        }, 1000)
+      }
     }
-  }
+  }, 100)
 })
 </script>
 
@@ -216,7 +219,7 @@ onMounted(async () => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.2.6-dev
+        v0.2.7-dev
       </div>
     </div>
 

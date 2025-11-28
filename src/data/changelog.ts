@@ -17,6 +17,14 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.7-dev',
+    description: '字体更新',
+    changes: [
+      { type: 'feature', content: '增加字体修改初步支持' },
+      { type: 'improvement', content: '优化启动速度' },
+      ]
+  },
+  {
     version: 'v0.2.6-dev',
     description: 'RGB、配置与更新系统',
     changes: [
