@@ -21,7 +21,7 @@ export const changelog: VersionLog[] = [
     description: '搜索重构、字体修复、RGB优化',
     changes: [
       { type: 'improvement', content: '重构搜索功能UI、移动到侧边栏、增加搜索范围选项、增加类型限制' },
-      { type: 'improvement', content: '增加字体修改初步支持' },
+      { type: 'improvement', content: '修复字体加载问题' },
       { type: 'improvement', content: '优化RGB显示的交互' },
       ]
   },
