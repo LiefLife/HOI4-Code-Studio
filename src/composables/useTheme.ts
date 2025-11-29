@@ -95,7 +95,58 @@ export const themes: Theme[] = [
     }
   },
   {
-    id: 'catppuccin',
+    id: 'catppuccin-latte',
+    name: 'Catppuccin Latte',
+    colors: {
+      bg: '#eff1f5',
+      bgSecondary: '#e6e9ef',
+      fg: '#4c4f69',
+      comment: '#8c8fa1',
+      border: '#bcc0cc',
+      selection: '#acb0be',
+      accent: '#1e66f5',
+      success: '#40a02b',
+      warning: '#df8e1d',
+      error: '#d20f39',
+      keyword: '#8839ef'
+    }
+  },
+  {
+    id: 'catppuccin-frappe',
+    name: 'Catppuccin Frappé',
+    colors: {
+      bg: '#303446',
+      bgSecondary: '#292c3c',
+      fg: '#c6d0f5',
+      comment: '#838ba7',
+      border: '#51576d',
+      selection: '#626880',
+      accent: '#8caaee',
+      success: '#a6d189',
+      warning: '#e5c890',
+      error: '#e78284',
+      keyword: '#ca9ee6'
+    }
+  },
+  {
+    id: 'catppuccin-macchiato',
+    name: 'Catppuccin Macchiato',
+    colors: {
+      bg: '#24273a',
+      bgSecondary: '#1e2030',
+      fg: '#cad3f5',
+      comment: '#8087a2',
+      border: '#494d64',
+      selection: '#5b6078',
+      accent: '#8aadf4',
+      success: '#a6da95',
+      warning: '#eed49f',
+      error: '#ed8796',
+      keyword: '#c6a0f6'
+    }
+  },
+  {
+    id: 'catppuccin-mocha',
     name: 'Catppuccin Mocha',
     colors: {
       bg: '#1e1e2e',
@@ -245,6 +296,516 @@ export const themes: Theme[] = [
       warning: '#ffcb6b',
       error: '#f07178',
       keyword: '#c792ea'
+    }
+  },
+  {
+    id: 'tokyo-night',
+    name: 'Tokyo Night',
+    colors: {
+      bg: '#1a1b26',
+      bgSecondary: '#16161e',
+      fg: '#a9b1d6',
+      comment: '#565f89',
+      border: '#414868',
+      selection: '#33467c',
+      accent: '#7aa2f7',
+      success: '#9ece6a',
+      warning: '#e0af68',
+      error: '#f7768e',
+      keyword: '#bb9af7'
+    }
+  },
+  {
+    id: 'gruvbox-light',
+    name: 'Gruvbox Light',
+    colors: {
+      bg: '#fbf1c7',
+      bgSecondary: '#f9f5d7',
+      fg: '#3c3836',
+      comment: '#928374',
+      border: '#d5c4a1',
+      selection: '#ebdbb2',
+      accent: '#076678',
+      success: '#79740e',
+      warning: '#b57614',
+      error: '#9d0006',
+      keyword: '#8f3f71'
+    }
+  },
+  {
+    id: 'palenight',
+    name: 'Palenight',
+    colors: {
+      bg: '#292d3e',
+      bgSecondary: '#1b1e2b',
+      fg: '#a6accd',
+      comment: '#676e95',
+      border: '#4a4f6a',
+      selection: '#444267',
+      accent: '#82aaff',
+      success: '#c3e88d',
+      warning: '#ffcb6b',
+      error: '#f07178',
+      keyword: '#c792ea'
+    }
+  },
+  {
+    id: 'shades-of-purple',
+    name: 'Shades of Purple',
+    colors: {
+      bg: '#1e1e3f',
+      bgSecondary: '#2d2b55',
+      fg: '#a599e9',
+      comment: '#b362ff',
+      border: '#4e4e8a',
+      selection: '#4d21fc',
+      accent: '#ff628c',
+      success: '#a5ff90',
+      warning: '#fffb80',
+      error: '#ff5454',
+      keyword: '#ff9d00'
+    }
+  },
+  {
+    id: 'cobalt2',
+    name: 'Cobalt2',
+    colors: {
+      bg: '#193549',
+      bgSecondary: '#15232d',
+      fg: '#ffffff',
+      comment: '#0088ff',
+      border: '#1f4662',
+      selection: '#255f7e',
+      accent: '#ffc600',
+      success: '#9dff00',
+      warning: '#ff7b00',
+      error: '#ff2c6d',
+      keyword: '#ff9d00'
+    }
+  },
+  {
+    id: 'night-owl',
+    name: 'Night Owl',
+    colors: {
+      bg: '#011627',
+      bgSecondary: '#0b2942',
+      fg: '#d6deeb',
+      comment: '#5f7e97',
+      border: '#1d3b53',
+      selection: '#1d3b53',
+      accent: '#82aaff',
+      success: '#22da6e',
+      warning: '#ecc48d',
+      error: '#ef5350',
+      keyword: '#c792ea'
+    }
+  },
+  {
+    id: 'panda',
+    name: 'Panda',
+    colors: {
+      bg: '#1a1a1a',
+      bgSecondary: '#2d2d2d',
+      fg: '#e6e6e6',
+      comment: '#676b79',
+      border: '#373737',
+      selection: '#3f3f3f',
+      accent: '#ff2c6d',
+      success: '#19f9d8',
+      warning: '#ffb86c',
+      error: '#ff2c6d',
+      keyword: '#ff75b5'
+    }
+  },
+  {
+    id: 'vibrant-ink',
+    name: 'Vibrant Ink',
+    colors: {
+      bg: '#0f0f0f',
+      bgSecondary: '#1c1c1c',
+      fg: '#ffffff',
+      comment: '#9933cc',
+      border: '#333333',
+      selection: '#2d2d2d',
+      accent: '#66ccff',
+      success: '#99ff33',
+      warning: '#ffcc00',
+      error: '#ff3333',
+      keyword: '#ff6600'
+    }
+  },
+  {
+    id: 'arc',
+    name: 'Arc',
+    colors: {
+      bg: '#1e2127',
+      bgSecondary: '#2a2d34',
+      fg: '#9da5b4',
+      comment: '#5c6370',
+      border: '#3a3f4a',
+      selection: '#3e4451',
+      accent: '#61afef',
+      success: '#98c379',
+      warning: '#e5c07b',
+      error: '#e06c75',
+      keyword: '#c678dd'
+    }
+  },
+  {
+    id: 'mayukai',
+    name: 'Mayukai',
+    colors: {
+      bg: '#1f1f1f',
+      bgSecondary: '#2b2b2b',
+      fg: '#f8f8f2',
+      comment: '#75715e',
+      border: '#3e3e3e',
+      selection: '#414339',
+      accent: '#66d9ef',
+      success: '#a6e22e',
+      warning: '#e6db74',
+      error: '#f92672',
+      keyword: '#ae81ff'
+    }
+  },
+  {
+    id: 'material-light',
+    name: 'Material Light',
+    colors: {
+      bg: '#fafafa',
+      bgSecondary: '#ffffff',
+      fg: '#37474f',
+      comment: '#90a4ae',
+      border: '#e0e0e0',
+      selection: '#e0e0e0',
+      accent: '#2962ff',
+      success: '#00c853',
+      warning: '#ffab00',
+      error: '#ff3d00',
+      keyword: '#aa00ff'
+    }
+  },
+  {
+    id: 'atom-dark',
+    name: 'Atom Dark',
+    colors: {
+      bg: '#1d1f23',
+      bgSecondary: '#282c34',
+      fg: '#abb2bf',
+      comment: '#5c6370',
+      border: '#181a1f',
+      selection: '#3e4451',
+      accent: '#528bff',
+      success: '#98c379',
+      warning: '#e5c07b',
+      error: '#e06c75',
+      keyword: '#c678dd'
+    }
+  },
+  {
+    id: 'atom-light',
+    name: 'Atom Light',
+    colors: {
+      bg: '#ffffff',
+      bgSecondary: '#f9f9f9',
+      fg: '#383a42',
+      comment: '#a0a1a7',
+      border: '#e5e5e5',
+      selection: '#e5e5e6',
+      accent: '#4078f2',
+      success: '#50a14f',
+      warning: '#c18401',
+      error: '#e45649',
+      keyword: '#a626a4'
+    }
+  },
+  {
+    id: 'tomorrow-light',
+    name: 'Tomorrow Light',
+    colors: {
+      bg: '#ffffff',
+      bgSecondary: '#efefef',
+      fg: '#4d4d4c',
+      comment: '#8e908c',
+      border: '#d6d6d6',
+      selection: '#d6d6d6',
+      accent: '#4271ae',
+      success: '#718c00',
+      warning: '#eab700',
+      error: '#c82829',
+      keyword: '#8959a8'
+    }
+  },
+  {
+    id: 'tomorrow-night',
+    name: 'Tomorrow Night',
+    colors: {
+      bg: '#1d1f21',
+      bgSecondary: '#282a2e',
+      fg: '#c5c8c6',
+      comment: '#969896',
+      border: '#373b41',
+      selection: '#373b41',
+      accent: '#81a2be',
+      success: '#b5bd68',
+      warning: '#f0c674',
+      error: '#cc6666',
+      keyword: '#b294bb'
+    }
+  },
+  {
+    id: 'base16',
+    name: 'Base16',
+    colors: {
+      bg: '#181818',
+      bgSecondary: '#202020',
+      fg: '#d8d8d8',
+      comment: '#585858',
+      border: '#383838',
+      selection: '#303030',
+      accent: '#7cafc2',
+      success: '#a1b56c',
+      warning: '#f7ca88',
+      error: '#ab4642',
+      keyword: '#ba8baf'
+    }
+  },
+  {
+    id: 'cyan',
+    name: 'Cyan',
+    colors: {
+      bg: '#1b1b1b',
+      bgSecondary: '#2d2d2d',
+      fg: '#e0e0e0',
+      comment: '#00ffff',
+      border: '#008b8b',
+      selection: '#2d4b4b',
+      accent: '#00ffff',
+      success: '#00ff00',
+      warning: '#ffff00',
+      error: '#ff6b6b',
+      keyword: '#ff1493'
+    }
+  },
+  {
+    id: 'neon',
+    name: 'Neon',
+    colors: {
+      bg: '#0a0a0a',
+      bgSecondary: '#1a1a1a',
+      fg: '#ffffff',
+      comment: '#00ff00',
+      border: '#333333',
+      selection: '#1a3d1a',
+      accent: '#00ffff',
+      success: '#00ff00',
+      warning: '#ffff00',
+      error: '#ff00ff',
+      keyword: '#ff00ff'
+    }
+  },
+  {
+    id: 'mint',
+    name: 'Mint',
+    colors: {
+      bg: '#1e1e1e',
+      bgSecondary: '#2d2d2d',
+      fg: '#e0e0e0',
+      comment: '#7fbbb3',
+      border: '#3a3a3a',
+      selection: '#2d4b46',
+      accent: '#7fbbb3',
+      success: '#a7c080',
+      warning: '#dbbc7f',
+      error: '#e67e80',
+      keyword: '#d699b6'
+    }
+  },
+  {
+    id: 'rose-pine',
+    name: 'Rose Pine',
+    colors: {
+      bg: '#191724',
+      bgSecondary: '#1f1d2e',
+      fg: '#e0def4',
+      comment: '#6e6a86',
+      border: '#2a2837',
+      selection: '#3a3849',
+      accent: '#c4a7e7',
+      success: '#9ccfd8',
+      warning: '#f6c177',
+      error: '#eb6f92',
+      keyword: '#31748f'
+    }
+  },
+  {
+    id: 'hearts-allies-dark',
+    name: 'Hearts of Iron - Allies Dark',
+    colors: {
+      bg: '#2a1f1f',
+      bgSecondary: '#1f1717',
+      fg: '#e0d0d0',
+      comment: '#8b6b6b',
+      border: '#4a3636',
+      selection: '#3d2a2a',
+      accent: '#d48b8b',
+      success: '#8b9d6b',
+      warning: '#b8a56b',
+      error: '#c47b7b',
+      keyword: '#b58b9b'
+    }
+  },
+  {
+    id: 'hearts-allies-light',
+    name: 'Hearts of Iron - Allies Light',
+    colors: {
+      bg: '#f8f0f0',
+      bgSecondary: '#f5e8e8',
+      fg: '#4a3535',
+      comment: '#a58b8b',
+      border: '#d4c0c0',
+      selection: '#e8d0d0',
+      accent: '#c47b7b',
+      success: '#6b8b5b',
+      warning: '#a58b4b',
+      error: '#b54b4b',
+      keyword: '#9b6b8b'
+    }
+  },
+  {
+    id: 'hearts-america-dark',
+    name: 'Hearts of Iron - America Dark',
+    colors: {
+      bg: '#1f242a',
+      bgSecondary: '#171a1f',
+      fg: '#d0d8e0',
+      comment: '#6b7b8b',
+      border: '#36424a',
+      selection: '#2a343d',
+      accent: '#8bb4d4',
+      success: '#8bd48b',
+      warning: '#d4b48b',
+      error: '#d48b8b',
+      keyword: '#9bb4c4'
+    }
+  },
+  {
+    id: 'hearts-america-light',
+    name: 'Hearts of Iron - America Light',
+    colors: {
+      bg: '#f0f4f8',
+      bgSecondary: '#e8eef5',
+      fg: '#353a4a',
+      comment: '#8b9bb4',
+      border: '#c0c8d4',
+      selection: '#d0d4e8',
+      accent: '#6b9bc4',
+      success: '#6b9b6b',
+      warning: '#b49b6b',
+      error: '#b46b6b',
+      keyword: '#8b9bb4'
+    }
+  },
+  {
+    id: 'hearts-axis-dark',
+    name: 'Hearts of Iron - Axis Dark',
+    colors: {
+      bg: '#2a2520',
+      bgSecondary: '#1f1a16',
+      fg: '#e0dcd0',
+      comment: '#8b7f6b',
+      border: '#4a4236',
+      selection: '#3d352a',
+      accent: '#b8a07b',
+      success: '#7b9b6b',
+      warning: '#b8a56b',
+      error: '#b87b7b',
+      keyword: '#a58b7b'
+    }
+  },
+  {
+    id: 'hearts-axis-light',
+    name: 'Hearts of Iron - Axis Light',
+    colors: {
+      bg: '#f8f4f0',
+      bgSecondary: '#f5efe8',
+      fg: '#4a4235',
+      comment: '#a59b8b',
+      border: '#d4c8b8',
+      selection: '#e8dfd0',
+      accent: '#a58b6b',
+      success: '#6b8b5b',
+      warning: '#a58b4b',
+      error: '#b54b4b',
+      keyword: '#9b7b6b'
+    }
+  },
+  {
+    id: 'hearts-comintern-dark',
+    name: 'Hearts of Iron - Comintern Dark',
+    colors: {
+      bg: '#2a1f1f',
+      bgSecondary: '#1f1616',
+      fg: '#e0d0d0',
+      comment: '#8b6b6b',
+      border: '#4a3636',
+      selection: '#3d2a2a',
+      accent: '#d46b6b',
+      success: '#7b9b6b',
+      warning: '#b8a56b',
+      error: '#b84b4b',
+      keyword: '#b58b8b'
+    }
+  },
+  {
+    id: 'hearts-comintern-light',
+    name: 'Hearts of Iron - Comintern Light',
+    colors: {
+      bg: '#f8f0f0',
+      bgSecondary: '#f5e8e8',
+      fg: '#4a3535',
+      comment: '#a58b8b',
+      border: '#d4c0c0',
+      selection: '#e8d0d0',
+      accent: '#b54b4b',
+      success: '#6b8b5b',
+      warning: '#a58b4b',
+      error: '#b52b2b',
+      keyword: '#9b6b6b'
+    }
+  },
+  {
+    id: 'hearts-china-dark',
+    name: 'Hearts of Iron - China Dark',
+    colors: {
+      bg: '#1f202a',
+      bgSecondary: '#161720',
+      fg: '#d0d4e0',
+      comment: '#6b708b',
+      border: '#363a4a',
+      selection: '#2a2d3d',
+      accent: '#6b8bc4',
+      success: '#7bb48b',
+      warning: '#b4a56b',
+      error: '#b47b7b',
+      keyword: '#8b9bc4'
+    }
+  },
+  {
+    id: 'hearts-china-light',
+    name: 'Hearts of Iron - China Light',
+    colors: {
+      bg: '#f0f2f8',
+      bgSecondary: '#e8ecf5',
+      fg: '#353a4a',
+      comment: '#8b9bb4',
+      border: '#c0c4d4',
+      selection: '#d0d4e8',
+      accent: '#4b6bc4',
+      success: '#6b9b7b',
+      warning: '#a58b4b',
+      error: '#b54b4b',
+      keyword: '#6b7bc4'
     }
   },
   {

@@ -61,7 +61,7 @@ function handleKeydown(e: KeyboardEvent) {
           </div>
 
           <!-- 主题列表 -->
-          <div class="p-6 overflow-y-auto max-h-[60vh]">
+          <div class="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <button
                 v-for="theme in themes"

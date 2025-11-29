@@ -125,6 +125,30 @@ body {
   background-color: var(--onedark-accent);
 }
 
+/* Custom scrollbar class for specific elements */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--onedark-selection) var(--onedark-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background-color: var(--onedark-bg);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--onedark-selection);
+  border-radius: 0.25rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--onedark-accent);
+}
+
 /* 侧边栏子界面切换过渡动画 */
 .sidebar-fade-slide-enter-active,
 .sidebar-fade-slide-leave-active {

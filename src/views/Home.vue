@@ -228,7 +228,7 @@ onMounted(() => {
       <!-- 创建新项目按钮 -->
       <button 
         @click="handleNewProject"
-        class="btn-primary w-full text-lg"
+        class="btn-primary w-full text-lg hover-scale"
         title="创建一个新的 GUI Mod 项目"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -242,7 +242,7 @@ onMounted(() => {
       <!-- 打开现有项目按钮 -->
       <button 
         @click="handleOpenProject"
-        class="btn-secondary w-full text-lg"
+        class="btn-secondary w-full text-lg hover-scale"
         title="打开已存在的 GUI Mod 项目"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -256,7 +256,7 @@ onMounted(() => {
       <!-- 最近项目按钮 -->
       <button 
         @click="handleRecentProjects"
-        class="btn-secondary w-full text-lg"
+        class="btn-secondary w-full text-lg hover-scale"
         title="查看最近打开的项目"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -273,7 +273,7 @@ onMounted(() => {
       <!-- 设置按钮 -->
       <button 
         @click="handleSettings"
-        class="btn-secondary w-full"
+        class="btn-secondary w-full hover-scale"
         title="应用程序设置"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -288,7 +288,7 @@ onMounted(() => {
       <!-- 文档按钮 -->
       <button 
         @click="handleDocumentation"
-        class="btn-secondary w-full"
+        class="btn-secondary w-full hover-scale"
         title="查看使用文档"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -302,7 +302,7 @@ onMounted(() => {
       <!-- 更新日志按钮 -->
       <button 
         @click="handleChangelog"
-        class="btn-secondary w-full"
+        class="btn-secondary w-full hover-scale"
         title="查看版本更新日志"
       >
         <div class="flex items-center justify-center space-x-3">
@@ -429,5 +429,18 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 组件特定样式 */
+/* 悬停放大动画 */
+.hover-scale {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.hover-scale:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
 </style>

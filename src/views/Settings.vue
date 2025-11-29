@@ -518,7 +518,7 @@ onMounted(async () => {
               class="overflow-hidden transition-all duration-300 ease-in-out"
               :class="showThemeOptions ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'"
             >
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 overflow-y-auto max-h-[400px] custom-scrollbar">
                 <button
                   v-for="theme in themes"
                   :key="theme.id"
