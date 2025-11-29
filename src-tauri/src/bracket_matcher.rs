@@ -63,10 +63,14 @@ fn get_bracket_type(ch: char) -> BracketType {
 
 /// 宏：判断括号是否匹配
 macro_rules! brackets_match {
-    ('(', ')') => { true };
-    ('[', ']') => { true };
-    ('{', '}') => { true };
-    ($open:expr, $close:expr) => { false };
+    ($open:expr, $close:expr) => {
+        match ($open, $close) {
+            ('(', ')') => true,
+            ('[', ']') => true,
+            ('{', '}') => true,
+            _ => false,
+        }
+    };
 }
 
 /// 查找括号匹配

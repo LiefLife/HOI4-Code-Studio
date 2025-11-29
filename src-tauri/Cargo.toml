@@ -36,3 +36,11 @@ walkdir = "2.4"
 base64 = "0.22"
 image = { version = "0.25.9", features = ["tga", "jpeg", "png", "bmp", "webp"] }
 image_dds = "0.7.2"
+
+[dev-dependencies]
+mockall = "0.13"
+tempfile = "3"
+rstest = "0.21"
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+mockall_double = { version = "0.3" }

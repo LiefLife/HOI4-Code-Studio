@@ -22,10 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Test File
-test
-test/*
-test.mod
+
 
 # IDE
 .idea
@@ -52,3 +49,4 @@ move_project
 SOLO.md
 .trae/*
 IFLOW.md
+coverage

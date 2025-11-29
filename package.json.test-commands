@@ -1,0 +1,80 @@
+# 测试命令参考
+
+## 快速测试命令
+
+```bash
+# 前端测试
+npm run test                    # 开发模式测试
+npm run test:run                # 一次性测试
+npm run test:coverage           # 带覆盖率测试
+npm run test:ui                 # UI界面测试
+
+# 后端测试
+cd src-tauri && cargo test              # 单元测试
+cd src-tauri && cargo test --release    # 发布模式测试
+cd src-tauri && cargo tarpaulin         # 覆盖率测试
+
+# E2E测试
+npm run test:e2e              # 运行E2E测试
+npm run test:e2e:ui           # E2E测试UI
+
+# 完整测试套件
+npm run test:all              # 前端+后端+E2E
+```
+
+## 调试测试
+
+```bash
+# 调试单个测试文件
+npm run test -- FileTreeNode.test.ts
+
+# 调试单个测试用例
+npm run test -- --grep "应该正确渲染"
+
+# 调试模式
+npm run test -- --inspect-brk
+
+# 后端调试
+cd src-tauri && cargo test -- --nocapture
+```
+
+## 测试覆盖率
+
+```bash
+# 前端覆盖率
+npm run test:coverage
+
+# 后端覆盖率
+cd src-tauri && cargo tarpaulin --out Html
+
+# 查看覆盖率报告
+open coverage/index.html                    # 前端
+open src-tauri/tarpaulin-report.html       # 后端
+```
+
+## 性能测试
+
+```bash
+# 基准测试
+cd src-tauri && cargo bench
+
+# 性能分析
+npm run test -- --benchmark
+
+# 内存泄漏检测
+npm run test -- --detect-leaks
+```
+
+## CI/CD相关
+
+```bash
+# 本地模拟CI环境
+npm run ci:test
+
+# 验证构建
+npm run build && npm run test:run
+
+# 安全扫描
+npm audit
+cd src-tauri && cargo audit
+```
