@@ -68,7 +68,7 @@ watch(localActiveTab, (newTab) => {
       <div class="flex gap-1 p-1">
         <button
           @click="localActiveTab = 'info'"
-          class="p-2 transition-all rounded-lg"
+          class="p-2 transition-all rounded-lg hover-scale"
           :class="localActiveTab === 'info' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="项目信息"
         >
@@ -78,7 +78,7 @@ watch(localActiveTab, (newTab) => {
         </button>
         <button
           @click="localActiveTab = 'game'"
-          class="p-2 transition-all rounded-lg"
+          class="p-2 transition-all rounded-lg hover-scale"
           :class="localActiveTab === 'game' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="游戏目录"
         >
@@ -88,7 +88,7 @@ watch(localActiveTab, (newTab) => {
         </button>
         <button
           @click="localActiveTab = 'errors'"
-          class="p-2 transition-all rounded-lg"
+          class="p-2 transition-all rounded-lg hover-scale"
           :class="localActiveTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="错误列表"
         >
@@ -98,7 +98,7 @@ watch(localActiveTab, (newTab) => {
         </button>
         <button
           @click="localActiveTab = 'search'"
-          class="p-2 transition-all rounded-lg"
+          class="p-2 transition-all rounded-lg hover-scale"
           :class="localActiveTab === 'search' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="搜索"
         >
@@ -109,7 +109,7 @@ watch(localActiveTab, (newTab) => {
       </div>
       <button
         @click="emit('close')"
-        class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-full hover:bg-hoi4-border/60 transition-colors"
+        class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-full hover:bg-hoi4-border/60 transition-colors hover-scale"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -171,3 +171,20 @@ watch(localActiveTab, (newTab) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 悬停放大动画 */
+.hover-scale {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hover-scale:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+</style>

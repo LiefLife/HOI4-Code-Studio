@@ -25,7 +25,7 @@ const enabledDependencies = computed(() =>
     <!-- 当前项目标签 -->
     <button
       @click="emit('switchToProject')"
-      class="p-2 transition-all rounded-lg flex-shrink-0"
+      class="p-2 transition-all rounded-lg flex-shrink-0 hover-scale"
       :class="activeTab === 'project' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
       title="当前项目"
     >
@@ -41,7 +41,7 @@ const enabledDependencies = computed(() =>
         v-for="dep in enabledDependencies"
         :key="dep.id"
         @click="emit('switchToDependency', dep.id)"
-        class="p-2 transition-all rounded-lg flex-shrink-0 relative group"
+        class="p-2 transition-all rounded-lg flex-shrink-0 relative group hover-scale"
         :class="activeTab === 'dependencies' && activeDependencyId === dep.id ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         :title="dep.name"
       >
@@ -59,7 +59,7 @@ const enabledDependencies = computed(() =>
     <div class="ml-auto flex items-center gap-1">
       <button
         @click="emit('manageDependencies')"
-        class="p-2 transition-all rounded-lg flex-shrink-0"
+        class="p-2 transition-all rounded-lg flex-shrink-0 hover-scale"
         :class="'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         title="管理依赖项"
       >
@@ -88,5 +88,20 @@ const enabledDependencies = computed(() =>
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* 悬停放大动画 */
+.hover-scale {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hover-scale:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
 }
 </style>

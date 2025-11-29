@@ -149,6 +149,33 @@ body {
   background-color: var(--onedark-accent);
 }
 
+/* 按钮悬停效果 - 底部高亮 */
+.hover-scale {
+  position: relative;
+  overflow: hidden;
+}
+
+.hover-scale::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--hoi4-accent), transparent);
+  transition: width 0.3s ease;
+}
+
+.hover-scale:hover::after {
+  width: 80%;
+}
+
+.hover-scale:active::after {
+  width: 60%;
+  transition: width 0.1s ease;
+}
+
 /* 侧边栏子界面切换过渡动画 */
 .sidebar-fade-slide-enter-active,
 .sidebar-fade-slide-leave-active {
