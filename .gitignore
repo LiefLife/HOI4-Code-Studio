@@ -50,3 +50,5 @@ SOLO.md
 .trae/*
 IFLOW.md
 coverage
+test-results
+playwright-report

@@ -7,7 +7,6 @@
 ### 测试类型
 - **单元测试** - 测试单个函数、组件或模块
 - **集成测试** - 测试多个模块之间的交互
-- **E2E测试** - 端到端用户流程测试
 - **性能测试** - 验证性能指标
 
 ### 测试框架
@@ -30,9 +29,6 @@ npm run test
 # 后端测试
 cd src-tauri && cargo test
 
-# E2E测试
-npm run test:e2e
-
 # 带覆盖率的测试
 npm run test:coverage
 ```
@@ -52,8 +48,6 @@ src/
 │   │   └── file-manager.test.ts
 │   ├── components/           # 组件测试
 │   │   └── FileTreeNode.test.ts
-│   └── e2e/                  # E2E测试
-│       └── home.spec.ts
 src-tauri/src/tests/           # 后端测试
 │   ├── mod.rs
 │   ├── file_tree_tests.rs
@@ -140,21 +134,6 @@ describe('文件管理器集成测试', () => {
 })
 ```
 
-### E2E测试 (End-to-End Tests)
-
-```typescript
-// src/test/e2e/home.spec.ts
-import { test, expect } from '@playwright/test'
-
-test.describe('主页功能', () => {
-  test('应该能够创建新项目', async ({ page }) => {
-    await page.goto('/')
-    await page.click('button:has-text("创建")')
-    await expect(page).toHaveURL(/.*create/)
-  })
-})
-```
-
 ## 🔧 Mock和测试工具
 
 ### API Mock
@@ -209,11 +188,10 @@ open tarpaulin-report.html
 ### 工作流步骤
 1. **前端测试** - 单元测试 + 覆盖率
 2. **后端测试** - 单元测试 + 覆盖率
-3. **E2E测试** - 跨浏览器测试
-4. **集成测试** - 全栈功能测试
-5. **代码质量** - Lint + 格式检查
-6. **安全扫描** - 依赖安全检查
-7. **构建测试** - 验证构建流程
+3. **集成测试** - 全栈功能测试
+4. **代码质量** - Lint + 格式检查
+5. **安全扫描** - 依赖安全检查
+6. **构建测试** - 验证构建流程
 
 ## 📈 测试最佳实践
 
@@ -296,7 +274,7 @@ npm run test:coverage -- --reporter=html
 ## 🤝 贡献指南
 
 ### 添加新测试
-1. 确定测试类型（单元/集成/E2E）
+1. 确定测试类型（单元/集成）
 2. 遵循现有测试模式
 3. 确保测试覆盖率目标
 4. 运行完整测试套件

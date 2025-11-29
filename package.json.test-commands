@@ -14,12 +14,6 @@ cd src-tauri && cargo test              # 单元测试
 cd src-tauri && cargo test --release    # 发布模式测试
 cd src-tauri && cargo tarpaulin         # 覆盖率测试
 
-# E2E测试
-npm run test:e2e              # 运行E2E测试
-npm run test:e2e:ui           # E2E测试UI
-
-# 完整测试套件
-npm run test:all              # 前端+后端+E2E
 ```
 
 ## 调试测试

@@ -9,7 +9,6 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     exclude: [
-      '**/e2e/**',
       '**/node_modules/**',
       '**/dist/**',
       '**/target/**',
@@ -25,7 +24,6 @@ export default defineConfig({
         '**/*.config.*',
         '**/dist/**',
         '**/target/**',
-        '**/e2e/**',
         '**/move_project/**'
       ],
     },
