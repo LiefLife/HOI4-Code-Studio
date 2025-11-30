@@ -52,3 +52,6 @@ IFLOW.md
 coverage
 test-results
 playwright-report
+.roo
+AGENTS.md
+openspec

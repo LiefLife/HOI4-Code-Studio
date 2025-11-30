@@ -824,6 +824,264 @@ export const themes: Theme[] = [
       error: '#ec5f67',
       keyword: '#c594c5'
     }
+  },
+  // HOI4 国家主题
+  {
+    id: 'hearts-uk-dark',
+    name: 'Hearts of Iron - United Kingdom Dark',
+    colors: {
+      bg: '#1a1a2e',
+      bgSecondary: '#16213e',
+      fg: '#e8e8e8',
+      comment: '#8b8b8b',
+      border: '#3a3a5a',
+      selection: '#2a2a4a',
+      accent: '#c41e3a', // 英国红
+      success: '#4169e1', // 英国蓝
+      warning: '#ffd700', // 金色
+      error: '#ff6b6b',
+      keyword: '#4169e1'
+    }
+  },
+  {
+    id: 'hearts-uk-light',
+    name: 'Hearts of Iron - United Kingdom Light',
+    colors: {
+      bg: '#f8f8ff',
+      bgSecondary: '#f0f0f8',
+      fg: '#2a2a3e',
+      comment: '#8b8b9b',
+      border: '#d0d0e0',
+      selection: '#e0e0f0',
+      accent: '#c41e3a', // 英国红
+      success: '#4169e1', // 英国蓝
+      warning: '#b8860b', // 暗金色
+      error: '#dc143c',
+      keyword: '#4169e1'
+    }
+  },
+  {
+    id: 'hearts-france-dark',
+    name: 'Hearts of Iron - France Dark',
+    colors: {
+      bg: '#1a1a2e',
+      bgSecondary: '#16213e',
+      fg: '#e8e8e8',
+      comment: '#8b8b8b',
+      border: '#3a3a5a',
+      selection: '#2a2a4a',
+      accent: '#002395', // 法国蓝
+      success: '#ffffff', // 白色
+      warning: '#ed2939', // 法国红
+      error: '#ff6b6b',
+      keyword: '#002395'
+    }
+  },
+  {
+    id: 'hearts-france-light',
+    name: 'Hearts of Iron - France Light',
+    colors: {
+      bg: '#f8f8ff',
+      bgSecondary: '#f0f0f8',
+      fg: '#2a2a3e',
+      comment: '#8b8b9b',
+      border: '#d0d0e0',
+      selection: '#e0e0f0',
+      accent: '#002395', // 法国蓝
+      success: '#4a4a4a', // 深灰色代表白色
+      warning: '#ed2939', // 法国红
+      error: '#dc143c',
+      keyword: '#002395'
+    }
+  },
+  {
+    id: 'hearts-germany-dark',
+    name: 'Hearts of Iron - Germany Dark',
+    colors: {
+      bg: '#1a1a1a',
+      bgSecondary: '#2a2a2a',
+      fg: '#e8e8e8',
+      comment: '#8b8b8b',
+      border: '#3a3a3a',
+      selection: '#2a2a2a',
+      accent: '#000000', // 德国黑
+      success: '#dd0000', // 德国红
+      warning: '#ffce00', // 德国金
+      error: '#ff6b6b',
+      keyword: '#dd0000'
+    }
+  },
+  {
+    id: 'hearts-germany-light',
+    name: 'Hearts of Iron - Germany Light',
+    colors: {
+      bg: '#f8f8f8',
+      bgSecondary: '#e8e8e8',
+      fg: '#2a2a2a',
+      comment: '#8b8b8b',
+      border: '#d0d0d0',
+      selection: '#e0e0e0',
+      accent: '#2a2a2a', // 深灰色代表黑色
+      success: '#dd0000', // 德国红
+      warning: '#ffce00', // 德国金
+      error: '#dc143c',
+      keyword: '#dd0000'
+    }
+  },
+  {
+    id: 'hearts-italy-dark',
+    name: 'Hearts of Iron - Italy Dark',
+    colors: {
+      bg: '#1a1a1a',
+      bgSecondary: '#2a2a2a',
+      fg: '#e8e8e8',
+      comment: '#8b8b8b',
+      border: '#3a3a3a',
+      selection: '#2a2a2a',
+      accent: '#009246', // 意大利绿
+      success: '#ffffff', // 白色
+      warning: '#ce2b37', // 意大利红
+      error: '#ff6b6b',
+      keyword: '#009246'
+    }
+  },
+  {
+    id: 'hearts-italy-light',
+    name: 'Hearts of Iron - Italy Light',
+    colors: {
+      bg: '#f8f8f8',
+      bgSecondary: '#e8e8e8',
+      fg: '#2a2a2a',
+      comment: '#8b8b8b',
+      border: '#d0d0d0',
+      selection: '#e0e0e0',
+      accent: '#009246', // 意大利绿
+      success: '#4a4a4a', // 深灰色代表白色
+      warning: '#ce2b37', // 意大利红
+      error: '#dc143c',
+      keyword: '#009246'
+    }
+  },
+  {
+    id: 'hearts-japan-dark',
+    name: 'Hearts of Iron - Japan Dark',
+    colors: {
+      bg: '#1a1a1a',
+      bgSecondary: '#2a2a2a',
+      fg: '#e8e8e8',
+      comment: '#8b8b8b',
+      border: '#3a3a3a',
+      selection: '#2a2a2a',
+      accent: '#bc002d', // 日本红
+      success: '#ffffff', // 白色
+      warning: '#e8e8e8', // 浅灰色
+      error: '#ff6b6b',
+      keyword: '#bc002d'
+    }
+  },
+  {
+    id: 'hearts-japan-light',
+    name: 'Hearts of Iron - Japan Light',
+    colors: {
+      bg: '#f8f8f8',
+      bgSecondary: '#e8e8e8',
+      fg: '#2a2a2a',
+      comment: '#8b8b8b',
+      border: '#d0d0d0',
+      selection: '#e0e0e0',
+      accent: '#bc002d', // 日本红
+      success: '#4a4a4a', // 深灰色代表白色
+      warning: '#e8e8e8', // 浅灰色
+      error: '#dc143c',
+      keyword: '#bc002d'
+    }
+  },
+  // 流行编辑器主题
+  {
+    id: 'jetbrains-darcula',
+    name: 'JetBrains Darcula',
+    colors: {
+      bg: '#2b2b2b',
+      bgSecondary: '#313335',
+      fg: '#bbbbbb',
+      comment: '#808080',
+      border: '#3c3f41',
+      selection: '#214283',
+      accent: '#6897bb',
+      success: '#629755',
+      warning: '#bbb529',
+      error: '#cc7832',
+      keyword: '#cc7832'
+    }
+  },
+  {
+    id: 'jetbrains-intellij-light',
+    name: 'JetBrains IntelliJ Light',
+    colors: {
+      bg: '#ffffff',
+      bgSecondary: '#f7f7f7',
+      fg: '#000000',
+      comment: '#808080',
+      border: '#d7d7d7',
+      selection: '#acc8d6',
+      accent: '#6a8759',
+      success: '#6a8759',
+      warning: '#a7a733',
+      error: '#cc7832',
+      keyword: '#cc7832'
+    }
+  },
+  {
+    id: 'doom-one',
+    name: 'Doom One',
+    colors: {
+      bg: '#282c34',
+      bgSecondary: '#21252b',
+      fg: '#bbc2cf',
+      comment: '#5b6268',
+      border: '#3f444a',
+      selection: '#3e4451',
+      accent: '#51afef',
+      success: '#98be65',
+      warning: '#ecbe7b',
+      error: '#ff6c6b',
+      keyword: '#c678dd'
+    }
+  },
+  // 无障碍主题
+  {
+    id: 'high-contrast',
+    name: 'High Contrast',
+    colors: {
+      bg: '#000000',
+      bgSecondary: '#1a1a1a',
+      fg: '#ffffff',
+      comment: '#cccccc',
+      border: '#ffffff',
+      selection: '#333333',
+      accent: '#00ffff',
+      success: '#00ff00',
+      warning: '#ffff00',
+      error: '#ff0000',
+      keyword: '#ff00ff'
+    }
+  },
+  {
+    id: 'colorblind-friendly',
+    name: 'Colorblind Friendly',
+    colors: {
+      bg: '#1e1e1e',
+      bgSecondary: '#252526',
+      fg: '#d4d4d4',
+      comment: '#6d6d6d',
+      border: '#3c3c3c',
+      selection: '#264f78',
+      accent: '#569cd6', // 蓝色
+      success: '#4ec9b0', // 青色
+      warning: '#dcdcaa', // 黄色
+      error: '#f44747', // 红色
+      keyword: '#c586c0' // 紫色
+    }
   }
 ]
 

@@ -466,13 +466,13 @@ useKeyboardShortcuts({
 
 ### useTheme
 
-主题系统 Composable，管理应用程序的主题配置。
+主题系统 Composable，管理应用程序的主题配置。支持50+主题，包括通用编辑器主题、HOI4特定主题和无障碍友好主题。
 
 #### 返回值
 
 | 属性名 | 类型 | 描述 |
 |--------|------|------|
-| `themes` | `Theme[]` | 预定义主题列表 |
+| `themes` | `Theme[]` | 预定义主题列表（包含50+主题） |
 | `currentThemeId` | `Ref<string>` | 当前主题ID |
 | `currentTheme` | `Computed<Theme>` | 当前主题 |
 | `themePanelVisible` | `Ref<boolean>` | 主题面板可见性 |
@@ -481,6 +481,30 @@ useKeyboardShortcuts({
 | `toggleThemePanel` | `() => void` | 切换主题面板可见性 |
 | `closeThemePanel` | `() => void` | 关闭主题面板 |
 | `applyTheme` | `(theme: Theme) => void` | 应用主题到CSS变量 |
+
+#### 主题分类
+
+**通用编辑器主题**（30+）：
+- One Dark/Light, VS Code Dark, GitHub Dark/Light
+- Catppuccin系列（Latte, Frappé, Macchiato, Mocha）
+- Dracula, Monokai, Solarized, Nord, Gruvbox
+- Material, Tokyo Night, Palenight, Arc等
+
+**HOI4国家主题**（15个）：
+- 盟军：英国、美国、法国（明暗版本）
+- 轴心国：德国、意大利、日本（明暗版本）
+- 共产国际：Comintern、中国（明暗版本）
+
+**流行编辑器主题**（3个）：
+- JetBrains Darcula, JetBrains IntelliJ Light, Doom One
+
+**无障碍主题**（2个）：
+- High Contrast（高对比度）, Colorblind Friendly（色盲友好）
+
+#### 快捷键
+
+- `Ctrl+Shift+T` - 打开/关闭主题面板
+- `Esc` - 关闭主题面板
 
 #### 类型定义
 

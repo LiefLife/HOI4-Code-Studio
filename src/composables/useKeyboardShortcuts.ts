@@ -12,6 +12,7 @@ export function useKeyboardShortcuts(handlers: {
   nextError?: () => void
   previousError?: () => void
   toggleTheme?: () => void
+  toggleIconPanel?: () => void
 }) {
   function handleKeyDown(e: KeyboardEvent) {
     // Ctrl+S 保存
@@ -42,6 +43,12 @@ export function useKeyboardShortcuts(handlers: {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
       e.preventDefault()
       handlers.toggleTheme?.()
+    }
+    
+    // Ctrl+Shift+Y 切换图标面板
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Y') {
+      e.preventDefault()
+      handlers.toggleIconPanel?.()
     }
     
     // Ctrl+Z 撤销

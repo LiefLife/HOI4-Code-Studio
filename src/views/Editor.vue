@@ -27,8 +27,10 @@ import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePanelResize } from '../composables/usePanelResize'
 
 import ThemePanel from '../components/ThemePanel.vue'
+import IconPanel from '../components/IconPanel.vue'
 import { setTagRoots, useTagRegistry } from '../composables/useTagRegistry'
 import { useTheme } from '../composables/useTheme'
+import { useFileTreeIcons } from '../composables/useFileTreeIcons'
 import { setIdeaRoots, useIdeaRegistry, ensureIdeaRegistry } from '../composables/useIdeaRegistry'
 import { logger } from '../utils/logger'
 import { readFileContent } from '../api/tauri'
@@ -199,6 +201,9 @@ const { isLoading: ideaLoading, refresh: refreshIdeas, ideas: ideaList } = useId
 
 // 主题系统
 const { toggleThemePanel, loadThemeFromSettings } = useTheme()
+
+// 图标系统
+const { toggleIconPanel, loadIconSetFromSettings } = useFileTreeIcons()
 // 依赖项管理
 const dependencyManager = useDependencyManager(projectPath.value)
 const {
@@ -1396,7 +1401,8 @@ useKeyboardShortcuts({
   },
   nextError: handleNextError,
   previousError: handlePreviousError,
-  toggleTheme: toggleThemePanel
+  toggleTheme: toggleThemePanel,
+  toggleIconPanel: toggleIconPanel
 })
 
 // 开始目录树自动刷新
@@ -1423,6 +1429,9 @@ function stopFileTreeAutoRefresh() {
 onMounted(async () => {
   // 加载主题设置
   await loadThemeFromSettings()
+  
+  // 加载图标设置
+  await loadIconSetFromSettings()
   
   // 加载设置
   const settingsResult = await loadSettings()
@@ -1667,6 +1676,9 @@ onUnmounted(() => {
 
     <!-- 主题切换面板 -->
     <ThemePanel />
+    
+    <!-- 图标选择面板 -->
+    <IconPanel />
   </div>
 </template>
 

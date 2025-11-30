@@ -23,6 +23,13 @@ Vue Composables 接口：
 - 业务逻辑封装
 - 响应式数据处理
 
+### [主题系统](../../Frontend/Themes.md)
+HOI4 Code Studio 主题系统：
+- 50+ 预定义主题
+- HOI4国家主题
+- 无障碍友好主题
+- 主题自定义指南
+
 ## 🔄 数据流
 
 ```

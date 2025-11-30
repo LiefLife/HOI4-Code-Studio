@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
+import { getFileIcon } from '../composables/useFileTreeIcons'
 
 interface FileNode {
   name: string
@@ -29,22 +30,8 @@ function handleClick() {
   }
 }
 
-function getFileIcon(node: FileNode): string {
-  if (node.isDirectory) {
-    return node.expanded ? '📂' : '📁'
-  }
-  
-  const ext = node.name.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'json': return '📄'
-    case 'js': case 'ts': return '📜'
-    case 'vue': return '💚'
-    case 'css': return '🎨'
-    case 'png': case 'jpg': case 'jpeg': return '🖼️'
-    case 'txt': case 'md': return '📝'
-    case 'mod': return '⚙️'
-    default: return '📄'
-  }
+function getFileIconDisplay(node: FileNode) {
+  return getFileIcon(node.name, node.isDirectory, node.expanded)
 }
 </script>
 
@@ -57,7 +44,17 @@ function getFileIcon(node: FileNode): string {
       @click="handleClick"
       @contextmenu.stop.prevent="(e) => emit('contextmenu', e, props.node)"
     >
-      <span class="mr-2">{{ getFileIcon(node) }}</span>
+      <!-- 图标显示 -->
+      <span class="mr-2 flex items-center justify-center icon-container">
+        <img
+          v-if="getFileIconDisplay(node).type === 'svg'"
+          :src="getFileIconDisplay(node).content"
+          :alt="node.name"
+          class="icon-svg"
+          loading="lazy"
+        />
+        <span v-else class="icon-emoji">{{ getFileIconDisplay(node).content }}</span>
+      </span>
       <span class="text-hoi4-text truncate">{{ node.name }}</span>
     </div>
     
@@ -75,3 +72,37 @@ function getFileIcon(node: FileNode): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.icon-container {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.icon-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 确保图标在不同主题下都有良好的对比度 */
+.file-tree-node:hover .icon-svg {
+  filter: brightness(1.1);
+}
+
+.file-tree-node[class*="bg-hoi4-selected"] .icon-svg {
+  filter: brightness(1.2);
+}
+</style>
