@@ -1,7 +1,7 @@
 {
   "name": "hoi4-code-studio",
   "private": true,
-  "version": "0.2.7-dev",
+  "version": "0.2.8-dev",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,6 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
-    
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.1",
@@ -61,7 +60,6 @@
     "autoprefixer": "^10.4.21",
     "happy-dom": "^15.11.1",
     "jsdom": "^25.0.1",
-    
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.15",
     "typescript": "~5.6.2",

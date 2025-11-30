@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, VueWrapper } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import FileTreeNode from '@/components/FileTreeNode.vue'
 
 interface FileNode {
@@ -140,7 +140,7 @@ describe('FileTreeNode', () => {
       { fileName: 'test.mod', ext: 'mod' }
     ]
 
-    testCases.forEach(({ fileName, ext }) => {
+    testCases.forEach(({ fileName }) => {
       const fileNode = createMockFileNode({
         name: fileName,
         path: `/test/${fileName}`

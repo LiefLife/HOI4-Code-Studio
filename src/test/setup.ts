@@ -1,6 +1,4 @@
 import { beforeAll, afterEach, afterAll, vi } from 'vitest'
-import { createSSRApp } from 'vue'
-import { RouterLinkStub, mount } from '@vue/test-utils'
 
 // Mock Tauri API
 vi.mock('../api/tauri', () => ({

@@ -22,7 +22,7 @@ export function createMockFileNode(
  * 创建模拟的打开文件
  */
 export function createMockOpenFile(
-  path: string = '/mock/file.txt',
+  _path: string = '/mock/file.txt',
   content: string = 'mock content'
 ) {
   return {
@@ -85,7 +85,9 @@ export function setupCommonMocks() {
   }
   
   // 直接模拟模块
-  vi.mocked(vi.importActual('@/api/tauri')).mockImplementation(() => mockedApi)
+  vi.mock('@/api/tauri', () => ({
+    ...mockedApi,
+  }))
 }
 
 /**
