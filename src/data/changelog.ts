@@ -17,6 +17,14 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.8-dev',
+    description: '更多主题、一键启动支持调试',
+    changes: [
+      { type: 'improvement', content: '增加更多主题' },
+      { type: 'feature', content: '一键启动支持调试启动(学习版未验证)' },
+      ]
+  },
+  {
     version: 'v0.2.7-dev',
     description: '搜索重构、字体修复、RGB优化',
     changes: [
