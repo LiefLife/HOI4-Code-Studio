@@ -10,6 +10,19 @@
 
 ## 文档结构
 
+- **API/**: API 接口文档
+  - [API 概览](./API/README.md): API 文档总览和快速导航
+  - [API 快速参考](./API/QUICK_REFERENCE.md): 常用 API 快速查找和代码示例
+  - **Frontend API**: 前端接口文档
+    - [Tauri API](./API/Frontend/TauriAPI.md): Tauri 桥接接口
+    - [组件 API](./API/Frontend/Components.md): Vue 组件接口
+    - [组合式函数 API](./API/Frontend/Composables.md): Vue Composables 接口
+  - **Backend API**: 后端接口文档
+    - [核心模块](./API/Backend/CoreModules.md): Rust 核心模块接口
+    - [命令接口](./API/Backend/Commands.md): Tauri 命令接口
+    - [数据类型](./API/Backend/DataTypes.md): 数据结构定义
+  - **Integration API**: 集成接口文档
+    - [集成指南](./API/Integration/README.md): 前后端通信协议和集成方式
 - **Frontend/**: 前端相关文档
   - **Editor/**: 编辑器核心功能
     - [错误提示](./Frontend/Editor/ErrorTip.md)
