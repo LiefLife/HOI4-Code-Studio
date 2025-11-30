@@ -697,10 +697,17 @@ fn launch_game() -> LaunchGameResult {
     let use_pirate = settings.get("usePirateVersion")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
+    let launch_with_debug = settings.get("launchWithDebug")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
 
     // Steam 版本启动
     if use_steam {
-        let steam_url = "steam://rungameid/394360";
+        let steam_url = if launch_with_debug {
+            "steam://rungameid/394360//--debug"
+        } else {
+            "steam://rungameid/394360"
+        };
         
         #[cfg(target_os = "windows")]
         {
@@ -711,7 +718,11 @@ fn launch_game() -> LaunchGameResult {
                 Ok(_) => {
                     return LaunchGameResult {
                         success: true,
-                        message: "正在通过 Steam 启动游戏...".to_string(),
+                        message: if launch_with_debug {
+                            "正在通过 Steam 启动游戏（调试模式）...".to_string()
+                        } else {
+                            "正在通过 Steam 启动游戏...".to_string()
+                        },
                     };
                 }
                 Err(e) => {
@@ -732,7 +743,11 @@ fn launch_game() -> LaunchGameResult {
                 Ok(_) => {
                     return LaunchGameResult {
                         success: true,
-                        message: "正在通过 Steam 启动游戏...".to_string(),
+                        message: if launch_with_debug {
+                            "正在通过 Steam 启动游戏（调试模式）...".to_string()
+                        } else {
+                            "正在通过 Steam 启动游戏...".to_string()
+                        },
                     };
                 }
                 Err(e) => {
@@ -776,14 +791,28 @@ fn launch_game() -> LaunchGameResult {
                 };
             }
 
-            match Command::new(&game_exe)
-                .current_dir(game_path)
-                .spawn()
+            // 构建启动参数
+            let mut args = Vec::new();
+            if launch_with_debug {
+                args.push("--debug");
+            }
+
+            let mut cmd = Command::new(&game_exe);
+            cmd.current_dir(game_path);
+            if !args.is_empty() {
+                cmd.args(&args);
+            }
+
+            match cmd.spawn()
             {
                 Ok(_) => {
                     return LaunchGameResult {
                         success: true,
-                        message: "正在启动游戏...".to_string(),
+                        message: if launch_with_debug {
+                            "正在启动游戏（调试模式）...".to_string()
+                        } else {
+                            "正在启动游戏...".to_string()
+                        },
                     };
                 }
                 Err(e) => {

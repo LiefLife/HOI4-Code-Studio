@@ -35,6 +35,7 @@ const showThemeOptions = ref(true)
 const useSteamVersion = ref(true)
 const usePirateVersion = ref(false)
 const pirateExecutable = ref<'dowser' | 'hoi4'>('dowser')
+const launchWithDebug = ref(false)
 
 // 状态
 const showStatus = ref(false)
@@ -76,6 +77,7 @@ async function loadUserSettings() {
     useSteamVersion.value = data.useSteamVersion !== false
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
+    launchWithDebug.value = data.launchWithDebug || false
     autoSave.value = data.autoSave !== false
     disableErrorHandling.value = data.disableErrorHandling || false
     enableRGBColorDisplay.value = data.enableRGBColorDisplay !== false
@@ -128,6 +130,7 @@ async function handleSave() {
     useSteamVersion: useSteamVersion.value,
     usePirateVersion: usePirateVersion.value,
     pirateExecutable: pirateExecutable.value,
+    launchWithDebug: launchWithDebug.value,
     autoSave: autoSave.value,
     disableErrorHandling: disableErrorHandling.value,
     enableRGBColorDisplay: enableRGBColorDisplay.value,
@@ -374,6 +377,25 @@ onMounted(async () => {
                 <div class="text-hoi4-comment text-sm">
                   <strong class="text-hoi4-text">提示：</strong>学习版启动将使用上方设置的 HOI4 游戏目录，请确保该目录包含 {{ pirateExecutable }}.exe 文件。
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 调试模式选项 -->
+          <div class="mt-4">
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <input
+                v-model="launchWithDebug"
+                type="checkbox"
+                class="w-4 h-4 border-2 border-hoi4-border rounded"
+                @change="handleSave"
+              />
+              <span class="text-hoi4-text">启动时附加调试参数 (--debug)</span>
+            </label>
+            <!-- 提示信息 -->
+            <div class="ml-7 mt-2">
+              <div class="text-hoi4-comment text-xs">
+                启用后，游戏启动时将自动添加 --debug 参数，用于调试和开发目的。
               </div>
             </div>
           </div>

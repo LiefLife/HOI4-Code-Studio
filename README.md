@@ -19,6 +19,13 @@
 ```bash
 npm install
 ```
+### 开发后测试
+
+```bash
+npm run test:ui
+cd src-tauri
+cargo test
+```
 
 ### 开发模式（运行桌面应用）
 
