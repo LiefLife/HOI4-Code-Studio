@@ -22,7 +22,8 @@ export const changelog: VersionLog[] = [
     changes: [
       { type: 'improvement', content: '增加更多主题' },
       { type: 'feature', content: '一键启动支持调试启动(学习版未验证)' },
-      ]
+      { type: 'feature', content: '增加图标选择功能(未完善)' },
+    ]
   },
   {
     version: 'v0.2.7-dev',
