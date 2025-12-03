@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, openUrl } from '../api/tauri'
-import { checkForUpdates } from '../utils/version'
+import { loadSettings, saveSettings, openUrl } from '../api/tauri'
 import { useTheme, themes } from '../composables/useTheme'
 import { useFileTreeIcons, iconSets } from '../composables/useFileTreeIcons'
 import { getDefaultMenuItem } from '../data/settingsMenu'
@@ -22,10 +21,10 @@ import UpdateSettings from '../components/settings/UpdateSettings.vue'
 import VersionInfoSettings from '../components/settings/VersionInfoSettings.vue'
 
 // 主题系统
-const { currentThemeId, setTheme } = useTheme()
+const { currentThemeId } = useTheme()
 
 // 图标系统
-const { currentIconSetId, setIconSet } = useFileTreeIcons()
+const { currentIconSetId } = useFileTreeIcons()
 
 const router = useRouter()
 
@@ -50,17 +49,10 @@ const enableRGBColorDisplay = ref(true)
 import { useEditorFont } from '../composables/useEditorFont'
 const { 
   fontConfig, 
-  availableFonts, 
-  fontWeights, 
-  fontSizes, 
   setFontConfig 
 } = useEditorFont()
 
-// 主题选项显示状态
-const showThemeOptions = ref(true)
 
-// 图标选项显示状态
-const showIconOptions = ref(true)
 
 // 游戏启动设置
 const useSteamVersion = ref(true)
@@ -335,9 +327,9 @@ onMounted(async () => {
             description="配置自动保存和错误处理"
           >
             <EditorSaveSettings 
-              :auto-save="autoSave"
-              :disable-error-handling="disableErrorHandling"
-              :enable-rgb-color-display="enableRGBColorDisplay"
+              :autoSave="autoSave"
+              :disableErrorHandling="disableErrorHandling"
+              :enableRGBColorDisplay="enableRGBColorDisplay"
               @update:autoSave="autoSave = $event"
               @update:disableErrorHandling="disableErrorHandling = $event"
               @update:enableRGBColorDisplay="enableRGBColorDisplay = $event"

@@ -96,7 +96,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import { useEditorFont } from '../../composables/useEditorFont'
 
 interface Emits {

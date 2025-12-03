@@ -4,13 +4,13 @@
       <!-- 左侧：手动检查更新按钮 -->
       <button
         @click="handleCheckUpdate"
-        :disabled="isCheckingUpdate"
+        :disabled="props.isCheckingUpdate"
         class="btn-primary px-4 py-2 flex-shrink-0"
-        :class="{ 'opacity-50 cursor-not-allowed': isCheckingUpdate }"
+        :class="{ 'opacity-50 cursor-not-allowed': props.isCheckingUpdate }"
       >
         <div class="flex items-center space-x-2">
           <svg 
-            v-if="!isCheckingUpdate"
+            v-if="!props.isCheckingUpdate"
             class="w-5 h-5" 
             fill="none" 
             stroke="currentColor" 
@@ -27,7 +27,7 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
-          <span>{{ isCheckingUpdate ? '检查中...' : '检查更新' }}</span>
+          <span>{{ props.isCheckingUpdate ? '检查中...' : '检查更新' }}</span>
         </div>
       </button>
 
@@ -35,11 +35,11 @@
       <div class="flex-1 space-y-2">
         <div class="flex items-center space-x-2">
           <span class="text-hoi4-comment">当前版本:</span>
-          <span class="text-hoi4-text font-semibold">{{ currentVersion }}</span>
+          <span class="text-hoi4-text font-semibold">{{ props.currentVersion }}</span>
         </div>
         <div class="flex items-center space-x-2">
           <span class="text-hoi4-comment">GitHub版本:</span>
-          <span class="text-hoi4-text font-semibold">{{ githubVersion }}</span>
+          <span class="text-hoi4-text font-semibold">{{ props.githubVersion }}</span>
         </div>
       </div>
     </div>
@@ -47,7 +47,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { checkForUpdates } from '../../utils/version'
 
 interface Props {

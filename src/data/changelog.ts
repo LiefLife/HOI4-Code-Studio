@@ -17,6 +17,15 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.9-dev',
+    description: '界面优化',
+    changes: [
+      { type: 'improvement', content: '优化文档UI' },
+      { type: 'improvement', content: '优化更新日志UI' },
+      { type: 'improvement', content: '优化设置UI' },
+    ]
+  },
+  {
     version: 'v0.2.8-dev',
     description: '更多主题、一键启动支持调试',
     changes: [

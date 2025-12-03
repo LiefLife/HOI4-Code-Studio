@@ -13,7 +13,7 @@
         v-for="item in category.items"
         :key="item.id"
         class="settings-menu-item"
-        :class="{ active: activeItem === item.id }"
+        :class="{ active: props.activeItem === item.id }"
         @click="handleItemClick(item.id)"
       >
         <div class="settings-menu-icon">
