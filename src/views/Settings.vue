@@ -5,6 +5,21 @@ import { loadSettings, saveSettings, validateGameDirectory, openFileDialog, open
 import { checkForUpdates } from '../utils/version'
 import { useTheme, themes } from '../composables/useTheme'
 import { useFileTreeIcons, iconSets } from '../composables/useFileTreeIcons'
+import { getDefaultMenuItem } from '../data/settingsMenu'
+
+// 导入子组件
+import SettingsSidebar from '../components/settings/SettingsSidebar.vue'
+import SettingsCard from '../components/settings/SettingsCard.vue'
+import GameDirectorySettings from '../components/settings/GameDirectorySettings.vue'
+import GameLaunchSettings from '../components/settings/GameLaunchSettings.vue'
+import RecentProjectsSettings from '../components/settings/RecentProjectsSettings.vue'
+import EditorFontSettings from '../components/settings/EditorFontSettings.vue'
+import EditorSaveSettings from '../components/settings/EditorSaveSettings.vue'
+import EditorDisplaySettings from '../components/settings/EditorDisplaySettings.vue'
+import ThemeSettings from '../components/settings/ThemeSettings.vue'
+import IconSettings from '../components/settings/IconSettings.vue'
+import UpdateSettings from '../components/settings/UpdateSettings.vue'
+import VersionInfoSettings from '../components/settings/VersionInfoSettings.vue'
 
 // 主题系统
 const { currentThemeId, setTheme } = useTheme()
@@ -13,6 +28,14 @@ const { currentThemeId, setTheme } = useTheme()
 const { currentIconSetId, setIconSet } = useFileTreeIcons()
 
 const router = useRouter()
+
+// 当前选中的菜单项
+const activeMenuItem = ref(getDefaultMenuItem())
+
+// 处理菜单点击
+function handleMenuItemClick(itemId: string) {
+  activeMenuItem.value = itemId
+}
 
 // 设置数据
 const gameDirectory = ref('')
@@ -32,6 +55,7 @@ const {
   fontSizes, 
   setFontConfig 
 } = useEditorFont()
+
 // 主题选项显示状态
 const showThemeOptions = ref(true)
 
@@ -111,25 +135,7 @@ async function loadUserSettings() {
   }
 }
 
-// 选择游戏目录
-async function selectGameDirectory() {
-  const result = await openFileDialog('directory')
-  if (result.success && result.path) {
-    const validation = await validateGameDirectory(result.path)
-    if (validation.valid) {
-      gameDirectory.value = result.path
-      displayStatus('游戏目录验证成功', 2000)
-    } else {
-      displayStatus(`无效的游戏目录: ${validation.message}`, 3000)
-    }
-  }
-}
 
-// 清除游戏目录
-function clearGameDirectory() {
-  gameDirectory.value = ''
-  displayStatus('游戏目录已清除', 2000)
-}
 
 // 保存设置（静默保存，仅在失败时提示）
 async function handleSave() {
@@ -161,38 +167,7 @@ async function handleSave() {
   isSaving.value = false
 }
 
-// 手动检查更新
-async function handleCheckUpdate() {
-  isCheckingUpdate.value = true
-  githubVersion.value = '检查中...'
-  
-  try {
-    // 使用未认证访问
-    const result = await checkForUpdates(CURRENT_VERSION, '', false)
-    
-    if (result.error) {
-      githubVersion.value = '检查失败'
-      displayStatus(`检查更新失败: ${result.error}`, 3000)
-    } else if (result.latestVersion) {
-      githubVersion.value = result.latestVersion
-      
-      if (result.hasUpdate && result.releaseUrl) {
-        updateInfo.value = {
-          version: result.latestVersion,
-          url: result.releaseUrl
-        }
-        showUpdateDialog.value = true
-      } else {
-        displayStatus('当前已是最新版本', 2000)
-      }
-    }
-  } catch (error) {
-    githubVersion.value = '检查失败'
-    displayStatus('检查更新失败', 3000)
-  } finally {
-    isCheckingUpdate.value = false
-  }
-}
+
 
 // 打开更新页面
 async function openUpdatePage() {
@@ -265,657 +240,172 @@ onMounted(async () => {
   await loadUserSettings()
   // 初始化完成后，标记为false
   isInitializing.value = false
-  // 自动检查一次GitHub版本
-  handleCheckUpdate()
 })
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col p-[2vh] bg-hoi4-dark">
-    <!-- 顶部栏 -->
-    <div class="flex items-center mb-[3vh]">
-      <button
-        @click="goBack"
-        class="btn-secondary flex items-center space-x-2"
-        style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 1.5rem)"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-        </svg>
-        <span>返回</span>
-      </button>
-      <h1 class="ml-[3vw] font-bold text-hoi4-text" style="font-size: clamp(1.25rem, 2.5vw, 2rem)">
-        设置
-      </h1>
+  <div class="settings-container">
+    <!-- 左侧菜单 -->
+    <div class="settings-sidebar">
+      <SettingsSidebar 
+        :active-item="activeMenuItem"
+        @item-click="handleMenuItemClick"
+      />
     </div>
 
-    <!-- 设置表单 -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="card max-w-3xl mx-auto space-y-6">
-        <!-- 游戏目录 -->
-        <div>
-          <label class="block text-hoi4-text mb-2 text-lg font-semibold">
-            HOI4 游戏目录
-          </label>
-          <div class="flex space-x-2">
-            <input
+    <!-- 右侧内容区 -->
+    <div class="settings-main">
+      <!-- 顶部栏 -->
+      <div class="settings-header">
+        <button
+          @click="goBack"
+          class="btn-secondary flex items-center space-x-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          <span>返回</span>
+        </button>
+        <h1 class="ml-6 font-bold text-hoi4-text text-2xl">
+          设置
+        </h1>
+      </div>
+
+      <!-- 设置内容 -->
+      <div class="settings-content">
+        <div class="settings-content-inner">
+          <!-- 游戏目录设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'game-directory'"
+            title="HOI4 游戏目录"
+            description="选择 Hearts of Iron IV 游戏安装目录"
+          >
+            <GameDirectorySettings 
               v-model="gameDirectory"
-              type="text"
-              readonly
-              placeholder="选择 Hearts of Iron IV 游戏目录"
-              class="input-field flex-1"
+              @status-message="displayStatus"
             />
-            <button
-              type="button"
-              @click="selectGameDirectory"
-              class="btn-primary px-6"
-            >
-              浏览
-            </button>
-            <button
-              v-if="gameDirectory"
-              type="button"
-              @click="clearGameDirectory"
-              class="btn-secondary px-4"
-              title="清除游戏目录"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
+          </SettingsCard>
 
-        <!-- 游戏启动设置 -->
-        <div class="space-y-4">
-          <h2 class="text-hoi4-text text-lg font-semibold">游戏启动设置</h2>
-          
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="useSteamVersion"
-              type="radio"
-              name="gameVersion"
-              :value="true"
-              @change="usePirateVersion = false"
-              class="w-5 h-5 border-2 border-hoi4-border"
+          <!-- 游戏启动设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'game-launch'"
+            title="游戏启动设置"
+            description="配置游戏启动方式和参数"
+          >
+            <GameLaunchSettings 
+              :use-steam-version="useSteamVersion"
+              :use-pirate-version="usePirateVersion"
+              :pirate-executable="pirateExecutable"
+              :launch-with-debug="launchWithDebug"
+              @update:useSteamVersion="useSteamVersion = $event"
+              @update:usePirateVersion="usePirateVersion = $event"
+              @update:pirateExecutable="pirateExecutable = $event"
+              @update:launchWithDebug="launchWithDebug = $event"
+              @save="handleSave"
             />
-            <span class="text-hoi4-text">使用 Steam 版本启动</span>
-          </label>
+          </SettingsCard>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="usePirateVersion"
-              type="radio"
-              name="gameVersion"
-              :value="true"
-              @change="useSteamVersion = false"
-              class="w-5 h-5 border-2 border-hoi4-border"
+          <!-- 最近项目设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'recent-projects'"
+            title="最近项目显示"
+            description="设置最近项目的布局方式"
+          >
+            <RecentProjectsSettings 
+              v-model="recentProjectsLayout"
+              @save="handleSave"
             />
-            <span class="text-hoi4-text">使用学习版启动</span>
-          </label>
-
-          <div v-if="usePirateVersion" class="ml-8 space-y-3">
-            <!-- 启动程序选择 -->
-            <div>
-              <label class="block text-hoi4-text mb-2 text-sm font-semibold">
-                选择启动程序
-              </label>
-              <div class="flex space-x-3">
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    v-model="pirateExecutable"
-                    type="radio"
-                    value="dowser"
-                    class="w-4 h-4 border-2 border-hoi4-border"
-                  />
-                  <span class="text-hoi4-text">dowser.exe</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    v-model="pirateExecutable"
-                    type="radio"
-                    value="hoi4"
-                    class="w-4 h-4 border-2 border-hoi4-border"
-                  />
-                  <span class="text-hoi4-text">hoi4.exe</span>
-                </label>
-              </div>
-            </div>
-            <!-- 提示信息 -->
-            <div class="p-3 bg-hoi4-gray rounded-lg border border-hoi4-border">
-              <div class="flex items-start space-x-2">
-                <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <div class="text-hoi4-comment text-sm">
-                  <strong class="text-hoi4-text">提示：</strong>学习版启动将使用上方设置的 HOI4 游戏目录，请确保该目录包含 {{ pirateExecutable }}.exe 文件。
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 调试模式选项 -->
-          <div class="mt-4">
-            <label class="flex items-center space-x-3 cursor-pointer">
-              <input
-                v-model="launchWithDebug"
-                type="checkbox"
-                class="w-4 h-4 border-2 border-hoi4-border rounded"
-                @change="handleSave"
-              />
-              <span class="text-hoi4-text">启动时附加调试参数 (--debug)</span>
-            </label>
-            <!-- 提示信息 -->
-            <div class="ml-7 mt-2">
-              <div class="text-hoi4-comment text-xs">
-                启用后，游戏启动时将自动添加 --debug 参数，用于调试和开发目的。
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 应用设置 -->
-        <div class="space-y-4">
-          <h2 class="text-hoi4-text text-lg font-semibold">应用设置</h2>
+          </SettingsCard>
 
           <!-- 编辑器字体设置 -->
-          <div class="space-y-4">
-            <h2 class="text-hoi4-text text-lg font-semibold">编辑器字体设置</h2>
-            
-            <!-- 字体类型选择 -->
-            <div>
-              <label class="block text-hoi4-text mb-2 text-base font-semibold">
-                字体类型
-              </label>
-              <select
-                v-model="fontConfig.family"
-                class="input-field w-full"
-                @change="handleSave"
-              >
-                <option
-                  v-for="font in availableFonts"
-                  :key="font.value"
-                  :value="font.value"
-                >
-                  {{ font.label }}
-                </option>
-              </select>
-            </div>
-            
-            <!-- 字体大小设置 -->
-            <div>
-              <label class="block text-hoi4-text mb-2 text-base font-semibold">
-                字体大小: {{ fontConfig.size }}px
-              </label>
-              <div class="flex items-center space-x-3">
-                <input
-                  v-model.number="fontConfig.size"
-                  type="range"
-                  min="12"
-                  max="24"
-                  step="1"
-                  class="flex-1"
-                  @input="handleSave"
-                />
-                <select
-                  v-model.number="fontConfig.size"
-                  class="input-field w-24"
-                  @change="handleSave"
-                >
-                  <option
-                    v-for="size in fontSizes"
-                    :key="size.value"
-                    :value="size.value"
-                  >
-                    {{ size.label }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            
-            <!-- 字体粗细设置 -->
-            <div>
-              <label class="block text-hoi4-text mb-2 text-base font-semibold">
-                字体粗细
-              </label>
-              <div class="flex flex-wrap gap-4">
-                <label
-                  v-for="weight in fontWeights"
-                  :key="weight.value"
-                  class="flex items-center space-x-2 cursor-pointer"
-                >
-                  <input
-                    v-model="fontConfig.weight"
-                    type="radio"
-                    :value="weight.value"
-                    class="w-5 h-5 border-2 border-hoi4-border bg-hoi4-accent"
-                    @change="handleSave"
-                  />
-                  <span class="text-hoi4-text">{{ weight.label }}</span>
-                </label>
-              </div>
-            </div>
-            
-            <!-- 行高设置 -->
-            <div>
-              <label class="block text-hoi4-text mb-2 text-base font-semibold">
-                行高: {{ fontConfig.lineHeight.toFixed(1) }}
-              </label>
-              <div class="flex items-center space-x-3">
-                <input
-                  v-model.number="fontConfig.lineHeight"
-                  type="range"
-                  min="1.0"
-                  max="3.0"
-                  step="0.1"
-                  class="flex-1"
-                  @input="handleSave"
-                />
-                <input
-                  v-model.number="fontConfig.lineHeight"
-                  type="number"
-                  min="1.0"
-                  max="3.0"
-                  step="0.1"
-                  class="input-field w-24 text-center"
-                  @input="handleSave"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <!-- 主题选择 -->
-          <div>
-            <!-- 主题标题和切换按钮 -->
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-hoi4-text text-base font-semibold">
-                界面主题
-              </label>
-              <button
-                @click="showThemeOptions = !showThemeOptions"
-                class="flex items-center space-x-1 text-hoi4-accent hover:text-hoi4-accent/80 transition-colors"
-              >
-                <svg
-                  class="w-5 h-5 transition-transform duration-300"
-                  :class="showThemeOptions ? 'transform rotate-180' : ''"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-                <span class="text-sm">{{ showThemeOptions ? '收起' : '展开' }}</span>
-              </button>
-            </div>
-            
-            <!-- 主题选择网格 - 带过渡动画 -->
-            <div
-              class="overflow-hidden transition-all duration-300 ease-in-out"
-              :class="showThemeOptions ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'"
-            >
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 overflow-y-auto max-h-[400px] custom-scrollbar">
-                <button
-                  v-for="theme in themes"
-                  :key="theme.id"
-                  @click="setTheme(theme.id)"
-                  class="relative p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02]"
-                  :class="[
-                    currentThemeId === theme.id
-                      ? 'border-hoi4-accent ring-2 ring-hoi4-accent ring-opacity-50'
-                      : 'border-hoi4-border hover:border-hoi4-accent'
-                  ]"
-                  :style="{ backgroundColor: theme.colors.bgSecondary }"
-                >
-                  <!-- 主题预览色块 -->
-                  <div class="flex space-x-1 mb-2 justify-center">
-                    <div
-                      class="w-3 h-3 rounded"
-                      :style="{ backgroundColor: theme.colors.accent }"
-                    ></div>
-                    <div
-                      class="w-3 h-3 rounded"
-                      :style="{ backgroundColor: theme.colors.success }"
-                    ></div>
-                    <div
-                      class="w-3 h-3 rounded"
-                      :style="{ backgroundColor: theme.colors.warning }"
-                    ></div>
-                    <div
-                      class="w-3 h-3 rounded"
-                      :style="{ backgroundColor: theme.colors.error }"
-                    ></div>
-                  </div>
-                  <!-- 主题名称 -->
-                  <div
-                    class="text-xs font-medium text-center"
-                    :style="{ color: theme.colors.fg }"
-                  >
-                    {{ theme.name }}
-                  </div>
-                  <!-- 当前选中标记 -->
-                  <div
-                    v-if="currentThemeId === theme.id"
-                    class="absolute top-1 right-1"
-                  >
-                    <svg
-                      class="w-4 h-4"
-                      :style="{ color: theme.colors.accent }"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                  </div>
-                </button>
-              </div>
-              <p class="text-hoi4-comment text-sm mt-2">
-                在编辑器中可按 <kbd class="px-1.5 py-0.5 rounded bg-hoi4-gray border border-hoi4-border text-hoi4-text">Ctrl+Shift+T</kbd> 快速切换主题
-              </p>
-            </div>
-          </div>
-          
-          <!-- 图标选择 -->
-          <div>
-            <!-- 图标标题和切换按钮 -->
-            <div class="flex items-center justify-between mb-2">
-              <label class="block text-hoi4-text text-base font-semibold">
-                文件树图标
-              </label>
-              <button
-                @click="showIconOptions = !showIconOptions"
-                class="flex items-center space-x-1 text-hoi4-accent hover:text-hoi4-accent/80 transition-colors"
-              >
-                <svg
-                  class="w-5 h-5 transition-transform duration-300"
-                  :class="showIconOptions ? 'transform rotate-180' : ''"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-                <span class="text-sm">{{ showIconOptions ? '收起' : '展开' }}</span>
-              </button>
-            </div>
-            
-            <!-- 图标选择网格 - 带过渡动画 -->
-            <div
-              class="overflow-hidden transition-all duration-300 ease-in-out"
-              :class="showIconOptions ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'"
-            >
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <button
-                  v-for="iconSet in iconSets"
-                  :key="iconSet.id"
-                  @click="setIconSet(iconSet.id)"
-                  class="relative p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02]"
-                  :class="[
-                    currentIconSetId === iconSet.id
-                      ? 'border-hoi4-accent ring-2 ring-hoi4-accent ring-opacity-50'
-                      : 'border-hoi4-border hover:border-hoi4-accent'
-                  ]"
-                >
-                  <!-- 图标集预览 -->
-                  <div class="flex space-x-1 mb-2 justify-center">
-                    <img
-                      v-if="iconSet.type === 'svg'"
-                      :src="iconSet.icons.folder.closed"
-                      :alt="iconSet.name"
-                      class="w-4 h-4"
-                      loading="lazy"
-                    />
-                    <span v-else class="text-lg">{{ iconSet.icons.folder.closed }}</span>
-                    
-                    <img
-                      v-if="iconSet.type === 'svg'"
-                      :src="iconSet.icons.files.json"
-                      :alt="iconSet.name"
-                      class="w-4 h-4"
-                      loading="lazy"
-                    />
-                    <span v-else class="text-lg">{{ iconSet.icons.files.json }}</span>
-                    
-                    <img
-                      v-if="iconSet.type === 'svg'"
-                      :src="iconSet.icons.files.vue"
-                      :alt="iconSet.name"
-                      class="w-4 h-4"
-                      loading="lazy"
-                    />
-                    <span v-else class="text-lg">{{ iconSet.icons.files.vue }}</span>
-                  </div>
-                  
-                  <!-- 图标集名称 -->
-                  <div class="text-xs font-medium text-center text-hoi4-text">
-                    {{ iconSet.name }}
-                  </div>
-                  
-                  <!-- 当前选中标记 -->
-                  <div
-                    v-if="currentIconSetId === iconSet.id"
-                    class="absolute top-1 right-1"
-                  >
-                    <svg
-                      class="w-4 h-4 text-hoi4-accent"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd"
-                      ></path>
-                    </svg>
-                  </div>
-                </button>
-              </div>
-              <p class="text-hoi4-comment text-sm mt-2">
-                在编辑器中可按 <kbd class="px-1.5 py-0.5 rounded bg-hoi4-gray border border-hoi4-border text-hoi4-text">Ctrl+Shift+Y</kbd> 快速切换图标
-              </p>
-            </div>
-          </div>
-          
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="checkForUpdatesOnStartup"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+          <SettingsCard 
+            v-if="activeMenuItem === 'editor-font'"
+            title="编辑器字体设置"
+            description="自定义编辑器字体样式"
+          >
+            <EditorFontSettings 
+              @save="handleSave"
             />
-            <span class="text-hoi4-text">启动时检查更新</span>
-          </label>
+          </SettingsCard>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="autoSave"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+          <!-- 保存设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'editor-save'"
+            title="保存设置"
+            description="配置自动保存和错误处理"
+          >
+            <EditorSaveSettings 
+              :auto-save="autoSave"
+              :disable-error-handling="disableErrorHandling"
+              :enable-rgb-color-display="enableRGBColorDisplay"
+              @update:autoSave="autoSave = $event"
+              @update:disableErrorHandling="disableErrorHandling = $event"
+              @update:enableRGBColorDisplay="enableRGBColorDisplay = $event"
+              @save="handleSave"
+              @confirm-disable-error-handling="showConfirmDialog = true"
             />
-            <div class="flex-1">
-              <span class="text-hoi4-text">启用自动保存</span>
-              <p class="text-hoi4-comment text-sm mt-1">编辑文件时自动保存更改</p>
-            </div>
-          </label>
+          </SettingsCard>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="enableRGBColorDisplay"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+          <!-- 显示设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'editor-display'"
+            title="显示设置"
+            description="配置编辑器显示功能"
+          >
+            <EditorDisplaySettings />
+          </SettingsCard>
+
+          <!-- 主题设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'theme'"
+            title="界面主题"
+            description="选择应用界面主题"
+          >
+            <ThemeSettings />
+          </SettingsCard>
+
+          <!-- 图标设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'icons'"
+            title="文件树图标"
+            description="选择文件树图标样式"
+          >
+            <IconSettings />
+          </SettingsCard>
+
+          <!-- 更新设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'update-settings'"
+            title="更新设置"
+            description="配置应用更新选项"
+          >
+            <UpdateSettings 
+              :check-for-updates-on-startup="checkForUpdatesOnStartup"
+              @update:checkForUpdatesOnStartup="checkForUpdatesOnStartup = $event"
+              @save="handleSave"
             />
-            <div class="flex-1">
-              <span class="text-hoi4-text">RGB颜色显示</span>
-              <p class="text-hoi4-comment text-sm mt-1">在代码中识别并显示RGB颜色值（格式：RGB{R G B}）</p>
-            </div>
-          </label>
+          </SettingsCard>
 
-          <label class="flex items-center space-x-3 cursor-pointer">
-            <input
-              v-model="disableErrorHandling"
-              type="checkbox"
-              class="w-5 h-5 rounded border-2 border-hoi4-border bg-hoi4-accent"
+          <!-- 版本信息 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'version-info'"
+            title="版本信息"
+            description="查看当前版本和检查更新"
+          >
+            <VersionInfoSettings 
+              :current-version="currentVersion"
+              :github-version="githubVersion"
+              :is-checking-update="isCheckingUpdate"
+              @update:githubVersion="githubVersion = $event"
+              @update:isCheckingUpdate="isCheckingUpdate = $event"
+              @status-message="displayStatus"
+              @show-update-dialog="(info) => { updateInfo = info; showUpdateDialog = true }"
             />
-            <div class="flex-1">
-              <span class="text-hoi4-text">禁用错误处理</span>
-              <p class="text-hoi4-comment text-sm mt-1">禁用所有错误检查和提示，可能导致代码质量问题</p>
-            </div>
-          </label>
-
-
-
-
-
-          <!-- 版本信息区域 -->
-          <div class="border-2 border-hoi4-border rounded-lg p-4 bg-hoi4-gray">
-            <div class="flex items-start space-x-4">
-              <!-- 左侧：手动检查更新按钮 -->
-              <button
-                @click="handleCheckUpdate"
-                :disabled="isCheckingUpdate"
-                class="btn-primary px-4 py-2 flex-shrink-0"
-                :class="{ 'opacity-50 cursor-not-allowed': isCheckingUpdate }"
-              >
-                <div class="flex items-center space-x-2">
-                  <svg 
-                    v-if="!isCheckingUpdate"
-                    class="w-5 h-5" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                  <svg 
-                    v-else
-                    class="w-5 h-5 animate-spin" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                  <span>{{ isCheckingUpdate ? '检查中...' : '检查更新' }}</span>
-                </div>
-              </button>
-
-              <!-- 右侧：版本信息 -->
-              <div class="flex-1 space-y-2">
-                <div class="flex items-center space-x-2">
-                  <span class="text-hoi4-comment">当前版本:</span>
-                  <span class="text-hoi4-text font-semibold">{{ currentVersion }}</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <span class="text-hoi4-comment">GitHub版本:</span>
-                  <span class="text-hoi4-text font-semibold">{{ githubVersion }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 最近项目显示方式 -->
-          <div>
-            <label class="block text-hoi4-text mb-3 text-base font-semibold">
-              最近项目显示方式
-            </label>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              <label 
-                class="relative cursor-pointer"
-                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'four-columns' }"
-              >
-                <input
-                  type="radio"
-                  v-model="recentProjectsLayout"
-                  value="four-columns"
-                  class="sr-only"
-                />
-                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
-                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
-                  </svg>
-                  <span class="text-hoi4-text text-sm">四列</span>
-                  <span v-if="recentProjectsLayout === 'four-columns'" class="block text-hoi4-accent text-xs mt-1">默认</span>
-                </div>
-              </label>
-
-              <label 
-                class="relative cursor-pointer"
-                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'three-columns' }"
-              >
-                <input
-                  type="radio"
-                  v-model="recentProjectsLayout"
-                  value="three-columns"
-                  class="sr-only"
-                />
-                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
-                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z"></path>
-                  </svg>
-                  <span class="text-hoi4-text text-sm">三列</span>
-                </div>
-              </label>
-
-              <label 
-                class="relative cursor-pointer"
-                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'two-columns' }"
-              >
-                <input
-                  type="radio"
-                  v-model="recentProjectsLayout"
-                  value="two-columns"
-                  class="sr-only"
-                />
-                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
-                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v14a1 1 0 01-1 1h-4a1 1 0 01-1-1V5z"></path>
-                  </svg>
-                  <span class="text-hoi4-text text-sm">二列</span>
-                </div>
-              </label>
-
-              <label 
-                class="relative cursor-pointer"
-                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'one-column' }"
-              >
-                <input
-                  type="radio"
-                  v-model="recentProjectsLayout"
-                  value="one-column"
-                  class="sr-only"
-                />
-                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
-                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                  </svg>
-                  <span class="text-hoi4-text text-sm">一列</span>
-                </div>
-              </label>
-
-              <label 
-                class="relative cursor-pointer"
-                :class="{ 'ring-2 ring-hoi4-accent': recentProjectsLayout === 'masonry' }"
-              >
-                <input
-                  type="radio"
-                  v-model="recentProjectsLayout"
-                  value="masonry"
-                  class="sr-only"
-                />
-                <div class="card p-3 text-center hover:border-hoi4-accent transition-colors">
-                  <svg class="w-8 h-8 mx-auto mb-2 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"></path>
-                  </svg>
-                  <span class="text-hoi4-text text-sm">磁吸</span>
-                </div>
-              </label>
-            </div>
-          </div>
+          </SettingsCard>
         </div>
       </div>
     </div>
+                
 
     <!-- 状态提示 -->
     <div v-if="showStatus" class="fixed bottom-[2vh] right-[2vw] z-50">

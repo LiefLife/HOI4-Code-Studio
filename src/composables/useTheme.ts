@@ -1105,6 +1105,7 @@ function applyTheme(theme: Theme) {
   const root = document.documentElement
   const colors = theme.colors
   
+  // 基础主题变量
   root.style.setProperty('--theme-bg', colors.bg)
   root.style.setProperty('--theme-bg-secondary', colors.bgSecondary)
   root.style.setProperty('--theme-fg', colors.fg)
@@ -1117,13 +1118,34 @@ function applyTheme(theme: Theme) {
   root.style.setProperty('--theme-error', colors.error)
   root.style.setProperty('--theme-keyword', colors.keyword)
   
-  // 同时设置 HOI4 兼容变量
+  // HOI4 兼容变量
   root.style.setProperty('--hoi4-dark', colors.bg)
   root.style.setProperty('--hoi4-gray', colors.bgSecondary)
   root.style.setProperty('--hoi4-border', colors.border)
   root.style.setProperty('--hoi4-accent', colors.accent)
   root.style.setProperty('--hoi4-text', colors.fg)
   root.style.setProperty('--hoi4-comment', colors.comment)
+  
+  // 设置页面专用变量
+  root.style.setProperty('--settings-sidebar-bg', colors.bgSecondary)
+  root.style.setProperty('--settings-sidebar-border', colors.border)
+  root.style.setProperty('--settings-sidebar-hover', colors.selection)
+  root.style.setProperty('--settings-sidebar-active', colors.accent)
+  root.style.setProperty('--settings-content-bg', colors.bg)
+  root.style.setProperty('--settings-card-bg', colors.bgSecondary)
+  root.style.setProperty('--settings-card-border', colors.border)
+  root.style.setProperty('--settings-card-hover', colors.selection)
+  
+  // 高级主题变量（用于更复杂的UI效果）
+  root.style.setProperty('--theme-island-bg', colors.bgSecondary + 'dd')
+  root.style.setProperty('--theme-island-shadow', '0 8px 32px rgba(0, 0, 0, 0.3)')
+  root.style.setProperty('--theme-island-border', `1px solid ${colors.border}`)
+  root.style.setProperty('--theme-fg-glass', colors.fg + '33')
+  root.style.setProperty('--theme-island-hover-shadow', '0 12px 48px rgba(0, 0, 0, 0.4)')
+  root.style.setProperty('--theme-accent-island-bg', colors.accent + '22')
+  root.style.setProperty('--theme-accent-glow', colors.accent + '66')
+  root.style.setProperty('--theme-section-bg', colors.bgSecondary + 'bb')
+  root.style.setProperty('--theme-bg-hover', colors.selection + '44')
 }
 
 /**

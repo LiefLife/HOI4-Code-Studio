@@ -1,0 +1,431 @@
+/* 设置页面专用样式 */
+
+/* 设置页面布局变量 */
+:root {
+  /* 设置页面布局尺寸 */
+  --settings-sidebar-width: 280px;
+  --settings-sidebar-collapsed-width: 60px;
+  --settings-header-height: 80px;
+  --settings-content-padding: 24px;
+  --settings-card-gap: 20px;
+  
+  /* 设置页面颜色变量 */
+  --settings-sidebar-bg: var(--theme-bg-secondary);
+  --settings-sidebar-border: var(--theme-border);
+  --settings-sidebar-hover: var(--theme-selection);
+  --settings-sidebar-active: var(--theme-accent);
+  
+  --settings-content-bg: var(--theme-bg);
+  --settings-card-bg: var(--theme-bg-secondary);
+  --settings-card-border: var(--theme-border);
+  --settings-card-hover: var(--theme-selection);
+  
+  --settings-menu-item-height: 48px;
+  --settings-menu-item-padding: 12px 16px;
+  --settings-menu-icon-size: 20px;
+  
+  --settings-transition-speed: 0.2s;
+  --settings-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 设置页面主容器 */
+.settings-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background-color: var(--settings-content-bg);
+  overflow: hidden;
+}
+
+/* 设置页面头部 */
+.settings-header {
+  height: var(--settings-header-height);
+  padding: var(--settings-content-padding);
+  border-bottom: 1px solid var(--settings-card-border);
+  display: flex;
+  align-items: center;
+  background-color: var(--settings-content-bg);
+  flex-shrink: 0;
+}
+
+/* 设置页面侧边栏 */
+.settings-sidebar {
+  width: var(--settings-sidebar-width);
+  background-color: var(--settings-sidebar-bg);
+  border-right: 1px solid var(--settings-sidebar-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: width var(--settings-transition-speed) var(--settings-transition-timing);
+}
+
+/* 设置页面主要内容区 */
+.settings-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-sidebar::-webkit-scrollbar-thumb {
+  background: var(--theme-selection);
+  border-radius: 3px;
+}
+
+/* 设置菜单分类 */
+.settings-menu-category {
+  padding: 16px 12px 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-comment);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+/* 设置菜单项 */
+.settings-menu-item {
+  height: var(--settings-menu-item-height);
+  padding: var(--settings-menu-item-padding);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 2px 8px;
+  transition: all var(--settings-transition-speed) var(--settings-transition-timing);
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-menu-item:hover {
+  background-color: var(--settings-sidebar-hover);
+  transform: translateX(2px);
+}
+
+.settings-menu-item.active {
+  background-color: var(--settings-sidebar-active);
+  color: var(--theme-bg);
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.settings-menu-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--settings-sidebar-active);
+  border-radius: 0 2px 2px 0;
+}
+
+/* 设置菜单图标 */
+.settings-menu-icon {
+  width: var(--settings-menu-icon-size);
+  height: var(--settings-menu-icon-size);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-menu-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* 设置菜单文本 */
+.settings-menu-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-menu-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-menu-description {
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1.2;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 设置页面内容区域 */
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--settings-content-bg);
+  min-width: 0;
+}
+
+.settings-content-inner {
+  padding: var(--settings-content-padding);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* 设置卡片 */
+.settings-card {
+  background-color: var(--settings-card-bg);
+  border: 1px solid var(--settings-card-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: var(--settings-card-gap);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all var(--settings-transition-speed) var(--settings-transition-timing);
+}
+
+.settings-card:hover {
+  border-color: var(--theme-accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.settings-card-header {
+  margin-bottom: 20px;
+}
+
+.settings-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--theme-fg);
+  margin-bottom: 4px;
+}
+
+.settings-card-description {
+  font-size: 13px;
+  color: var(--theme-comment);
+  line-height: 1.4;
+}
+
+/* 设置表单组 */
+.settings-form-group {
+  margin-bottom: 20px;
+}
+
+.settings-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.settings-form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--theme-fg);
+  margin-bottom: 8px;
+}
+
+.settings-form-description {
+  font-size: 12px;
+  color: var(--theme-comment);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* 设置选项 */
+.settings-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.settings-option:last-child {
+  border-bottom: none;
+}
+
+.settings-option-control {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.settings-option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-option-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--theme-fg);
+  margin-bottom: 2px;
+}
+
+.settings-option-description {
+  font-size: 12px;
+  color: var(--theme-comment);
+  line-height: 1.3;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  :root {
+    --settings-sidebar-width: 240px;
+    --settings-content-padding: 20px;
+    --settings-card-gap: 16px;
+  }
+  
+  .settings-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --settings-sidebar-width: 200px;
+    --settings-content-padding: 16px;
+    --settings-card-gap: 12px;
+  }
+  
+  .settings-container {
+    flex-direction: column;
+  }
+  
+  .settings-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--settings-sidebar-border);
+  }
+  
+  .settings-menu-item {
+    height: 40px;
+    padding: 8px 12px;
+  }
+  
+  .settings-menu-description {
+    display: none;
+  }
+  
+  .settings-card {
+    padding: 16px;
+  }
+  
+  .settings-content-inner {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --settings-content-padding: 12px;
+    --settings-card-gap: 8px;
+  }
+  
+  .settings-header {
+    height: 60px;
+    padding: 12px 16px;
+  }
+  
+  .settings-card {
+    padding: 12px;
+  }
+  
+  .settings-card-title {
+    font-size: 16px;
+  }
+  
+  .settings-form-label {
+    font-size: 13px;
+  }
+}
+
+/* 动画效果 */
+.settings-menu-item {
+  animation: fadeInLeft 0.3s ease-out;
+}
+
+.settings-card {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 滚动条样式 */
+.settings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+  background: var(--theme-bg);
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  background: var(--theme-selection);
+  border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-accent);
+}
+
+/* 焦点样式 */
+.settings-menu-item:focus-visible,
+.settings-option-control:focus-within {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+
+/* 加载状态 */
+.settings-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--theme-comment);
+}
+
+.settings-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--theme-selection);
+  border-top-color: var(--theme-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
