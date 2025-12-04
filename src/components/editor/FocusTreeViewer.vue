@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { parseFocusTreeFile, searchFocuses } from '../../utils/focusTreeParser'
 import cytoscape from 'cytoscape'
-import { loadFocusIcon as loadFocusIconApi, readIconCache, writeIconCache } from '../../api/tauri'
+import { useImageProcessor } from '../../composables/useImageProcessor'
 
 const props = defineProps<{
   content: string
@@ -24,6 +24,21 @@ const GRID_SIZE = 150 // 每个网格单位 = 150px
 // 搜索相关
 const searchQuery = ref('')
 const highlightedNodes = ref<Set<string>>(new Set())
+
+// 图片处理管理器
+const {
+  isProcessing,
+  stats,
+  initWorkerPool,
+  loadIconsBatch,
+  preloadIcons,
+  dispose
+} = useImageProcessor()
+
+// 图片加载状态
+const imageLoadingProgress = ref(0)
+const imageLoadingTotal = ref(0)
+const showImageLoadingIndicator = ref(false)
 
 // 解析国策树
 const focusTree = computed(() => {
@@ -48,55 +63,112 @@ const errorMessage = computed(() => {
 
 const zoomLevel = ref(1.0)
 
-// 图标缓存
-const iconCache = ref<Map<string, string>>(new Map())
+/**
+ * 初始化图片处理
+ */
+function initImageProcessor() {
+  // 初始化Worker池（使用4个Worker）
+  initWorkerPool(4)
+}
 
 /**
- * 加载国策图标
+ * 加载国策图标（新的多线程版本）
  */
-async function loadFocusIcon(iconName: string): Promise<string | null> {
-  if (!iconName) return null
+async function loadFocusIcons() {
+  if (!focusTree.value) return
 
-  // 本地内存缓存，避免重复请求
-  if (iconCache.value.has(iconName)) {
-    return iconCache.value.get(iconName)!
-  }
+  // 收集所有需要加载的图标
+  const iconNames: string[] = []
+  
+  focusTree.value.focuses.forEach((node) => {
+    if (node.icon) {
+      iconNames.push(node.icon)
+    }
+  })
 
+  if (iconNames.length === 0) return
+
+  // 显示加载指示器
+  showImageLoadingIndicator.value = true
+  imageLoadingTotal.value = iconNames.length
+  imageLoadingProgress.value = 0
+
+  // 批量加载图标（后台处理）
   try {
-    // 尝试从磁盘缓存读取
-    const cacheResult = await readIconCache(iconName)
-    if (cacheResult.success && cacheResult.base64 && cacheResult.mimeType) {
-      const dataUrl = `data:${cacheResult.mimeType};base64,${cacheResult.base64}`
-      iconCache.value.set(iconName, dataUrl)
-      return dataUrl
-    }
+    await loadIconsBatch(iconNames, {
+      projectPath: props.projectPath,
+      gameDirectory: props.gameDirectory,
+      onProgress: (loaded, total) => {
+        imageLoadingProgress.value = loaded
+        imageLoadingTotal.value = total
+      },
+      onItemLoaded: (iconName, dataUrl) => {
+        // 当单个图标加载完成时，立即更新对应的节点
+        if (cy) {
+          cy.nodes().forEach(node => {
+            const nodeIcon = node.data('icon')
+            if (nodeIcon === iconName) {
+              node.style({
+                'background-image': `url(${dataUrl})`,
+                'background-fit': 'cover'
+              })
+            }
+          })
+        }
+      },
+      priority: 'normal'
+    })
 
-    // 缓存不存在，调用API获取
-    const result = await loadFocusIconApi(
-      iconName,
-      props.projectPath,
-      props.gameDirectory
-    )
+    // 预加载相关图标（低优先级）
+    preloadRelatedIcons()
 
-    if (result.success && result.base64 && result.mimeType) {
-      const dataUrl = `data:${result.mimeType};base64,${result.base64}`
-      
-      // 写入内存缓存
-      iconCache.value.set(iconName, dataUrl)
-      
-      // 写入磁盘缓存
-      await writeIconCache(iconName, result.base64, result.mimeType)
-      
-      return dataUrl
-    }
-
-    if (result.message) {
-      console.warn(`加载图标失败: ${iconName} - ${result.message}`)
-    }
-    return null
   } catch (error) {
-    console.warn(`加载图标异常: ${iconName}`, error)
-    return null
+    console.error('批量加载图标失败:', error)
+  } finally {
+    // 隐藏加载指示器
+    setTimeout(() => {
+      showImageLoadingIndicator.value = false
+    }, 500)
+  }
+}
+
+/**
+ * 预加载相关图标（提升用户体验）
+ */
+function preloadRelatedIcons() {
+  if (!focusTree.value) return
+
+  // 收集相关图标（互斥国策、前置国策等）
+  const relatedIcons = new Set<string>()
+  
+  focusTree.value.focuses.forEach((node) => {
+    if (node.mutually_exclusive) {
+      node.mutually_exclusive.forEach(exclusiveId => {
+        const exclusiveNode = focusTree.value?.focuses.get(exclusiveId)
+        if (exclusiveNode?.icon) {
+          relatedIcons.add(exclusiveNode.icon)
+        }
+      })
+    }
+
+    if (node.prerequisite) {
+      node.prerequisite.forEach(orGroup => {
+        orGroup.forEach(prereqId => {
+          const prereqNode = focusTree.value?.focuses.get(prereqId)
+          if (prereqNode?.icon) {
+            relatedIcons.add(prereqNode.icon)
+          }
+        })
+      })
+    }
+  })
+
+  // 预加载这些图标
+  if (relatedIcons.size > 0) {
+    preloadIcons(Array.from(relatedIcons), {
+      projectPath: props.projectPath,
+      gameDirectory: props.gameDirectory
+    })
   }
 }
 
@@ -134,17 +206,15 @@ async function initCytoscape() {
   const elements: any[] = []
 
   // 添加节点
-  const nodePromises: Promise<void>[] = []
-  
-  focusTree.value.focuses.forEach((node, focusId) => {
+  focusTree.value.focuses.forEach((node) => {
     // 使用绝对坐标
     const x = (node.absoluteX ?? node.x) * GRID_SIZE
     const y = (node.absoluteY ?? node.y) * GRID_SIZE
 
     elements.push({
       data: {
-        id: focusId,
-        label: focusId,
+        id: node.id,
+        label: node.id,
         icon: node.icon,
         cost: node.cost,
         line: node.line,
@@ -153,45 +223,6 @@ async function initCytoscape() {
       },
       position: { x, y }
     })
-
-    // 异步加载图标
-    if (node.icon) {
-      // 检查内存缓存中是否已有该图标
-      const cachedIcon = iconCache.value.get(node.icon)
-      if (cachedIcon) {
-        // 直接使用缓存的图标数据
-        nodePromises.push(
-          Promise.resolve(cachedIcon).then(iconData => {
-            if (iconData && cy) {
-              // 更新节点样式以显示图标
-              const cyNode = cy.getElementById(focusId)
-              if (cyNode) {
-                cyNode.style({
-                  'background-image': `url(${iconData})`,
-                  'background-fit': 'cover'
-                })
-              }
-            }
-          })
-        )
-      } else {
-        // 缓存中没有，调用API加载并缓存
-        nodePromises.push(
-          loadFocusIcon(node.icon).then(iconData => {
-            if (iconData && cy) {
-              // 更新节点样式以显示图标
-              const cyNode = cy.getElementById(focusId)
-              if (cyNode) {
-                cyNode.style({
-                  'background-image': `url(${iconData})`,
-                  'background-fit': 'cover'
-                })
-              }
-            }
-          })
-        )
-      }
-    }
   })
 
   // 添加边（前置条件连接）
@@ -371,8 +402,10 @@ async function initCytoscape() {
     }
   }, 100)
 
-  // 加载图标
-  await Promise.all(nodePromises)
+  // 启动后台图片加载（不等待）
+  setTimeout(() => {
+    loadFocusIcons()
+  }, 200)
 }
 
 function resetView() {
@@ -448,11 +481,18 @@ watch(() => props.content, (newContent, oldContent) => {
 })
 
 onMounted(() => {
+  // 初始化图片处理器
+  initImageProcessor()
+  
+  // 延迟初始化Cytoscape
   setTimeout(() => initCytoscape(), 100)
 })
 
 onUnmounted(() => {
   if (cy) cy.destroy()
+  
+  // 清理图片处理器资源
+  dispose()
 })
 </script>
 
@@ -468,6 +508,21 @@ onUnmounted(() => {
         <span v-if="focusTree" class="text-hoi4-text-dim text-xs">
           {{ focusTree.focuses.size }} 个国策
         </span>
+        
+        <!-- 图片加载指示器 -->
+        <div v-if="showImageLoadingIndicator" class="flex items-center space-x-2 ml-4">
+          <div class="animate-spin w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+          <span class="text-hoi4-text-dim text-xs">
+            加载图标 {{ imageLoadingProgress }}/{{ imageLoadingTotal }}
+          </span>
+          <!-- 进度条 -->
+          <div class="w-20 h-1.5 bg-hoi4-border/40 rounded-full overflow-hidden">
+            <div 
+              class="h-full bg-blue-400 transition-all duration-300"
+              :style="{ width: `${(imageLoadingProgress / imageLoadingTotal) * 100}%` }"
+            ></div>
+          </div>
+        </div>
         
         <!-- 搜索框 -->
         <div class="flex items-center space-x-2 ml-4">
@@ -516,6 +571,14 @@ onUnmounted(() => {
         <span class="text-hoi4-text-dim text-xs">
           缩放: {{ Math.round(zoomLevel * 100) }}%
         </span>
+        
+        <!-- 图片处理状态 -->
+        <div v-if="isProcessing" class="flex items-center space-x-1 text-xs">
+          <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <span class="text-hoi4-text-dim">
+            处理中 ({{ stats.loadingTasks }})
+          </span>
+        </div>
       </div>
     </div>
 

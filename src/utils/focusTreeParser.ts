@@ -208,20 +208,33 @@ function calculateAbsolutePositions(focuses: Map<string, FocusNode>) {
 }
 
 /**
+ * 移除行注释（# 及之后的内容）
+ */
+function removeLineComments(content: string): string {
+  return content
+    .split('\n')
+    .map(line => line.split('#', 1)[0]) // 移除 # 及之后的所有内容
+    .join('\n')
+}
+
+/**
  * 解析国策文件
  */
 export function parseFocusTreeFile(content: string): FocusTree | null {
+  // 首先移除所有行注释
+  const contentWithoutComments = removeLineComments(content)
+  
   const focusTreeRegex = /focus_tree\s*=\s*\{/
-  const match = content.match(focusTreeRegex)
+  const match = contentWithoutComments.match(focusTreeRegex)
   
   if (!match) return null
 
   const treeStart = match.index! + match[0].length
-  const treeEnd = findBlockEnd(content, treeStart)
+  const treeEnd = findBlockEnd(contentWithoutComments, treeStart)
   
   if (treeEnd === -1) return null
 
-  const treeContent = content.substring(match.index!, treeEnd + 1)
+  const treeContent = contentWithoutComments.substring(match.index!, treeEnd + 1)
   const treeId = extractField(treeContent, 'id') || 'unknown'
 
   const focuses = new Map<string, FocusNode>()
@@ -253,7 +266,7 @@ export function parseFocusTreeFile(content: string): FocusTree | null {
       prerequisite: extractPrerequisites(focusContent),
       mutually_exclusive: extractMutuallyExclusive(focusContent),
       relative_position_id: extractField(focusContent, 'relative_position_id') || undefined,
-      line: getLineNumber(content, match.index! + focusMatch.index)
+      line: getLineNumber(contentWithoutComments, match.index! + focusMatch.index)
     }
 
     focuses.set(focusId, node)
