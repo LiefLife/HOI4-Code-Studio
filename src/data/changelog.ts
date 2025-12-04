@@ -18,11 +18,12 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.9-dev',
-    description: '界面优化',
+    description: '界面优化、修复问题',
     changes: [
       { type: 'improvement', content: '优化文档UI' },
       { type: 'improvement', content: '优化更新日志UI' },
       { type: 'improvement', content: '优化设置UI' },
+      { type: 'fix', content: '修复部分国策树无法打开的bug' }
     ]
   },
   {
