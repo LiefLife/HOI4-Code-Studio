@@ -18,8 +18,9 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.9-dev',
-    description: '界面优化、修复问题',
+    description: '右键优化、界面优化、修复问题',
     changes: [
+      { type: 'feature', content: '编辑页右键增加全选功能' },
       { type: 'improvement', content: '优化文档UI' },
       { type: 'improvement', content: '优化更新日志UI' },
       { type: 'improvement', content: '优化设置UI' },

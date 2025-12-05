@@ -934,6 +934,13 @@ async function handleEditorContextMenuAction(action: string, paneId: string) {
   if (!editorMethods) return
   
   switch (action) {
+    case 'selectAll':
+      // 全选文本
+      if (editorMethods.selectAll) {
+        editorMethods.selectAll()
+      }
+      break
+      
     case 'copy':
       // 复制选中文本到剪贴板
       try {

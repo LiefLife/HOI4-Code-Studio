@@ -452,6 +452,34 @@ defineExpose({
     if (!editorView) return ''
     const selection = editorView.state.selection.main
     return editorView.state.doc.sliceString(selection.from, selection.to)
+  },
+  selectAll: () => {
+    if (!editorView) {
+      return
+    }
+    
+    // 先聚焦编辑器
+    editorView.focus()
+    
+    // 使用 CodeMirror 的内置 selectAll 命令
+    import('@codemirror/commands').then(({ selectAll }) => {
+      if (!editorView) return
+      selectAll({
+        state: editorView.state,
+        dispatch: editorView.dispatch.bind(editorView)
+      })
+    }).catch(() => {
+      // 备用方案：手动选择
+      if (!editorView) return
+      const doc = editorView.state.doc
+      editorView.dispatch({
+        selection: {
+          anchor: 0,
+          head: doc.length
+        },
+        scrollIntoView: true
+      })
+    })
   }
 })
 </script>

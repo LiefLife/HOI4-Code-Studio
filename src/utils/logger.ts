@@ -5,13 +5,23 @@
 
 const isDev = import.meta.env.DEV
 
+// 安全调用console方法的包装函数
+function safeConsoleCall(consoleMethod: (...args: unknown[]) => void, ...args: unknown[]): void {
+  try {
+    consoleMethod(...args)
+  } catch (error) {
+    // 如果console方法被重写且抛出错误，我们静默处理
+    // 这确保logger不会导致应用崩溃
+  }
+}
+
 export const logger = {
   /**
    * 普通日志
    */
   log(...args: unknown[]): void {
     if (isDev) {
-      console.log('[HOI4 Studio]', ...args)
+      safeConsoleCall(console.log, '[HOI4 Studio]', ...args)
     }
   },
 
@@ -20,7 +30,7 @@ export const logger = {
    */
   warn(...args: unknown[]): void {
     if (isDev) {
-      console.warn('[HOI4 Studio]', ...args)
+      safeConsoleCall(console.warn, '[HOI4 Studio]', ...args)
     }
   },
 
@@ -28,7 +38,7 @@ export const logger = {
    * 错误日志（生产环境也会输出）
    */
   error(...args: unknown[]): void {
-    console.error('[HOI4 Studio]', ...args)
+    safeConsoleCall(console.error, '[HOI4 Studio]', ...args)
   },
 
   /**
@@ -36,7 +46,7 @@ export const logger = {
    */
   debug(...args: unknown[]): void {
     if (isDev) {
-      console.debug('[HOI4 Studio]', ...args)
+      safeConsoleCall(console.debug, '[HOI4 Studio]', ...args)
     }
   },
 
@@ -45,7 +55,7 @@ export const logger = {
    */
   info(...args: unknown[]): void {
     if (isDev) {
-      console.info('[HOI4 Studio]', ...args)
+      safeConsoleCall(console.info, '[HOI4 Studio]', ...args)
     }
   }
 }

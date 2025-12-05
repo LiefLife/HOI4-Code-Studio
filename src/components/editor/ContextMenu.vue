@@ -248,6 +248,14 @@ function hideMoveMenu() {
     @click.stop
   >
     <button
+      @click="handleAction('selectAll')"
+      class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
+      :style="{ color: currentTheme.colors.fg }"
+    >
+      ■  全选
+    </button>
+    <div class="h-px w-full my-1" :style="{ backgroundColor: currentTheme.colors.border }"></div>
+    <button
       @click="handleAction('copy')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
       :style="{ color: currentTheme.colors.fg }"
