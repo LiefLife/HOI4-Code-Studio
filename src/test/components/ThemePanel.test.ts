@@ -158,9 +158,10 @@ describe('ThemePanel.vue', () => {
     await nextTick()
     const themeButtons = wrapper.findAll('.relative.p-4.rounded-lg')
     
-    // 检查主题按钮的背景色是否正确设置
+    // 检查主题按钮的背景色是否正确设置（支持RGB和十六进制格式）
     const firstThemeButton = themeButtons[0]
-    expect(firstThemeButton.attributes('style')).toContain('background-color: #21252b')
+    const style = firstThemeButton.attributes('style')
+    expect(style).toMatch(/background-color:\s*(#21252b|rgb\(33,\s*37,\s*43\))/)
   })
 
   it('当themePanelVisible为false时不应该渲染', async () => {

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     globals: true,
-    environment: 'happy-dom',
+    environment: 'jsdom', // 使用 jsdom 而不是 happy-dom 以获得更好的 DOM 支持
     setupFiles: ['./src/test/setup.ts'],
     exclude: [
       '**/node_modules/**',

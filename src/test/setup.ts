@@ -57,6 +57,15 @@ beforeAll(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  // Ensure document.documentElement has style property for theme tests
+  if (global.document && global.document.documentElement) {
+    global.document.documentElement.style = global.document.documentElement.style || {
+      setProperty: vi.fn(),
+      getPropertyValue: vi.fn(() => ''),
+      removeProperty: vi.fn()
+    }
+  }
 })
 
 afterEach(() => {
