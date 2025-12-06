@@ -10,6 +10,7 @@ const loading = ref(true)
 const showStatus = ref(false)
 const statusMessage = ref('')
 const layoutMode = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
+const searchQuery = ref('')
 
 // 计算网格布局类
 const gridClass = computed(() => {
@@ -27,6 +28,21 @@ const gridClass = computed(() => {
     default:
       return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
   }
+})
+
+// 过滤后的项目列表
+const filteredProjects = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return projects.value
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim()
+  return projects.value.filter(project => {
+    return (
+      project.name.toLowerCase().includes(query) ||
+      project.path.toLowerCase().includes(query)
+    )
+  })
 })
 
 // 项目卡片样式
@@ -134,6 +150,36 @@ onMounted(async () => {
       </h1>
     </div>
 
+    <!-- 搜索栏 -->
+    <div class="mb-[3vh] px-4">
+      <div class="relative max-w-2xl">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="w-5 h-5 text-hoi4-text-dim" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜索项目名称或路径..."
+          class="w-full pl-10 pr-4 py-2 bg-hoi4-gray border-2 border-hoi4-border rounded-lg text-hoi4-text placeholder-hoi4-text-dim focus:outline-none focus:border-hoi4-accent transition-colors"
+        />
+        <div v-if="searchQuery" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+          <button
+            @click="searchQuery = ''"
+            class="text-hoi4-text-dim hover:text-hoi4-text transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div v-if="searchQuery" class="mt-2 text-sm text-hoi4-text-dim">
+        找到 {{ filteredProjects.length }} 个项目
+      </div>
+    </div>
+
     <!-- 项目列表 -->
     <div class="flex-1 overflow-y-auto px-4">
       <div v-if="loading" class="text-center text-hoi4-text-dim py-12">
@@ -144,12 +190,17 @@ onMounted(async () => {
         <p class="text-hoi4-text-dim text-lg">暂无最近项目</p>
       </div>
 
+      <div v-else-if="searchQuery && filteredProjects.length === 0" class="card text-center py-12 max-w-2xl mx-auto">
+        <p class="text-hoi4-text-dim text-lg">未找到匹配的项目</p>
+        <p class="text-hoi4-text-dim text-sm mt-2">尝试使用不同的关键词搜索</p>
+      </div>
+
       <div
         v-else
         :class="gridClass"
       >
         <div
-          v-for="project in projects"
+          v-for="project in filteredProjects"
           :key="project.path"
           @click="handleOpenProject(project)"
           :class="['card cursor-pointer hover:border-hoi4-accent transition-colors', cardClass]"
