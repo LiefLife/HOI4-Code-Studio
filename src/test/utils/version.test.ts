@@ -122,15 +122,18 @@ describe('version.ts', () => {
         value: localStorageMock,
         writable: true
       })
+      // 确保 localStorage.getItem 是 mock 函数
+      vi.mocked(localStorage.getItem).mockClear()
     })
 
     it('应该从缓存中读取数据', () => {
-      const mockLocalStorage = vi.mocked(localStorage)
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(mockCache))
+      // 直接使用 localStorage.getItem，因为它已经是 mock
+      const mockGetItem = vi.mocked(localStorage.getItem)
+      mockGetItem.mockReturnValue(JSON.stringify(mockCache))
       
       // 由于 getCache 是内部函数，我们通过 checkForUpdates 的缓存行为来测试
       // 这里我们模拟缓存命中的情况
-      mockLocalStorage.getItem.mockImplementation((key) => {
+      mockGetItem.mockImplementation((key) => {
         if (key === 'hoi4_version_check_cache') {
           return JSON.stringify(mockCache)
         }
@@ -144,16 +147,16 @@ describe('version.ts', () => {
         timestamp: Date.now() - (2 * 60 * 60 * 1000) // 2小时前
       }
       
-      const mockLocalStorage = vi.mocked(localStorage)
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(expiredCache))
+      const mockGetItem = vi.mocked(localStorage.getItem)
+      mockGetItem.mockReturnValue(JSON.stringify(expiredCache))
       
       // 缓存过期应该返回 null，但由于 getCache 是内部函数，
       // 我们通过 behavior 测试来验证
     })
 
     it('应该处理无效缓存数据', () => {
-      const mockLocalStorage = vi.mocked(localStorage)
-      mockLocalStorage.getItem.mockReturnValue('invalid json')
+      const mockGetItem = vi.mocked(localStorage.getItem)
+      mockGetItem.mockReturnValue('invalid json')
       
       // 无效的JSON应该返回 null
     })

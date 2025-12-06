@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { loadCountryTags } from '../../api/tauri'
+import { loadCountryTags, type TagLoadResponse } from '../../api/tauri'
 
 // Mock the Tauri API
 vi.mock('../../api/tauri', () => ({
@@ -11,6 +11,15 @@ vi.mock('../../api/tauri', () => ({
 }))
 
 const mockLoadCountryTags = vi.mocked(loadCountryTags)
+
+// 辅助函数创建正确类型的测试数据
+function createMockTag(code: string, name: string, source: 'project' | 'game' | 'dependency') {
+  return { code, name, source }
+}
+
+function createMockResponse(success: boolean, message: string, tags: ReturnType<typeof createMockTag>[]): TagLoadResponse {
+  return { success, message, tags }
+}
 
 // 动态导入 TagRegistry 以避免状态污染
 let TagRegistry: typeof import('../../utils/TagRegistry')
@@ -88,11 +97,11 @@ describe('TagRegistry.ts', () => {
       // 先设置根路径并刷新一次
       TagRegistry.setTagRoots('/project', '/game')
       
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'game')]
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       const promise1 = TagRegistry.ensureRefreshed()
@@ -112,15 +121,15 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该在成功加载后返回标签集合', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [
-          { code: 'USA', name: 'United States' },
-          { code: 'GER', name: 'Germany' },
-          { code: 'SOV', name: 'Soviet Union' }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [
+          createMockTag('USA', 'United States', 'game'),
+          createMockTag('GER', 'Germany', 'game'),
+          createMockTag('SOV', 'Soviet Union', 'game')
         ]
-      }
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       await TagRegistry.ensureRefreshed()
@@ -142,14 +151,14 @@ describe('TagRegistry.ts', () => {
 
     it('应该在成功加载后返回标签条目', async () => {
       const mockTags = [
-        { code: 'USA', name: 'United States' },
-        { code: 'GER', name: 'Germany' }
+        createMockTag('USA', 'United States', 'project'),
+        createMockTag('GER', 'Germany', 'game')
       ]
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: mockTags
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        mockTags
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       await TagRegistry.ensureRefreshed()
@@ -180,11 +189,11 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该在成功加载后返回状态消息', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'game')]
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       await TagRegistry.ensureRefreshed()
@@ -219,11 +228,11 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该返回最新的响应', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'game')]
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       await TagRegistry.ensureRefreshed()
@@ -235,11 +244,11 @@ describe('TagRegistry.ts', () => {
 
   describe('ensureRefreshed', () => {
     it('应该在第一次调用时加载数据', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'game')]
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       const result = await TagRegistry.ensureRefreshed()
@@ -249,8 +258,8 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该复用正在进行的请求', async () => {
-      let resolveMock: (value: any) => void
-      const mockPromise = new Promise(resolve => {
+      let resolveMock: (value: TagLoadResponse) => void
+      const mockPromise = new Promise<TagLoadResponse>(resolve => {
         resolveMock = resolve
       })
       mockLoadCountryTags.mockReturnValue(mockPromise)
@@ -263,7 +272,7 @@ describe('TagRegistry.ts', () => {
       resolveMock!({
         success: true,
         message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
+        tags: [{ code: 'USA', name: 'United States', source: 'dependency' }]
       })
       
       const [result1, result2] = await Promise.all([promise1, promise2])
@@ -271,11 +280,11 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该在配置未变时复用缓存', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'game')]
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       TagRegistry.setTagRoots('/project', '/game')
@@ -291,16 +300,16 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该在配置改变时重新加载', async () => {
-      const mockResponse1 = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'USA', name: 'United States' }]
-      }
-      const mockResponse2 = {
-        success: true,
-        message: 'success',
-        tags: [{ code: 'GER', name: 'Germany' }]
-      }
+      const mockResponse1 = createMockResponse(
+        true,
+        'success',
+        [createMockTag('USA', 'United States', 'dependency')]
+      )
+      const mockResponse2 = createMockResponse(
+        true,
+        'success',
+        [createMockTag('GER', 'Germany', 'project')]
+      )
       mockLoadCountryTags
         .mockResolvedValueOnce(mockResponse1)
         .mockResolvedValueOnce(mockResponse2)
@@ -320,14 +329,14 @@ describe('TagRegistry.ts', () => {
 
     it('应该处理加载成功的情况', async () => {
       const mockTags = [
-        { code: 'USA', name: 'United States' },
-        { code: 'GER', name: 'Germany' }
+        createMockTag('USA', 'United States', 'project'),
+        createMockTag('GER', 'Germany', 'game')
       ]
-      const mockResponse = {
-        success: true,
-        message: 'success',
-        tags: mockTags
-      }
+      const mockResponse = createMockResponse(
+        true,
+        'success',
+        mockTags
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       const result = await TagRegistry.ensureRefreshed()
@@ -340,12 +349,12 @@ describe('TagRegistry.ts', () => {
     })
 
     it('应该处理加载失败但有部分数据的情况', async () => {
-      const mockTags = [{ code: 'USA', name: 'United States' }]
-      const mockResponse = {
-        success: false,
-        message: 'Partial failure',
-        tags: mockTags
-      }
+      const mockTags = [createMockTag('USA', 'United States', 'game')]
+      const mockResponse = createMockResponse(
+        false,
+        'Partial failure',
+        mockTags
+      )
       mockLoadCountryTags.mockResolvedValue(mockResponse)
       
       const result = await TagRegistry.ensureRefreshed()
@@ -411,14 +420,14 @@ describe('TagRegistry.ts', () => {
       
       // 模拟成功的加载
       const mockTags = [
-        { code: 'USA', name: 'United States' },
-        { code: 'GER', name: 'Germany' }
+        createMockTag('USA', 'United States', 'project'),
+        createMockTag('GER', 'Germany', 'game')
       ]
-      mockLoadCountryTags.mockResolvedValue({
-        success: true,
-        message: 'success',
-        tags: mockTags
-      })
+      mockLoadCountryTags.mockResolvedValue(createMockResponse(
+        true,
+        'success',
+        mockTags
+      ))
       
       // 第一次刷新
       let result = await TagRegistry.ensureRefreshed()
@@ -435,7 +444,7 @@ describe('TagRegistry.ts', () => {
       mockLoadCountryTags.mockResolvedValue({
         success: true,
         message: 'success',
-        tags: [{ code: 'SOV', name: 'Soviet Union' }]
+        tags: [{ code: 'SOV', name: 'Soviet Union', source: 'dependency' }]
       })
       
       // 应该重新加载

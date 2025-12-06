@@ -483,7 +483,7 @@ function isImageFile(filePath: string): boolean {
 }
 
 // 打开文件处理
-async function handleOpenFile(node: FileNode, paneId?: string) {
+async function handleOpenFile(node: FileNode, paneId?: string, jumpInfo?: any) {
   if (node.isDirectory) return
   
   selectedNode.value = node
@@ -497,6 +497,14 @@ async function handleOpenFile(node: FileNode, paneId?: string) {
   const existingIndex = pane.openFiles.findIndex(f => f.node.path === node.path)
   if (existingIndex !== -1) {
     pane.activeFileIndex = existingIndex
+    
+    // 如果有跳转信息且文件已存在，直接执行跳转，避免后续文件切换事件重置光标
+    if (jumpInfo && editorGroupRef.value) {
+      console.log('[Editor] File already open, jumping directly to avoid cursor reset')
+      setTimeout(() => {
+        editorGroupRef.value!.jumpToSearchResult(jumpInfo)
+      }, 50) // 短暂延迟确保文件切换完成
+    }
     return
   }
   
@@ -635,6 +643,14 @@ async function handleContextMenuAction(action: string, payload?: any) {
       }
       pane.openFiles = []
       pane.activeFileIndex = -1
+      
+      // 如果窗格为空且有多个窗格，自动删除该窗格（与逐个删除文件行为保持一致）
+      if (editorGroupRef.value && editorGroupRef.value.panes.length > 1) {
+        // 延迟一下执行，确保 UI 更新
+        setTimeout(() => {
+          editorGroupRef.value?.closePane(contextMenuPaneId.value)
+        }, 100)
+      }
     } else if (action === 'closeOthers') {
       const keepFile = pane.openFiles[contextMenuFileIndex.value]
       if (!keepFile) return
@@ -1312,12 +1328,37 @@ async function handleJumpToSearchResult(result: any) {
   const name = (result?.file?.name as string) || (targetPath.split(/[\\\/ ]/).pop() || targetPath)
   const node: FileNode = { name, path: targetPath, isDirectory: false }
   
-  await handleOpenFile(node)
+  // 传递跳转信息到handleOpenFile，避免文件切换时重置光标位置
+  await handleOpenFile(node, undefined, result)
   
-  // 跳转到搜索结果行
-  if (editorGroupRef.value) {
-    editorGroupRef.value.jumpToErrorLine(result.line)
-  }
+  // 增加等待时间并使用更可靠的跳转策略
+  setTimeout(() => {
+    // 跳转到搜索结果行，使用更精确的跳转
+    if (editorGroupRef.value && result?.line) {
+      console.log('[Editor] Jumping to search result:', { 
+        line: result.line, 
+        matchStart: result.matchStart, 
+        matchEnd: result.matchEnd,
+        content: result.content?.slice(0, 50) 
+      })
+      
+      // 尝试使用增强的跳转方法（支持精确匹配位置）
+      editorGroupRef.value.jumpToSearchResult(result)
+      
+      // 再次延迟确认跳转，防止被后续事件覆盖
+      setTimeout(() => {
+        if (editorGroupRef.value && result?.line) {
+          console.log('[Editor] Re-confirming search result jump to prevent override')
+          editorGroupRef.value.jumpToSearchResult(result)
+        }
+      }, 100)
+    } else {
+      console.warn('[Editor] Cannot jump to line - missing editorGroup or line number', { 
+        hasEditorGroup: !!editorGroupRef.value, 
+        line: result?.line 
+      })
+    }
+  }, 1000) 
   
 
 }

@@ -337,6 +337,32 @@ function jumpToErrorLine(line: number) {
 }
 
 /**
+ * 跳转到搜索结果（支持精确匹配位置）
+ */
+function jumpToSearchResult(result: any) {
+  console.log('[EditorGroup] jumpToSearchResult called with:', {
+    line: result.line,
+    matchStart: result.matchStart,
+    matchEnd: result.matchEnd,
+    file: result.file?.name
+  })
+  
+  if (!activePaneId.value) {
+    console.warn('[EditorGroup] No active pane')
+    return
+  }
+  
+  const paneRef = paneRefs.value.get(activePaneId.value)
+  if (!paneRef) {
+    console.warn('[EditorGroup] Active pane ref not found for id:', activePaneId.value)
+    return
+  }
+  
+  console.log('[EditorGroup] Calling jumpToSearchResult on pane')
+  paneRef.jumpToSearchResult(result)
+}
+
+/**
  * 保存当前活动窗格的文件
  */
 async function saveCurrentFile(): Promise<boolean> {
@@ -362,6 +388,7 @@ defineExpose({
   closePane,
   setActivePane,
   jumpToErrorLine,
+  jumpToSearchResult,
   saveCurrentFile,
   paneRefs
 })

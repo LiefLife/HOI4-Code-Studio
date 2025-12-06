@@ -119,11 +119,16 @@ const imageUrl = computed(() => {
 })
 
 // 监听活动文件变化
-watch(currentFile, (file) => {
+watch(currentFile, (file, oldFile) => {
   if (file) {
     // 标记正在加载文件，避免触发 hasUnsavedChanges
     isLoadingFile.value = true
-    fileContent.value = file.content
+    
+    // 只有当文件路径变化或内容真正不同时才更新内容，避免不必要的光标重置
+    if (!oldFile || oldFile.node.path !== file.node.path || oldFile.content !== file.content) {
+      fileContent.value = file.content
+    }
+    
     hasUnsavedChanges.value = file.hasUnsavedChanges
     currentLine.value = file.cursorLine
     currentColumn.value = file.cursorColumn
@@ -266,36 +271,104 @@ function handleJumpToFocus(focusId: string, line: number) {
  */
 function jumpToLine(line: number) {
   console.log('[EditorPane] jumpToLine called with line:', line)
-  console.log('[EditorPane] editorRef.value:', editorRef.value)
+  
+  // 检查行号有效性
+  if (!line || line < 1) {
+    console.warn('[EditorPane] Invalid line number:', line)
+    return
+  }
   
   // 通过 getEditorView() 方法获取 editorView
   const view = (editorRef.value as any)?.getEditorView?.()
   if (!view) {
-    console.warn('[EditorPane] Editor view not available')
+    console.warn('[EditorPane] Editor view not available, retrying in 100ms...')
+    // 重试一次，以防编辑器还在加载
+    setTimeout(() => jumpToLine(line), 100)
     return
   }
   
-  console.log('[EditorPane] Got editor view, doc lines:', view.state.doc.lines)
-  const doc = view.state.doc
-  
-  // 确保行号在有效范围内
-  const targetLine = Math.max(1, Math.min(line, doc.lines))
-  console.log('[EditorPane] Target line (clamped):', targetLine)
-  
-  const lineInfo = doc.line(targetLine)
-  console.log('[EditorPane] Line info:', { from: lineInfo.from, to: lineInfo.to })
-  
-  // 滚动到该行并设置光标位置
-  view.dispatch({
-    selection: { anchor: lineInfo.from, head: lineInfo.to },
-    scrollIntoView: true
+  try {
+    const doc = view.state.doc
+    const totalLines = doc.lines
+    console.log('[EditorPane] Got editor view, doc lines:', totalLines)
+    
+    // 确保行号在有效范围内
+    const targetLine = Math.max(1, Math.min(line, totalLines))
+    console.log('[EditorPane] Target line (clamped):', targetLine, 'original:', line)
+    
+    const lineInfo = doc.line(targetLine)
+    console.log('[EditorPane] Line info:', { from: lineInfo.from, to: lineInfo.to, text: lineInfo.text.slice(0, 50) })
+    
+    // 滚动到该行并设置光标位置到行首
+    view.dispatch({
+      selection: { anchor: lineInfo.from, head: lineInfo.from },
+      scrollIntoView: true
+    })
+    
+    console.log('[EditorPane] Dispatched selection and scroll')
+    
+    // 确保编辑器获得焦点
+    view.focus()
+    console.log('[EditorPane] Focused editor successfully')
+  } catch (error) {
+    console.error('[EditorPane] Error jumping to line:', error)
+  }
+}
+
+/**
+ * 跳转到搜索结果（支持精确匹配位置）
+ */
+function jumpToSearchResult(result: any) {
+  console.log('[EditorPane] jumpToSearchResult called with:', {
+    line: result.line,
+    matchStart: result.matchStart,
+    matchEnd: result.matchEnd,
+    file: result.file?.name
   })
   
-  console.log('[EditorPane] Dispatched selection and scroll')
+  // 通过 getEditorView() 方法获取 editorView
+  const view = (editorRef.value as any)?.getEditorView?.()
+  if (!view) {
+    console.warn('[EditorPane] Editor view not available for search result, retrying in 100ms...')
+    setTimeout(() => jumpToSearchResult(result), 100)
+    return
+  }
   
-  // 确保编辑器获得焦点
-  view.focus()
-  console.log('[EditorPane] Focused editor')
+  try {
+    const doc = view.state.doc
+    const totalLines = doc.lines
+    
+    // 确保行号在有效范围内
+    const targetLine = Math.max(1, Math.min(result.line, totalLines))
+    const line = doc.line(targetLine)
+    
+    // 计算字符位置（如果没有精确位置信息，则跳转到行首）
+    let pos = line.from
+    let endPos = line.from
+    
+    if (result.matchStart !== undefined && result.matchEnd !== undefined) {
+      // 使用精确的匹配位置
+      pos = Math.max(line.from, Math.min(line.from + result.matchStart, line.to))
+      endPos = Math.max(pos, Math.min(line.from + result.matchEnd, line.to))
+      console.log('[EditorPane] Using precise match positions:', { pos, endPos })
+    } else {
+      console.log('[EditorPane] Using line start position')
+    }
+    
+    // 跳转并选中匹配的文本
+    view.dispatch({
+      selection: { anchor: pos, head: endPos },
+      scrollIntoView: true
+    })
+    
+    console.log('[EditorPane] Dispatched search result selection and scroll')
+    
+    // 确保编辑器获得焦点
+    view.focus()
+    console.log('[EditorPane] Focused editor after search result jump')
+  } catch (error) {
+    console.error('[EditorPane] Error jumping to search result:', error)
+  }
 }
 
 // 处理编辑器右键菜单
@@ -344,6 +417,7 @@ function getEditorMethods() {
 // 暴露方法供父组件调用
 defineExpose({
   jumpToLine,
+  jumpToSearchResult,
   getEditorMethods
 })
 </script>
