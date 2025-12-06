@@ -25,7 +25,8 @@ export const changelog: VersionLog[] = [
       { type: 'improvement', content: '优化更新日志UI' },
       { type: 'improvement', content: '优化设置UI' },
       { type: 'fix', content: '修复部分国策树无法打开的bug' },
-      { type: 'fix', content: '修复图标无法加载的bug' }
+      { type: 'fix', content: '修复图标无法加载的bug' },
+      { type: 'fix', content: '修复搜索点击结果有时无法跳转到对应行的问题' }
     ]
   },
   {
