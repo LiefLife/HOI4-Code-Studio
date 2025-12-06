@@ -396,7 +396,7 @@ describe('更新日志数据模块测试', () => {
     it('应该拒绝无效的变更类型', () => {
       // @ts-ignore - 测试无效类型
       const invalidItem: ChangelogItem = {
-        type: 'other',
+        type: 'invalid' as any,
         content: '测试内容'
       }
       expect(['feature', 'fix', 'improvement', 'other']).not.toContain(invalidItem.type)
