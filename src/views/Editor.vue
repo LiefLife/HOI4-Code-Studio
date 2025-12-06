@@ -2,10 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { loadSettings, saveSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
-import Prism from 'prismjs'
-import 'prismjs/themes/prism-tomorrow.css'
-import 'prismjs/components/prism-json'
-import 'prismjs/components/prism-yaml'
+import 'highlight.js/styles/github-dark.css'
+import 'highlight.js/lib/languages/json'
+import 'highlight.js/lib/languages/yaml'
 
 // 组件导入
 import EditorToolbar from '../components/editor/EditorToolbar.vue'
@@ -37,40 +36,7 @@ import { readFileContent } from '../api/tauri'
 import { useDependencyManager } from '../composables/useDependencyManager'
 import { loadFontConfigFromSettings } from '../composables/useEditorFont'
 
-// Prism 语法定义
-Prism.languages.mod = {
-  'comment': { pattern: /#.*/, greedy: true },
-  'mod-key': {
-    pattern: /^(\s*)(version|tags|name|replace_path|supported_version)\s*(=)/m,
-    lookbehind: false,
-    inside: {
-      'whitespace': /^\s+/,
-      'keyword': /(version|tags|name|replace_path|supported_version)/,
-      'punctuation': /=/
-    }
-  },
-  'string': { pattern: /"(?:[^"\\]|\\.)*"/, greedy: true },
-  'number': /\b\d+(?:\.\d+)?\b/,
-  'punctuation': /[{}[\],]/,
-  'operator': /=/
-}
-
-Prism.languages.hoi4 = {
-  'comment': { pattern: /#.*/, greedy: true },
-  'hoi4-key': {
-    pattern: /^(\s*)([a-zA-Z0-9_\.\-]+)(?=\s*=)/m,
-    lookbehind: false,
-    inside: {
-      'whitespace': /^\s+/,
-      'property': /[a-zA-Z0-9_\.\-]+/
-    }
-  },
-  'hoi4-keyword-purple': { pattern: /\b(no|yes|true|false|if|limit)\b/, greedy: true },
-  'string': { pattern: /"(?:[^"\\]|\\.)*"/, greedy: true },
-  'number': /\b\d+(?:\.\d+)?\b/,
-  'punctuation': /[{}[\],]/,
-  'operator': /[=<>]/
-}
+// Highlight.js 语言定义已移至 useSyntaxHighlight.ts 中
 
 const router = useRouter()
 const route = useRoute()

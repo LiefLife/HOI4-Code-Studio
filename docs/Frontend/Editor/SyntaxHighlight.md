@@ -9,7 +9,7 @@
    - `.mod` -> `mod`
    - `.yml` -> `yaml`
    - `.json` -> `json`
-2. **Prism 高亮**: 使用 PrismJS 进行基础的词法着色。
+2. **Highlight.js 高亮**: 使用 highlight.js 进行基础的词法着色。
 3. **括号分级高亮 (Rainbow Brackets)**:
    - 调用 Rust 后端 `getBracketDepths` 获取括号深度映射。
    - 动态生成带有 `brace-depth-N` 样式的 `span` 标签，实现彩虹括号效果。

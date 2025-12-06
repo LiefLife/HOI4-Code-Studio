@@ -60,10 +60,21 @@ beforeAll(() => {
 
   // Ensure document.documentElement has style property for theme tests
   if (global.document && global.document.documentElement) {
-    global.document.documentElement.style = global.document.documentElement.style || {
-      setProperty: vi.fn(),
-      getPropertyValue: vi.fn(() => ''),
-      removeProperty: vi.fn()
+    if (!global.document.documentElement.style) {
+      Object.defineProperty(global.document.documentElement, 'style', {
+        value: {
+          setProperty: vi.fn(),
+          getPropertyValue: vi.fn(() => ''),
+          removeProperty: vi.fn()
+        },
+        writable: true,
+        configurable: true
+      })
+    } else {
+      // Mock existing style methods
+      global.document.documentElement.style.setProperty = vi.fn()
+      global.document.documentElement.style.getPropertyValue = vi.fn(() => '')
+      global.document.documentElement.style.removeProperty = vi.fn()
     }
   }
 })

@@ -1,11 +1,97 @@
 import { ref, nextTick } from 'vue'
-import Prism from 'prismjs'
+import hljs from 'highlight.js'
 import { getBracketDepths } from '../api/tauri'
 import { logger } from '../utils/logger'
 
+// 导入 highlight.js 语言支持（用于类型注册）
+import 'highlight.js/lib/languages/json'
+import 'highlight.js/lib/languages/yaml'
+
+/**
+ * 注册自定义语言到 highlight.js
+ */
+hljs.registerLanguage('mod', modLanguage)
+hljs.registerLanguage('hoi4', hoi4Language)
+
+/**
+ * .mod 文件语法定义
+ */
+function modLanguage(hljs: any) {
+  return {
+    name: '.mod File',
+    aliases: ['mod'],
+    keywords: {
+      keyword: 'version tags name replace_path supported_version',
+      literal: 'true false yes no'
+    },
+    contains: [
+      hljs.COMMENT('^#.*', '$'),
+      {
+        className: 'section',
+        begin: /^(version|tags|name|replace_path|supported_version)\s*(=)/,
+        end: /$/,
+        contains: [
+          {
+            className: 'keyword',
+            begin: /(version|tags|name|replace_path|supported_version)/
+          },
+          {
+            className: 'operator',
+            begin: /=/
+          }
+        ]
+      },
+      hljs.STRING,
+      hljs.NUMBER
+    ]
+  }
+}
+
+/**
+ * HOI4 脚本语法定义
+ */
+function hoi4Language(hljs: any) {
+  return {
+    name: 'HOI4 Script',
+    aliases: ['hoi4', 'hearts-of-iron-4'],
+    keywords: {
+      keyword: 'if limit add remove set create delete from to with using',
+      literal: 'yes no true false'
+    },
+    contains: [
+      hljs.COMMENT('^#.*', '$'),
+      {
+        className: 'property',
+        begin: /^(\s*)([a-zA-Z0-9_\.\-]+)(?=\s*=)/,
+        end: /=?/,
+        contains: [
+          {
+            className: 'whitespace',
+            begin: /^\s+/
+          },
+          {
+            className: 'identifier',
+            begin: /[a-zA-Z0-9_\.\-]+/
+          }
+        ]
+      },
+      {
+        className: 'keyword',
+        begin: /\b(if|limit|yes|no|true|false)\b/
+      },
+      hljs.STRING,
+      hljs.NUMBER,
+      {
+        className: 'operator',
+        begin: /[=<>]/
+      }
+    ]
+  }
+}
+
 /**
  * 语法高亮 Composable
- * 管理代码的语法高亮和括号分级高亮
+ * 使用 highlight.js 管理代码的语法高亮和括号分级高亮
  */
 export function useSyntaxHighlight() {
   const highlightedCode = ref('')
@@ -20,8 +106,8 @@ export function useSyntaxHighlight() {
     switch (ext) {
       case 'json': return 'json'
       case 'yml': case 'yaml': return 'yaml'
-      case 'mod': return 'mod' // .mod 文件使用自定义语法
-      case 'txt': return 'hoi4' // .txt 文件使用 HOI4 脚本语法
+      case 'mod': return 'mod'
+      case 'txt': return 'hoi4'
       default: return 'plaintext'
     }
   }
@@ -73,7 +159,7 @@ export function useSyntaxHighlight() {
 
       textNodes.forEach((node) => {
         const parentElement = node.parentElement
-        if (parentElement && (parentElement.closest('.token.string') || parentElement.closest('.token.comment'))) {
+        if (parentElement && (parentElement.closest('.hljs-string') || parentElement.closest('.hljs-comment'))) {
           charIndex += node.nodeValue?.length || 0
           return
         }
@@ -118,41 +204,49 @@ export function useSyntaxHighlight() {
     }
     
     try {
-      const grammar = Prism.languages[language]
-      if (grammar) {
-        let highlighted = Prism.highlight(fileContent, grammar, language)
-        // 保留末尾换行，避免 split 丢失空行
-        if (fileContent.endsWith('\n')) {
-          highlighted += '\n'
-        }
-        const contentLines = fileContent.split('\n')
-        const highlightLines = highlighted.split('\n')
-        const normalized = contentLines.map((_, index) => {
-          let lineHtml = highlightLines[index] ?? ''
-          if (lineHtml.length === 0) {
-            lineHtml = '<span class="line-placeholder">&nbsp;</span>'
-          }
-          return lineHtml
-        })
-
-        // 为有错误的行添加错误高亮
-        if (language === 'hoi4' && txtErrors.length > 0) {
-          txtErrors.forEach(error => {
-            const lineIndex = error.line - 1
-            if (normalized[lineIndex]) {
-              normalized[lineIndex] = `<div class="error-line">${normalized[lineIndex]}</div>`
-            }
-          })
-        }
-
-        highlightedCode.value = normalized.join('\n')
-        showHighlight.value = true
-        nextTick(() => {
-          applyBraceHighlight(fileContent)
-        })
-      } else {
+      // 检查语言是否支持
+      const supportedLanguages = hljs.getSupportedLanguages()
+      if (!supportedLanguages.includes(language)) {
         showHighlight.value = false
+        logger.warn(`不支持的语言: ${language}`)
+        return
       }
+      
+      // 使用 highlight.js 高亮
+      const result = hljs.highlight(fileContent, { language: language })
+      let highlighted = result.value
+      
+      // 保留末尾换行，避免 split 丢失空行
+      if (fileContent.endsWith('\n')) {
+        highlighted += '\n'
+      }
+      
+      const contentLines = fileContent.split('\n')
+      const highlightLines = highlighted.split('\n')
+      const normalized = contentLines.map((_, index) => {
+        let lineHtml = highlightLines[index] ?? ''
+        if (lineHtml.length === 0) {
+          lineHtml = '<span class="line-placeholder">&nbsp;</span>'
+        }
+        return lineHtml
+      })
+
+      // 为有错误的行添加错误高亮
+      if (language === 'hoi4' && txtErrors.length > 0) {
+        txtErrors.forEach(error => {
+          const lineIndex = error.line - 1
+          if (normalized[lineIndex]) {
+            normalized[lineIndex] = `<div class="error-line">${normalized[lineIndex]}</div>`
+          }
+        })
+      }
+
+      highlightedCode.value = normalized.join('\n')
+      showHighlight.value = true
+      
+      nextTick(() => {
+        applyBraceHighlight(fileContent)
+      })
     } catch (error) {
       logger.error('语法高亮失败:', error)
       showHighlight.value = false

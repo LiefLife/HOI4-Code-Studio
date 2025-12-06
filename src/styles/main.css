@@ -495,6 +495,146 @@ body {
   }
 }
 
+/* ===== Highlight.js 语法高亮样式 ===== */
+
+/* 语法高亮容器 */
+pre {
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+code.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+/* 括号分级高亮样式 */
+.brace-bracket {
+  font-weight: bold;
+  padding: 0 1px;
+  border-radius: 2px;
+  position: relative;
+}
+
+.brace-bracket.brace-depth-1 {
+  color: #e06c75 !important;
+  background: rgba(224, 108, 117, 0.1);
+}
+
+.brace-bracket.brace-depth-2 {
+  color: #98c379 !important;
+  background: rgba(152, 195, 121, 0.1);
+}
+
+.brace-bracket.brace-depth-3 {
+  color: #61afef !important;
+  background: rgba(97, 175, 239, 0.1);
+}
+
+.brace-bracket.brace-depth-4 {
+  color: #e5c07b !important;
+  background: rgba(229, 192, 123, 0.1);
+}
+
+.brace-bracket.brace-depth-5 {
+  color: #c678dd !important;
+  background: rgba(198, 120, 221, 0.1);
+}
+
+.brace-bracket.brace-depth-6 {
+  color: #56b6c2 !important;
+  background: rgba(86, 182, 194, 0.1);
+}
+
+/* 错误行高亮 */
+.error-line {
+  background: rgba(224, 108, 117, 0.15);
+  border-left: 3px solid #e06c75;
+  position: relative;
+}
+
+.error-line::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #e06c75;
+}
+
+/* 空行占位符 */
+.line-placeholder {
+  display: inline-block;
+  color: transparent;
+}
+
+/* 高亮代码行间距 */
+.hljs-line {
+  display: block;
+  line-height: 1.4;
+}
+
+/* Highlight.js 主题样式覆盖 - 使用项目主题颜色 */
+.hljs {
+  color: var(--theme-fg) !important;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--theme-comment) !important;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-addition {
+  color: var(--theme-keyword) !important;
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--theme-success) !important;
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: var(--theme-success) !important;
+}
+
+.hljs-title,
+.hljs-name,
+.hljs-section {
+  color: var(--theme-accent) !important;
+  font-weight: bold;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  color: #e06c75 !important;
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: var(--theme-accent) !important;
+}
+
+.hljs-bullet {
+  color: var(--theme-warning) !important;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
 /* 平滑过渡 */
 * {
   transition-property: color, background-color, border-color, box-shadow, transform;
