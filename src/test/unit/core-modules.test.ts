@@ -3,7 +3,7 @@
  * 包含 router、lang、data 模块的全面测试
  */
 
-import { describe, it, expect, vi, beforeEach} from 'vitest'
+import { describe, it, expect, vi} from 'vitest'
 import { createRouter, createWebHistory} from 'vue-router'
 
 // Mock CodeMirror modules
@@ -59,25 +59,10 @@ describe('Router模块测试', () => {
 })
 
 describe('HOI4语言模块测试', () => {
-  let _mockStream: any
-  let _mockState: any
 
-  beforeEach(() => {
-    // Mock stream object
-    _mockStream = {
-      eatSpace: vi.fn().mockReturnValue(true),
-      match: vi.fn().mockReturnValue(true),
-      next: vi.fn(),
-      pos: 0,
-      string: 'test string'
-    }
-    
-    // Mock state object
-    _mockState = {
-      inComment: false,
-      expectValue: false
-    }
-  })
+
+
+
 
   describe('HOI4语言定义测试', () => {
     it('应该正确导出HOI4语言函数', () => {

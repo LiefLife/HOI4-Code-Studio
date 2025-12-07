@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted} from 'vue'
 
 interface Props {
   imageUrl: string
@@ -92,11 +92,10 @@ interface Props {
   filePath: string
 }
 
-const props = defineProps<Props>()
+const { imageUrl, fileName, filePath } = defineProps<Props>()
 
 // Refs
 const containerRef = ref<HTMLElement>()
-const imageWrapperRef = ref<HTMLElement>()
 
 // 状态
 const scale = ref(1)
@@ -119,8 +118,8 @@ const imageWrapperStyle = computed(() => ({
 
 const imageStyle = computed(() => ({
   width: `${imageDimensions.value.width}px`,
-  height: `${imageDimensions.value.height}px`,
-  imageRendering: 'auto' // 优化图片渲染
+    height: `${imageDimensions.value.height}px`
+
 }))
 
 // 事件处理
