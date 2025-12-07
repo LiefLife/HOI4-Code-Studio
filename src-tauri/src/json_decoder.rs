@@ -1,4 +1,4 @@
-
+#![deny(clippy::unwrap_used)]
 // serde 序列化/反序列化
 use serde::{Deserialize, Serialize};
 
@@ -170,7 +170,7 @@ impl JsonDecoder {
                 if !map.contains_key(*part) {
                     map.insert(part.to_string(), json!({}));
                 }
-                current = map.get_mut(*part).unwrap();
+                current = map.get_mut(*part).expect("key should exist after insertion");
             } else {
                 return false;
             }
