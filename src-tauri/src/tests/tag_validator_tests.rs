@@ -127,8 +127,8 @@ mod tests {
         assert_eq!(response.errors.len(), 0);
         
         // 测试序列化
-        let serialized = serde_json::to_string(&response).unwrap();
-        let deserialized: TagValidationResponse = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&response).expect("序列化应该成功");
+        let deserialized: TagValidationResponse = serde_json::from_str(&serialized).expect("反序列化应该成功");
         
         assert_eq!(response.success, deserialized.success);
         assert_eq!(response.message, deserialized.message);
