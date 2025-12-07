@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used)]
+
 // 括号匹配算法模块
 // 使用Rust高级特性：宏、泛型、迭代器等
 
@@ -271,10 +273,10 @@ mod tests {
         let chars: Vec<char> = content.chars().collect();
         
         // 查找 '(' 的匹配
-        let open_paren_pos = chars.iter().position(|&c| c == '(').unwrap();
+        let open_paren_pos = chars.iter().position(|&c| c == '(').expect("应该找到开括号");
         let close_paren_pos = find_matching_bracket(content, open_paren_pos);
         assert!(close_paren_pos.is_some());
-        assert_eq!(chars[close_paren_pos.unwrap()], ')');
+        assert_eq!(chars[close_paren_pos.expect("应该找到匹配的闭括号")], ')');
     }
     
     #[test]

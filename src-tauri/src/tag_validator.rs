@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used)]
+
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
@@ -34,7 +36,8 @@ static TAG_CACHE: Lazy<RwLock<Option<TagCache>>> = Lazy::new(|| RwLock::new(None
 
 /// ：匹配各种需要检查的模式。
 static TARGET_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)\b[a-zA-Z0-9_\.]+\s*=\s*\{[^{}]*?target\s*=\s*([A-Za-z0-9]{2,4})").unwrap()
+    Regex::new(r"(?is)\b[a-zA-Z0-9_\.]+\s*=\s*\{[^{}]*?target\s*=\s*([A-Za-z0-9]{2,4})")
+        .expect("无效的 TARGET_BLOCK_REGEX 正则表达式模式")
 });
 
 /// ：匹配原始等号形式。
@@ -42,12 +45,13 @@ static DIRECT_ASSIGN_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
         r"(?i)\b(original_tag|tag|add_core_of|owner|ROOT/[A-Za-z0-9_]+|FROM/[A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9]{2,4})",
     )
-    .unwrap()
+    .expect("无效的 DIRECT_ASSIGN_REGEX 正则表达式模式")
 });
 
 /// ：匹配作用域块 `ROOT/X = {` 或 `FROM/X = {`。
 static SCOPE_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b(ROOT|FROM)/([A-Za-z0-9]{2,4})\s*=\s*\{").unwrap()
+    Regex::new(r"(?i)\b(ROOT|FROM)/([A-Za-z0-9]{2,4})\s*=\s*\{")
+        .expect("无效的 SCOPE_BLOCK_REGEX 正则表达式模式")
 });
 
 fn normalize_tag(tag: &str) -> String {

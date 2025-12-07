@@ -1,6 +1,6 @@
 // 文件树构建模块
 // 使用Rust的高级特性：异步、多线程、宏等
-
+#![deny(clippy::unwrap_used)]
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::fs;

@@ -1,3 +1,4 @@
+#![deny(clippy::unwrap_used)]
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use serde::Serialize;

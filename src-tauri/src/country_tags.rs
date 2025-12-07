@@ -1,3 +1,4 @@
+#![deny(clippy::unwrap_used)]
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
