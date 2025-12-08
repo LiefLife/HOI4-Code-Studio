@@ -14,7 +14,6 @@ import GameLaunchSettings from '../components/settings/GameLaunchSettings.vue'
 import RecentProjectsSettings from '../components/settings/RecentProjectsSettings.vue'
 import EditorFontSettings from '../components/settings/EditorFontSettings.vue'
 import EditorSaveSettings from '../components/settings/EditorSaveSettings.vue'
-import EditorDisplaySettings from '../components/settings/EditorDisplaySettings.vue'
 import ThemeSettings from '../components/settings/ThemeSettings.vue'
 import IconSettings from '../components/settings/IconSettings.vue'
 import UpdateSettings from '../components/settings/UpdateSettings.vue'
@@ -336,15 +335,6 @@ onMounted(async () => {
               @save="handleSave"
               @confirm-disable-error-handling="showConfirmDialog = true"
             />
-          </SettingsCard>
-
-          <!-- 显示设置 -->
-          <SettingsCard 
-            v-if="activeMenuItem === 'editor-display'"
-            title="显示设置"
-            description="配置编辑器显示功能"
-          >
-            <EditorDisplaySettings />
           </SettingsCard>
 
           <!-- 主题设置 -->

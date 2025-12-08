@@ -59,13 +59,6 @@ export const settingsMenuData: SettingsMenuCategory[] = [
         icon: 'save',
         description: '自动保存和错误处理',
         category: 'editor'
-      },
-      {
-        id: 'editor-display',
-        title: '显示设置',
-        icon: 'eye',
-        description: 'RGB颜色显示等功能',
-        category: 'editor'
       }
     ]
   },
