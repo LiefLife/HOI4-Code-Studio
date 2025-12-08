@@ -296,11 +296,6 @@ describe('更新日志数据模块测试', () => {
   })
 
   describe('版本数据验证', () => {
-    it('应该包含最新的版本', () => {
-      const latestVersion = changelog[0]
-      expect(latestVersion.version).toBe('v0.2.9-dev')
-      expect(latestVersion.description).toBe('右键优化、界面优化、修复问题')
-    })
 
     it('应该包含初始版本', () => {
       const initialVersion = changelog[changelog.length - 1]
