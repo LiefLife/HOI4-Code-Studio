@@ -149,12 +149,13 @@ export function useFileManager(gameDirectory: string = '') {
   function switchToFile(index: number, currentContent?: string) {
     if (index < 0 || index >= openFiles.value.length) return
     
-    // 保存当前文件状态
+    // 如果有提供内容，先保存当前文件状态
     if (activeFileIndex.value >= 0 && activeFileIndex.value < openFiles.value.length && currentContent !== undefined) {
       const current = openFiles.value[activeFileIndex.value]
       current.content = currentContent
     }
     
+    // 切换到目标文件
     activeFileIndex.value = index
     updateCurrentFile()
   }
