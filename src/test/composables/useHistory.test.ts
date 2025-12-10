@@ -2,6 +2,7 @@
  * useHistory 撤销重做逻辑测试
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { useHistory, type HistoryState } from '../../../src/composables/useHistory'
 
 describe('useHistory', () => {
@@ -57,6 +58,8 @@ describe('useHistory', () => {
     })
     const onHighlight = vi.fn()
 
+    history.undo(textarea, onContentChange, onHighlight)
+    await nextTick()
 
     expect(onContentChange).toHaveBeenCalledWith('second')
     expect(history.redoStack.value).toHaveLength(1)
@@ -81,6 +84,11 @@ describe('useHistory', () => {
     })
     const onHighlight = vi.fn()
 
+    history.undo(textarea, onContentChange, onHighlight)
+    await nextTick()
+
+    history.redo(textarea, onContentChange, onHighlight)
+    await nextTick()
 
     expect(onContentChange).toHaveBeenCalledWith('third')
     expect(history.undoStack.value).toHaveLength(2)
