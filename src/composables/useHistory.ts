@@ -38,7 +38,6 @@ export function useHistory() {
    */
   function undo(
     textarea: HTMLTextAreaElement,
-    currentContent: string,
     onContentChange: (content: string) => void,
     onHighlight?: () => void
   ) {
@@ -73,7 +72,6 @@ export function useHistory() {
    */
   function redo(
     textarea: HTMLTextAreaElement,
-    currentContent: string,
     onContentChange: (content: string) => void,
     onHighlight?: () => void
   ) {
