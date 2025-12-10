@@ -28,7 +28,7 @@ interface DependencyManagerState {
   projectPath: string
 }
 
-const state = ref<DependencyManagerState>({
+export const state = ref<DependencyManagerState>({
   dependencies: [],
   loading: false,
   indexStatuses: new Map(),

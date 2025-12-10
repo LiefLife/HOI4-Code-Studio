@@ -32,16 +32,14 @@ export function usePanelResize() {
   function onMouseMove(e: MouseEvent) {
     if (isResizingLeft.value) {
       const newWidth = e.clientX
-      if (newWidth >= 150 && newWidth <= 500) {
-        leftPanelWidth.value = newWidth
-      }
+      // 限制在最小和最大宽度之间
+      leftPanelWidth.value = Math.max(150, Math.min(500, newWidth))
     }
     
     if (isResizingRight.value) {
       const newWidth = window.innerWidth - e.clientX
-      if (newWidth >= 200 && newWidth <= 600) {
-        rightPanelWidth.value = newWidth
-      }
+      // 限制在最小和最大宽度之间
+      rightPanelWidth.value = Math.max(200, Math.min(600, newWidth))
     }
   }
   
