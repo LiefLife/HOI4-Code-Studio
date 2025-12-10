@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useEditorGroups, type EditorPane } from '../../../src/composables/useEditorGroups'
+import { useEditorGroups } from '../../../src/composables/useEditorGroups'
 
 // Mock window.confirm
 const mockConfirm = vi.fn()
@@ -106,11 +106,16 @@ describe('useEditorGroups', () => {
     const secondPane = editorGroups.panes.value[1]
     secondPane.openFiles = [
       {
-        path: '/test/file.txt',
-        name: 'file.txt',
+        node: {
+          path: '/test/file.txt',
+          name: 'file.txt',
+          isDirectory: false,
+          children: []
+        },
+        content: '',
         hasUnsavedChanges: true,
-        isDirectory: false,
-        children: []
+        cursorLine: 1,
+        cursorColumn: 1
       }
     ]
     secondPane.activeFileIndex = 0
@@ -191,15 +196,20 @@ describe('useEditorGroups', () => {
     const initialPaneId = editorGroups.activePaneId.value
     editorGroups.splitPane(initialPaneId)
     
-    // 在窗格中添加未保存的文件
+    // 在第一个窗格中添加未保存的文件
     const firstPane = editorGroups.panes.value[0]
     firstPane.openFiles = [
       {
-        path: '/test/file.txt',
-        name: 'file.txt',
+        node: {
+          path: '/test/file.txt',
+          name: 'file.txt',
+          isDirectory: false,
+          children: []
+        },
+        content: '',
         hasUnsavedChanges: true,
-        isDirectory: false,
-        children: []
+        cursorLine: 1,
+        cursorColumn: 1
       }
     ]
     firstPane.activeFileIndex = 0
@@ -238,18 +248,28 @@ describe('useEditorGroups', () => {
     if (sourcePane) {
       sourcePane.openFiles = [
         {
-          path: '/test/file1.txt',
-          name: 'file1.txt',
+          node: {
+            path: '/test/file1.txt',
+            name: 'file1.txt',
+            isDirectory: false,
+            children: []
+          },
+          content: '',
           hasUnsavedChanges: false,
-          isDirectory: false,
-          children: []
+          cursorLine: 1,
+          cursorColumn: 1
         },
         {
-          path: '/test/file2.txt',
-          name: 'file2.txt',
+          node: {
+            path: '/test/file2.txt',
+            name: 'file2.txt',
+            isDirectory: false,
+            children: []
+          },
+          content: '',
           hasUnsavedChanges: true,
-          isDirectory: false,
-          children: []
+          cursorLine: 1,
+          cursorColumn: 1
         }
       ]
       sourcePane.activeFileIndex = 1
@@ -267,12 +287,12 @@ describe('useEditorGroups', () => {
     
     // 源窗格应该保留所有文件（实际实现是复制而不是移动）
     expect(sourcePaneAfterSplit?.openFiles).toHaveLength(2)
-    expect(sourcePaneAfterSplit?.openFiles[0].name).toBe('file1.txt')
-    expect(sourcePaneAfterSplit?.openFiles[1].name).toBe('file2.txt')
+    expect(sourcePaneAfterSplit?.openFiles[0].node.name).toBe('file1.txt')
+    expect(sourcePaneAfterSplit?.openFiles[1].node.name).toBe('file2.txt')
     
     // 新窗格应该包含复制的文件
     expect(newPane.openFiles).toHaveLength(1)
-    expect(newPane.openFiles[0].name).toBe('file2.txt')
+    expect(newPane.openFiles[0].node.name).toBe('file2.txt')
     expect(newPane.activeFileIndex).toBe(0)
   })
 
