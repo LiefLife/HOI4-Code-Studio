@@ -46,7 +46,7 @@ export function useHistory() {
     
     // 保存当前状态到重做栈
     const currentState: HistoryState = {
-      content: currentContent,
+      content: textarea.value,
       cursorStart: textarea.selectionStart,
       cursorEnd: textarea.selectionEnd
     }
@@ -81,7 +81,7 @@ export function useHistory() {
     
     // 保存当前状态到撤销栈
     const currentState: HistoryState = {
-      content: currentContent,
+      content: textarea.value,
       cursorStart: textarea.selectionStart,
       cursorEnd: textarea.selectionEnd
     }
@@ -92,9 +92,9 @@ export function useHistory() {
     
     isApplyingHistory.value = true
     onContentChange(nextState.content)
-    textarea.value = nextState.content
     
     nextTick(() => {
+      textarea.value = nextState.content
       textarea.setSelectionRange(nextState.cursorStart, nextState.cursorEnd)
       textarea.focus()
       isApplyingHistory.value = false
