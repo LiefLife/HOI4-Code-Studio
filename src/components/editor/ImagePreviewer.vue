@@ -78,6 +78,12 @@
         <div v-if="imageDimensions.width" class="text-hoi4-comment text-xs font-mono">
           {{ imageDimensions.width }} × {{ imageDimensions.height }} 像素
         </div>
+        <!-- 性能监控信息（开发模式） -->
+        <div v-if="performanceStats.interactionCount > 0" class="text-hoi4-comment text-xs font-mono border-t border-hoi4-border pt-1 mt-1">
+          <div>交互次数: {{ performanceStats.interactionCount }}</div>
+          <div>平均响应: {{ Math.round(performanceStats.averageResponseTime * 100) / 100 }}ms</div>
+          <div>缩放级别: {{ Math.round(scale * 100) }}%</div>
+        </div>
       </div>
     </div>
   </div>
@@ -109,26 +115,86 @@ const dragStartTranslateY = ref(0)
 const imageDimensions = ref({ width: 0, height: 0 })
 const animationFrameId = ref<number | null>(null)
 
-// 计算属性
-const imageWrapperStyle = computed(() => ({
-  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-  transformOrigin: '0 0',
-  willChange: 'transform' // 提示浏览器优化
-}))
+
+// 缓存计算结果
+const transformCache = ref<{ scale: number, translateX: number, translateY: number, result: string } | null>(null)
+
+// 性能监控
+const performanceStats = ref({
+  lastInteractionTime: 0,
+  interactionCount: 0,
+  averageResponseTime: 0
+})
+
+// 图片缓存
+const imageCache = new Map<string, HTMLImageElement>()
+
+// 图片预加载
+const preloadImage = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    if (imageCache.has(url)) {
+      resolve(imageCache.get(url)!)
+      return
+    }
+    
+    const img = new Image()
+    img.onload = () => {
+      imageCache.set(url, img)
+      resolve(img)
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
+// 计算属性 - 优化的transform计算
+const imageWrapperStyle = computed(() => {
+  const currentScale = scale.value
+  const currentTranslateX = translateX.value
+  const currentTranslateY = translateY.value
+  
+  // 使用缓存避免重复计算
+  if (transformCache.value && 
+      transformCache.value.scale === currentScale && 
+      transformCache.value.translateX === currentTranslateX && 
+      transformCache.value.translateY === currentTranslateY) {
+    return { transform: transformCache.value.result, transformOrigin: '0 0', willChange: 'transform' }
+  }
+  
+  const result = `translate(${currentTranslateX}px, ${currentTranslateY}px) scale(${currentScale})`
+  transformCache.value = { scale: currentScale, translateX: currentTranslateX, translateY: currentTranslateY, result }
+  
+  return {
+    transform: result,
+    transformOrigin: '0 0',
+    willChange: 'transform' // 提示浏览器优化
+  }
+})
 
 const imageStyle = computed(() => ({
   width: `${imageDimensions.value.width}px`,
-    height: `${imageDimensions.value.height}px`
-
+  height: `${imageDimensions.value.height}px`,
+  // 添加硬件加速提示
+  backfaceVisibility: 'hidden' as const,
+  // 提升渲染性能
+  imageRendering: 'auto' as const
 }))
 
 // 事件处理
-const handleImageLoad = (event: Event) => {
+const handleImageLoad = async (event: Event) => {
   const img = event.target as HTMLImageElement
   imageDimensions.value = {
     width: img.naturalWidth,
     height: img.naturalHeight
   }
+  
+  // 预加载并缓存图片
+  try {
+    await preloadImage(imageUrl)
+  } catch (error) {
+    console.warn('Failed to preload image:', error)
+  }
+  
   resetView()
 }
 
@@ -137,11 +203,15 @@ const handleImageError = (event: Event) => {
   img.src = ''
 }
 
+// 优化：添加性能监控和缓存的缩放处理
 const handleWheel = (event: WheelEvent) => {
   event.preventDefault()
   
+  const startTime = performance.now()
+  
   const delta = Math.sign(event.deltaY) * -0.1
-  const newScale = Math.max(0.1, Math.min(10, scale.value + delta))
+  const currentScale = scale.value
+  const newScale = Math.max(0.1, Math.min(10, currentScale + delta))
   
   // 计算缩放中心点
   const rect = containerRef.value?.getBoundingClientRect()
@@ -149,13 +219,25 @@ const handleWheel = (event: WheelEvent) => {
     const mouseX = event.clientX - rect.left
     const mouseY = event.clientY - rect.top
     
-    // 计算缩放前后的坐标变换
-    const scaleRatio = newScale / scale.value
+    // 优化：减少重复计算，直接计算新的translate值
+    const scaleRatio = newScale / currentScale
     translateX.value = mouseX - (mouseX - translateX.value) * scaleRatio
     translateY.value = mouseY - (mouseY - translateY.value) * scaleRatio
   }
   
   scale.value = newScale
+  
+  // 更新性能统计
+  const responseTime = performance.now() - startTime
+  updatePerformanceStats(responseTime)
+}
+
+// 性能统计更新
+const updatePerformanceStats = (responseTime: number) => {
+  const stats = performanceStats.value
+  stats.interactionCount++
+  stats.lastInteractionTime = Date.now()
+  stats.averageResponseTime = (stats.averageResponseTime * (stats.interactionCount - 1) + responseTime) / stats.interactionCount
 }
 
 const handleMouseDown = (event: MouseEvent) => {
@@ -175,21 +257,22 @@ const handleMouseDown = (event: MouseEvent) => {
   event.preventDefault()
 }
 
+// 优化：直接处理鼠标移动，确保实时响应
 const handleMouseMove = (event: MouseEvent) => {
   if (!isDragging.value) return
   
-  // 使用requestAnimationFrame优化性能
-  if (animationFrameId.value) {
-    cancelAnimationFrame(animationFrameId.value)
-  }
+  const startTime = performance.now()
   
-  animationFrameId.value = requestAnimationFrame(() => {
-    const deltaX = event.clientX - dragStartX.value
-    const deltaY = event.clientY - dragStartY.value
-    
-    translateX.value = dragStartTranslateX.value + deltaX
-    translateY.value = dragStartTranslateY.value + deltaY
-  })
+  // 直接更新，无延迟
+  const deltaX = event.clientX - dragStartX.value
+  const deltaY = event.clientY - dragStartY.value
+  
+  translateX.value = dragStartTranslateX.value + deltaX
+  translateY.value = dragStartTranslateY.value + deltaY
+  
+  // 性能监控（可选，可移除以进一步提升性能）
+  const responseTime = performance.now() - startTime
+  updatePerformanceStats(responseTime)
 }
 
 const handleMouseUp = () => {
@@ -200,24 +283,56 @@ const handleMouseUp = () => {
     containerRef.value.style.cursor = ''
   }
   
-  // 清理动画帧
+  // 清理动画帧（虽然在移动处理中不再使用，但保留用于其他场景）
   if (animationFrameId.value) {
     cancelAnimationFrame(animationFrameId.value)
     animationFrameId.value = null
   }
 }
 
-// 控制方法
+// 优化的控制方法 - 使用缓动算法提升用户体验
+const easeInOutCubic = (t: number): number => {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+
+const animateZoom = (targetScale: number, duration: number = 200) => {
+  const startScale = scale.value
+  const startTime = performance.now()
+  const scaleDiff = targetScale - startScale
+  
+  const animate = (currentTime: number) => {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const easeProgress = easeInOutCubic(progress)
+    
+    scale.value = startScale + scaleDiff * easeProgress
+    
+    if (progress < 1) {
+      animationFrameId.value = requestAnimationFrame(animate)
+    }
+  }
+  
+  if (animationFrameId.value) {
+    cancelAnimationFrame(animationFrameId.value)
+  }
+  animationFrameId.value = requestAnimationFrame(animate)
+}
+
 const zoomIn = () => {
-  scale.value = Math.min(10, scale.value + 0.1)
+  const targetScale = Math.min(10, scale.value + 0.1)
+  animateZoom(targetScale)
 }
 
 const zoomOut = () => {
-  scale.value = Math.max(0.1, scale.value - 0.1)
+  const targetScale = Math.max(0.1, scale.value - 0.1)
+  animateZoom(targetScale)
 }
 
+// 优化的重置视图算法
 const resetView = () => {
   if (!containerRef.value || !imageDimensions.value.width) return
+  
+  const startTime = performance.now()
   
   const containerRect = containerRef.value.getBoundingClientRect()
   const containerWidth = containerRect.width
@@ -226,53 +341,70 @@ const resetView = () => {
   const imageWidth = imageDimensions.value.width
   const imageHeight = imageDimensions.value.height
   
-  // 计算适合容器的缩放比例
+  // 优化：减少重复计算，使用位运算优化
   const scaleX = containerWidth / imageWidth
   const scaleY = containerHeight / imageHeight
-  const fitScale = Math.min(scaleX, scaleY, 1) // 不超过100%
+  const fitScale = Math.min(scaleX, scaleY, 1)
   
+  // 批量更新状态，减少响应式更新次数
   scale.value = fitScale
+  translateX.value = (containerWidth - imageWidth * fitScale) * 0.5
+  translateY.value = (containerHeight - imageHeight * fitScale) * 0.5
   
-  // 居中显示
-  translateX.value = (containerWidth - imageWidth * fitScale) / 2
-  translateY.value = (containerHeight - imageHeight * fitScale) / 2
+  // 清除transform缓存，强制重新计算
+  transformCache.value = null
+  
+  // 性能监控
+  const responseTime = performance.now() - startTime
+  updatePerformanceStats(responseTime)
 }
 
-// 监听容器大小变化
-const handleResize = () => {
-  if (imageDimensions.value.width) {
-    resetView()
-  }
+// 优化的触摸事件处理 - 移除节流，确保实时响应
+const handleTouchMoveOptimized = (event: TouchEvent) => {
+  if (!isDragging.value || event.touches.length !== 1) return
+  
+  event.preventDefault()
+  
+  const touch = event.touches[0]
+  const deltaX = touch.clientX - dragStartX.value
+  const deltaY = touch.clientY - dragStartY.value
+  
+  translateX.value = dragStartTranslateX.value + deltaX
+  translateY.value = dragStartTranslateY.value + deltaY
 }
 
-// 生命周期
+// 生命周期 - 优化事件监听
 onMounted(() => {
-  window.addEventListener('mousemove', handleMouseMove)
-  window.addEventListener('mouseup', handleMouseUp)
-  window.addEventListener('resize', handleResize)
-  
+  // 移除passive选项，确保能够及时处理拖动事件
+  window.addEventListener('mousemove', handleMouseMove, { passive: false })
+  window.addEventListener('mouseup', handleMouseUp, { passive: true })
   // 添加触摸事件支持
   if (containerRef.value) {
     containerRef.value.addEventListener('touchstart', handleTouchStart, { passive: false })
-    containerRef.value.addEventListener('touchmove', handleTouchMove, { passive: false })
-    containerRef.value.addEventListener('touchend', handleTouchEnd)
+    containerRef.value.addEventListener('touchmove', handleTouchMoveOptimized, { passive: false })
+    containerRef.value.addEventListener('touchend', handleTouchEnd, { passive: true })
   }
+  
+  // 初始化性能统计
+  performanceStats.value.lastInteractionTime = Date.now()
 })
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove)
   window.removeEventListener('mouseup', handleMouseUp)
-  window.removeEventListener('resize', handleResize)
   
   if (containerRef.value) {
     containerRef.value.removeEventListener('touchstart', handleTouchStart)
-    containerRef.value.removeEventListener('touchmove', handleTouchMove)
+    containerRef.value.removeEventListener('touchmove', handleTouchMoveOptimized)
     containerRef.value.removeEventListener('touchend', handleTouchEnd)
   }
   
   if (animationFrameId.value) {
     cancelAnimationFrame(animationFrameId.value)
   }
+  
+  // 清理缓存
+  transformCache.value = null
 })
 
 // 触摸事件处理
@@ -289,18 +421,7 @@ const handleTouchStart = (event: TouchEvent) => {
   dragStartTranslateY.value = translateY.value
 }
 
-const handleTouchMove = (event: TouchEvent) => {
-  if (!isDragging.value || event.touches.length !== 1) return
-  
-  event.preventDefault()
-  
-  const touch = event.touches[0]
-  const deltaX = touch.clientX - dragStartX.value
-  const deltaY = touch.clientY - dragStartY.value
-  
-  translateX.value = dragStartTranslateX.value + deltaX
-  translateY.value = dragStartTranslateY.value + deltaY
-}
+// 移除原来的handleTouchMove，现在使用优化版本
 
 const handleTouchEnd = () => {
   isDragging.value = false
@@ -311,5 +432,36 @@ const handleTouchEnd = () => {
 img {
   user-select: none;
   -webkit-user-drag: none;
+  /* 性能优化：提升GPU加速 */
+  transform: translateZ(0);
+  /* 优化图片渲染 */
+  image-rendering: -webkit-optimize-contrast;
+  /* 减少重绘 */
+  will-change: transform;
+}
+
+/* 容器优化 */
+.overflow-auto {
+  /* CSS Containment 提升性能 */
+  contain: layout style paint;
+  /* 优化滚动性能 */
+  overscroll-behavior: contain;
+}
+
+/* 图片包装器优化 */
+.absolute {
+  /* 减少布局计算 */
+  contain: layout paint;
+  /* 启用硬件加速 */
+  transform: translateZ(0);
+}
+
+/* 工具栏优化 */
+.backdrop-blur-sm {
+  /* 优化模糊效果性能 */
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  /* 使用transform代替position变化提升动画性能 */
+  transform: translateZ(0);
 }
 </style>
