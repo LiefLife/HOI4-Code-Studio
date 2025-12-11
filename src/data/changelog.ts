@@ -22,6 +22,7 @@ export const changelog: VersionLog[] = [
     changes: [
       { type: 'feature', content: '最近项目增加搜索功能' },
       { type: 'feature', content: '图片预览缩放移动功能' },
+      { type: 'improvement', content: '优化项目信息显示UI' },
     ]
   },
   {
