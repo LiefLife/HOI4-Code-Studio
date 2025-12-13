@@ -54,6 +54,59 @@ pub struct CreateProjectResult {
     project_path: Option<String>,
 }
 
+#[tauri::command]
+fn get_recent_project_stats(paths: Vec<String>) -> RecentProjectStatsResult {
+    use std::fs;
+    use std::path::Path;
+    use walkdir::WalkDir;
+
+    let mut stats = Vec::with_capacity(paths.len());
+
+    for path in paths {
+        let project_path = Path::new(&path);
+
+        let mut file_count: u64 = 0;
+        let mut total_size: u64 = 0;
+
+        if project_path.exists() && project_path.is_dir() {
+            for entry in WalkDir::new(project_path).follow_links(false).into_iter() {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                file_count = file_count.saturating_add(1);
+                if let Ok(meta) = entry.metadata() {
+                    total_size = total_size.saturating_add(meta.len());
+                }
+            }
+        }
+
+        let version = project_path
+            .join("project.json")
+            .to_str()
+            .and_then(|p| fs::read_to_string(p).ok())
+            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+            .and_then(|v| v.get("version").and_then(|vv| vv.as_str()).map(|s| s.to_string()));
+
+        stats.push(ProjectStats {
+            path,
+            file_count,
+            total_size,
+            version,
+        });
+    }
+
+    RecentProjectStatsResult {
+        success: true,
+        stats,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenProjectResult {
     success: bool,
@@ -72,6 +125,22 @@ pub struct RecentProject {
 pub struct RecentProjectsResult {
     success: bool,
     projects: Vec<RecentProject>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectStats {
+    path: String,
+    file_count: u64,
+    total_size: u64,
+    version: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentProjectStatsResult {
+    success: bool,
+    stats: Vec<ProjectStats>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2332,6 +2401,7 @@ pub fn run() {
             initialize_project,
             open_project,
             get_recent_projects,
+            get_recent_project_stats,
             open_file_dialog,
             exit_application,
             open_settings,

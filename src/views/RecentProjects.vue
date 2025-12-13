@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getRecentProjects, openProject, initializeProject, loadSettings, type RecentProject } from '../api/tauri'
+import { getRecentProjects, getRecentProjectStats, openProject, initializeProject, loadSettings, type RecentProject, type ProjectStats } from '../api/tauri'
 
 const router = useRouter()
 
 const projects = ref<RecentProject[]>([])
 const loading = ref(true)
+const projectStatsByPath = ref<Record<string, ProjectStats>>({})
 const showStatus = ref(false)
 const statusMessage = ref('')
 const layoutMode = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
@@ -68,6 +69,15 @@ async function loadRecentProjects() {
   
   if (result.success) {
     projects.value = result.projects
+    const paths = result.projects.map(p => p.path)
+    const statsResult = await getRecentProjectStats(paths)
+    if (statsResult.success) {
+      const next: Record<string, ProjectStats> = {}
+      for (const s of statsResult.stats) {
+        next[s.path] = s
+      }
+      projectStatsByPath.value = next
+    }
   }
   
   loading.value = false
@@ -116,6 +126,19 @@ function formatDate(dateString: string) {
   } catch {
     return dateString
   }
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '-'
+  if (bytes < 1024) return `${Math.round(bytes)} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let value = bytes / 1024
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`
 }
 
 onMounted(async () => {
@@ -203,25 +226,69 @@ onMounted(async () => {
           v-for="project in filteredProjects"
           :key="project.path"
           @click="handleOpenProject(project)"
-          :class="['card cursor-pointer hover:border-hoi4-accent transition-colors', cardClass]"
+          :class="['card cursor-pointer hover:border-hoi4-accent hover:shadow-xl hover:shadow-black/20 transition-all duration-200', cardClass]"
         >
           <div class="flex flex-col h-full">
-            <div class="flex items-start justify-between mb-2">
+            <div class="flex items-start justify-between gap-3 mb-3">
               <div class="flex-1 min-w-0">
-                <h3 class="text-hoi4-text font-bold text-lg mb-1 truncate" :title="project.name">
-                  {{ project.name }}
-                </h3>
+                <div class="flex items-center gap-2 min-w-0">
+                  <h3 class="text-hoi4-text font-bold text-lg truncate" :title="project.name">
+                    {{ project.name }}
+                  </h3>
+                  <span
+                    class="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md border border-hoi4-border bg-hoi4-gray/60 text-hoi4-text-dim text-xs"
+                    :title="projectStatsByPath[project.path]?.version ? `project.json 版本：${projectStatsByPath[project.path]?.version}` : '未找到 project.json 版本'"
+                  >
+                    v{{ projectStatsByPath[project.path]?.version ?? '-' }}
+                  </span>
+                </div>
               </div>
-              <svg class="w-5 h-5 text-hoi4-text-dim flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 text-hoi4-text-dim flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
               </svg>
             </div>
-            <p class="text-hoi4-text-dim text-sm break-all mb-2" :title="project.path">
+
+            <p class="text-hoi4-text-dim text-sm break-all mb-3 font-mono" :title="project.path">
               {{ project.path }}
             </p>
-            <p class="text-hoi4-text-dim text-xs mt-auto">
-              最后打开: {{ formatDate(project.last_opened) }}
-            </p>
+
+            <div class="rounded-lg border border-hoi4-border bg-hoi4-gray/30 px-2 py-2 mb-2">
+              <div class="flex items-center gap-1 text-hoi4-text-dim text-[11px] leading-none">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2v-8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span>最后打开</span>
+              </div>
+              <div class="mt-1 text-hoi4-text text-xs leading-snug">
+                {{ formatDate(project.last_opened) }}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-3">
+              <div class="rounded-lg border border-hoi4-border bg-hoi4-gray/40 px-2 py-2">
+                <div class="flex items-center gap-1 text-hoi4-text-dim text-[11px] leading-none">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>文件</span>
+                </div>
+                <div class="mt-1 text-hoi4-text font-semibold text-sm tabular-nums">
+                  {{ projectStatsByPath[project.path]?.fileCount ?? '-' }}
+                </div>
+              </div>
+
+              <div class="rounded-lg border border-hoi4-border bg-hoi4-gray/40 px-2 py-2">
+                <div class="flex items-center gap-1 text-hoi4-text-dim text-[11px] leading-none">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
+                  <span>占用</span>
+                </div>
+                <div class="mt-1 text-hoi4-text font-semibold text-sm tabular-nums">
+                  {{ projectStatsByPath[project.path] ? formatBytes(projectStatsByPath[project.path].totalSize) : '-' }}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

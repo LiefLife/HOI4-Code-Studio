@@ -89,6 +89,14 @@ function handleDocumentation() {
   router.push('/documentation')
 }
 
+async function handleContribute() {
+  await openUrl('https://github.com/LiefLife/HOI4-Code-Studio/pulls')
+}
+
+async function handleReportIssue() {
+  await openUrl('https://github.com/LiefLife/HOI4-Code-Studio/issues')
+}
+
 // 打开更新日志面板
 function handleChangelog() {
   showChangelogPanel.value = true
@@ -229,96 +237,126 @@ onMounted(() => {
         <!-- 左侧按钮组 -->
         <div class="card flex flex-col gap-4">
           <h3 class="text-lg font-bold text-onedark-fg text-center mb-2">项目操作</h3>
-          
-          <!-- 创建新项目按钮 -->
-          <button 
-            @click="handleNewProject"
-            class="btn-primary w-full text-lg hover-scale"
-            title="创建一个新的 GUI Mod 项目"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-              </svg>
-              <span>创建新项目</span>
-            </div>
-          </button>
 
-          <!-- 打开现有项目按钮 -->
-          <button 
-            @click="handleOpenProject"
-            class="btn-secondary w-full text-lg hover-scale"
-            title="打开已存在的 GUI Mod 项目"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path>
-              </svg>
-              <span>打开项目</span>
-            </div>
-          </button>
+          <div class="grid grid-cols-2 gap-3">
+            <!-- 创建新项目按钮（占两列，视觉上作为主入口） -->
+            <button
+              @click="handleNewProject"
+              class="btn-primary w-full hover-scale tile-button col-span-2"
+              title="创建一个新的 GUI Mod 项目"
+            >
+              <div class="flex items-center justify-center space-x-3">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                <span class="text-base font-semibold">创建新项目</span>
+              </div>
+            </button>
 
-          <!-- 最近项目按钮 -->
-          <button 
-            @click="handleRecentProjects"
-            class="btn-secondary w-full text-lg hover-scale"
-            title="查看最近打开的项目"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <span>最近项目</span>
-            </div>
-          </button>
+            <!-- 打开现有项目按钮 -->
+            <button
+              @click="handleOpenProject"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="打开已存在的 GUI Mod 项目"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="text-sm font-semibold">打开项目</span>
+              </div>
+            </button>
+
+            <!-- 最近项目按钮 -->
+            <button
+              @click="handleRecentProjects"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="查看最近打开的项目"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-sm font-semibold">最近项目</span>
+              </div>
+            </button>
+          </div>
         </div>
 
         <!-- 右侧按钮组 -->
         <div class="card flex flex-col gap-4">
           <h3 class="text-lg font-bold text-onedark-fg text-center mb-2">应用功能</h3>
-          
-          <!-- 文档按钮 -->
-          <button 
-            @click="handleDocumentation"
-            class="btn-secondary w-full text-lg hover-scale"
-            title="查看使用文档"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 4h.01M8 4h8a2 2 0 012 2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
-              </svg>
-              <span>文档</span>
-            </div>
-          </button>
 
-          <!-- 更新日志按钮 -->
-          <button 
-            @click="handleChangelog"
-            class="btn-secondary w-full text-lg hover-scale"
-            title="查看版本更新日志"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <span>更新日志</span>
-            </div>
-          </button>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <!-- 文档按钮 -->
+            <button
+              @click="handleDocumentation"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="查看使用文档"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 4h.01M8 4h8a2 2 0 012 2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
+                </svg>
+                <span class="text-sm font-semibold">文档</span>
+              </div>
+            </button>
 
-          <!-- 设置按钮 -->
-          <button 
-            @click="handleSettings"
-            class="btn-secondary w-full text-lg hover-scale"
-            title="应用程序设置"
-          >
-            <div class="flex items-center justify-center space-x-3">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572-1.065c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-              </svg>
-              <span>设置</span>
-            </div>
-          </button>
+            <button
+              @click="handleContribute"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="前往 GitHub 参与贡献"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-3-3h-1M9 20H4v-2a3 3 0 013-3h1m8-5a4 4 0 10-8 0 4 4 0 008 0z"></path>
+                </svg>
+                <span class="text-sm font-semibold">做出贡献</span>
+              </div>
+            </button>
+
+            <button
+              @click="handleReportIssue"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="前往 GitHub 报告问题"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+                </svg>
+                <span class="text-sm font-semibold">报告问题</span>
+              </div>
+            </button>
+
+            <!-- 更新日志按钮 -->
+            <button
+              @click="handleChangelog"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="查看版本更新日志"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="text-sm font-semibold">更新日志</span>
+              </div>
+            </button>
+
+            <!-- 设置按钮 -->
+            <button
+              @click="handleSettings"
+              class="btn-secondary w-full hover-scale tile-button"
+              title="应用程序设置"
+            >
+              <div class="flex flex-col items-center justify-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572-1.065c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span class="text-sm font-semibold">设置</span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -451,5 +489,11 @@ onMounted(() => {
 .hover-scale:active {
   transform: scale(0.98);
   transition: transform 0.1s ease;
+}
+
+.tile-button {
+  min-height: 5.5rem;
+  padding-top: 0.875rem;
+  padding-bottom: 0.875rem;
 }
 </style>

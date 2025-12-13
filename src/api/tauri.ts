@@ -31,6 +31,18 @@ export interface RecentProject {
   last_opened: string
 }
 
+export interface ProjectStats {
+  path: string
+  fileCount: number
+  totalSize: number
+  version?: string
+}
+
+export interface RecentProjectStatsResult {
+  success: boolean
+  stats: ProjectStats[]
+}
+
 export interface RecentProjectsResult {
   success: boolean
   projects: RecentProject[]
@@ -90,6 +102,10 @@ export async function initializeProject(projectPath: string): Promise<OpenProjec
  */
 export async function getRecentProjects(): Promise<RecentProjectsResult> {
   return await invoke('get_recent_projects')
+}
+
+export async function getRecentProjectStats(paths: string[]): Promise<RecentProjectStatsResult> {
+  return await invoke('get_recent_project_stats', { paths })
 }
 
 /**
