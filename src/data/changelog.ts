@@ -18,11 +18,12 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.10-dev',
-    description: '最近项目搜索、',
+    description: '最近项目搜索、界面优化、设置优化、图片预览移动',
     changes: [
       { type: 'feature', content: '最近项目增加搜索功能' },
       { type: 'feature', content: '图片预览缩放移动功能' },
       { type: 'improvement', content: '优化项目信息显示UI' },
+      { type: 'improvement', content: '优化字体粗细选择' },
     ]
   },
   {

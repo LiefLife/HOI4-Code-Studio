@@ -132,7 +132,6 @@ const emit = defineEmits<Emits>()
 const { 
   fontConfig, 
   availableFonts, 
-  fontWeights, 
   fontSizes,
   fontWeightPresets, 
   setFontConfig 
