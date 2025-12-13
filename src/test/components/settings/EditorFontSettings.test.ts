@@ -45,10 +45,13 @@ describe('EditorFontSettings', () => {
         { value: 'Fira Code', label: 'Fira Code (带连字)' },
         { value: 'JetBrains Mono', label: 'JetBrains Mono (JetBrains)' }
       ],
-      fontWeights: [
-        { value: '300', label: '细体 (300)' },
-        { value: '400', label: '正常 (400)' },
-        { value: '700', label: '粗体 (700)' }
+      fontWeightPresets: [
+        { value: '100', label: '超细' },
+        { value: '300', label: '细体' },
+        { value: '400', label: '正常' },
+        { value: '600', label: '半粗' },
+        { value: '700', label: '粗体' },
+        { value: '900', label: '超粗' }
       ],
       fontSizes: [
         { value: 12, label: '12px' },
@@ -125,9 +128,11 @@ describe('EditorFontSettings', () => {
   })
 
   it('应该在字体粗细变化时调用 setFontConfig 并触发 save 事件', () => {
-    // Change font weight
-    const weightRadio = wrapper.find('input[type="radio"][value="700"]')
-    weightRadio.trigger('change')
+    // Change font weight by clicking preset button (组件当前实现为按钮预设)
+    const presetButtons = wrapper.findAll('button')
+    const boldButton = presetButtons.find((btn: any) => btn.text().includes('粗体'))
+    expect(boldButton).toBeTruthy()
+    boldButton!.trigger('click')
     
     // Verify setFontConfig was called with correct parameters
     expect(mockSetFontConfig).toHaveBeenCalledWith(expect.objectContaining({
@@ -140,7 +145,8 @@ describe('EditorFontSettings', () => {
 
   it('应该在行高滑块变化时调用 setFontConfig 并触发 save 事件', () => {
     // Change line height using slider
-    const lineHeightSlider = wrapper.findAll('input[type="range"]')[1]
+    // range 输入顺序：字体大小、字体粗细、行高
+    const lineHeightSlider = wrapper.findAll('input[type="range"]')[2]
     lineHeightSlider.setValue(2.0)
     lineHeightSlider.trigger('input')
     
@@ -155,7 +161,8 @@ describe('EditorFontSettings', () => {
 
   it('应该在行高输入框变化时调用 setFontConfig 并触发 save 事件', () => {
     // Change line height using input
-    const lineHeightInput = wrapper.find('input[type="number"]')
+    // number 输入顺序：字体粗细、行高
+    const lineHeightInput = wrapper.findAll('input[type="number"]')[1]
     lineHeightInput.setValue(1.2)
     lineHeightInput.trigger('input')
     
@@ -174,7 +181,7 @@ describe('EditorFontSettings', () => {
   })
 
   it('应该渲染所有字体粗细选项', () => {
-    const weightOptions = wrapper.findAll('input[type="radio"]')
-    expect(weightOptions.length).toBeGreaterThan(1)
+    const presetButtons = wrapper.findAll('button')
+    expect(presetButtons.length).toBeGreaterThan(1)
   })
 })
