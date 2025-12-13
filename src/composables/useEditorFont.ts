@@ -55,14 +55,30 @@ export const availableFonts = [
 ]
 
 /**
- * 字体粗细选项
+ * 字体粗细选项 - 保持原有的预设值用于快速选择
  */
 export const fontWeights = [
+  { value: '100', label: '超细 (100)' },
+  { value: '200', label: '特细 (200)' },
   { value: '300', label: '细体 (300)' },
   { value: '400', label: '正常 (400)' },
   { value: '500', label: '中等 (500)' },
   { value: '600', label: '半粗 (600)' },
-  { value: '700', label: '粗体 (700)' }
+  { value: '700', label: '粗体 (700)' },
+  { value: '800', label: '特粗 (800)' },
+  { value: '900', label: '超粗 (900)' }
+]
+
+/**
+ * 字体粗细预设选项 - 用于快速选择按钮
+ */
+export const fontWeightPresets = [
+  { value: '100', label: '超细' },
+  { value: '300', label: '细体' },
+  { value: '400', label: '正常' },
+  { value: '600', label: '半粗' },
+  { value: '700', label: '粗体' },
+  { value: '900', label: '超粗' }
 ]
 
 /**
@@ -229,6 +245,7 @@ export function useEditorFont() {
     availableFonts,
     fontWeights,
     fontSizes,
+    fontWeightPresets,
     defaultFontConfig,
     getCompatibleFontFamily,
     createEditorFontTheme,

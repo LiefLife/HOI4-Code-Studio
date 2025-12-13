@@ -49,22 +49,47 @@
     
     <!-- 字体粗细设置 -->
     <div class="settings-form-group">
-      <label class="settings-form-label">字体粗细</label>
-      <div class="flex flex-wrap gap-4">
-        <label
-          v-for="weight in fontWeights"
-          :key="weight.value"
-          class="flex items-center space-x-2 cursor-pointer"
-        >
+      <label class="settings-form-label">字体粗细: {{ fontConfig.weight }}</label>
+      <div class="space-y-3">
+        <!-- 滑动条控制 -->
+        <div class="flex items-center space-x-3">
           <input
-            :checked="fontConfig.weight === weight.value"
-            type="radio"
-            :value="weight.value"
-            @change="handleFontWeightChange(weight.value)"
-            class="w-5 h-5 border-2 border-hoi4-border bg-hoi4-accent"
+            :value="fontConfig.weight"
+            type="range"
+            min="100"
+            max="1000"
+            step="50"
+            class="flex-1"
+            @input="handleFontWeightChange"
           />
-          <span>{{ weight.label }}</span>
-        </label>
+          <input
+            :value="fontConfig.weight"
+            type="number"
+            min="100"
+            max="1000"
+            step="50"
+            class="input-field w-20 text-center"
+            @input="handleFontWeightChange"
+          />
+        </div>
+        
+        <!-- 快速预设按钮 -->
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="preset in fontWeightPresets"
+            :key="preset.value"
+            type="button"
+            :class="[
+              'px-3 py-1 text-sm rounded border transition-colors',
+              fontConfig.weight === preset.value
+                ? 'bg-hoi4-accent text-white border-hoi4-accent'
+                : 'bg-hoi4-bg-secondary text-hoi4-text-secondary border-hoi4-border hover:bg-hoi4-bg-hover'
+            ]"
+            @click="handleFontWeightPreset(preset.value)"
+          >
+            {{ preset.label }}
+          </button>
+        </div>
       </div>
     </div>
     
@@ -108,7 +133,8 @@ const {
   fontConfig, 
   availableFonts, 
   fontWeights, 
-  fontSizes, 
+  fontSizes,
+  fontWeightPresets, 
   setFontConfig 
 } = useEditorFont()
 
@@ -134,7 +160,18 @@ function handleFontSizeChange(event: Event) {
 }
 
 // 处理字体粗细变化
-function handleFontWeightChange(weight: string) {
+function handleFontWeightChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const weight = target.value
+  setFontConfig({
+    ...fontConfig.value,
+    weight
+  })
+  emit('save')
+}
+
+// 处理字体粗细预设选择
+function handleFontWeightPreset(weight: string) {
   setFontConfig({
     ...fontConfig.value,
     weight
