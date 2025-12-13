@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.11-dev',
+    description: '最近项目搜索、界面优化、设置优化、图片预览移动',
+    changes: [
+      { type: 'feature', content: '主页面增加issue和pr直达按钮' },
+    ]
+  },
+  {
     version: 'v0.2.10-dev',
     description: '最近项目搜索、界面优化、设置优化、图片预览移动',
     changes: [
