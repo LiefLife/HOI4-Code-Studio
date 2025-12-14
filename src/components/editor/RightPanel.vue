@@ -4,6 +4,7 @@ import ProjectInfo from './ProjectInfo.vue'
 import GameDirectory from './GameDirectory.vue'
 import ErrorList from './ErrorList.vue'
 import SearchPanel from './SearchPanel.vue'
+import AIPanel from './AIPanel.vue'
 import type { FileNode } from '../../composables/useFileManager'
 import type { SearchResult } from '../../composables/useSearch'
 
@@ -22,7 +23,7 @@ const props = withDefaults(defineProps<{
   searchScope: string
   includeAllFiles: boolean
   projectPath: string
-  activeTab?: 'info' | 'game' | 'errors' | 'search'
+  activeTab?: 'info' | 'game' | 'errors' | 'search' | 'ai'
 }>(), {
   activeTab: 'info'
 })
@@ -40,10 +41,10 @@ const emit = defineEmits<{
   'update:includeAllFiles': [value: boolean]
   performSearch: []
   jumpToSearchResult: [result: SearchResult]
-  'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search']
+  'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search' | 'ai']
 }>()
 
-const localActiveTab = ref<'info' | 'game' | 'errors' | 'search'>(props.activeTab)
+const localActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai'>(props.activeTab)
 
 // 监听props.activeTab变化，更新本地状态
 watch(() => props.activeTab, (newTab) => {
@@ -106,6 +107,14 @@ watch(localActiveTab, (newTab) => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
           </svg>
         </button>
+        <button
+          @click="localActiveTab = 'ai'"
+          class="px-3 py-2 transition-all rounded-lg hover-scale text-sm font-bold"
+          :class="localActiveTab === 'ai' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          title="AI"
+        >
+          AI
+        </button>
       </div>
       <button
         @click="emit('close')"
@@ -167,6 +176,11 @@ watch(localActiveTab, (newTab) => {
             @perform-search="emit('performSearch')"
           />
         </div>
+
+        <AIPanel
+          v-else-if="localActiveTab === 'ai'"
+          :key="'ai'"
+        />
       </Transition>
     </div>
   </div>

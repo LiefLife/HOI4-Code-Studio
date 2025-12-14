@@ -43,6 +43,19 @@ export const settingsMenuData: SettingsMenuCategory[] = [
     ]
   },
   {
+    id: 'ai',
+    title: 'AI',
+    items: [
+      {
+        id: 'ai-settings',
+        title: 'AI 设置',
+        icon: 'ai',
+        description: '配置 OpenAI 兼容接口与渲染选项',
+        category: 'ai'
+      }
+    ]
+  },
+  {
     id: 'editor',
     title: '编辑器',
     items: [

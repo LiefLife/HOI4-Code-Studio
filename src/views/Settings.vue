@@ -18,6 +18,7 @@ import ThemeSettings from '../components/settings/ThemeSettings.vue'
 import IconSettings from '../components/settings/IconSettings.vue'
 import UpdateSettings from '../components/settings/UpdateSettings.vue'
 import VersionInfoSettings from '../components/settings/VersionInfoSettings.vue'
+import AISettings from '../components/settings/AISettings.vue'
 
 // 主题系统
 const { currentThemeId } = useTheme()
@@ -44,14 +45,21 @@ const autoSave = ref(true)
 const disableErrorHandling = ref(false)
 const enableRGBColorDisplay = ref(true)
 
+// AI 设置
+const openaiApiKey = ref('')
+const openaiBaseUrl = ref('https://api.openai.com')
+const openaiModel = ref('gpt-4o-mini')
+const aiRenderMarkdown = ref(false)
+const aiRequestReasoning = ref(false)
+const aiRule = ref('')
+const aiAgentMode = ref<'plan' | 'code' | 'ask'>('plan')
+
 // 编辑器字体设置
 import { useEditorFont } from '../composables/useEditorFont'
 const { 
   fontConfig, 
   setFontConfig 
 } = useEditorFont()
-
-
 
 // 游戏启动设置
 const useSteamVersion = ref(true)
@@ -103,6 +111,16 @@ async function loadUserSettings() {
     autoSave.value = data.autoSave !== false
     disableErrorHandling.value = data.disableErrorHandling || false
     enableRGBColorDisplay.value = data.enableRGBColorDisplay !== false
+
+    // 加载 AI 设置
+    openaiApiKey.value = data.openaiApiKey || ''
+    openaiBaseUrl.value = data.openaiBaseUrl || 'https://api.openai.com'
+    openaiModel.value = data.openaiModel || 'gpt-4o-mini'
+    aiRenderMarkdown.value = data.aiRenderMarkdown || false
+    aiRequestReasoning.value = data.aiRequestReasoning || false
+    aiRule.value = data.aiRule || data.aiSystemPrompt || ''
+    aiAgentMode.value = (data.aiAgentMode as 'plan' | 'code' | 'ask') || 'plan'
+
     // 加载编辑器字体设置
     if (data.editorFont) {
       setFontConfig(data.editorFont)
@@ -126,8 +144,6 @@ async function loadUserSettings() {
   }
 }
 
-
-
 // 保存设置（静默保存，仅在失败时提示）
 async function handleSave() {
   isSaving.value = true
@@ -145,7 +161,16 @@ async function handleSave() {
     enableRGBColorDisplay: enableRGBColorDisplay.value,
     theme: currentThemeId.value,
     iconSet: currentIconSetId.value,
-    editorFont: fontConfig.value
+    editorFont: fontConfig.value,
+
+    // AI 设置
+    openaiApiKey: openaiApiKey.value,
+    openaiBaseUrl: openaiBaseUrl.value,
+    openaiModel: openaiModel.value,
+    aiRenderMarkdown: aiRenderMarkdown.value,
+    aiRequestReasoning: aiRequestReasoning.value,
+    aiRule: aiRule.value,
+    aiAgentMode: aiAgentMode.value
   }
   
   const result = await saveSettings(settings)
@@ -315,6 +340,31 @@ onMounted(async () => {
             description="自定义编辑器字体样式"
           >
             <EditorFontSettings 
+              @save="handleSave"
+            />
+          </SettingsCard>
+
+          <!-- AI 设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'ai-settings'"
+            title="AI 设置"
+            description="配置 OpenAI 兼容接口与渲染选项"
+          >
+            <AISettings
+              :openai-api-key="openaiApiKey"
+              :openai-base-url="openaiBaseUrl"
+              :openai-model="openaiModel"
+              :ai-render-markdown="aiRenderMarkdown"
+              :ai-request-reasoning="aiRequestReasoning"
+              :ai-rule="aiRule"
+              :ai-agent-mode="aiAgentMode"
+              @update:openaiApiKey="openaiApiKey = $event"
+              @update:openaiBaseUrl="openaiBaseUrl = $event"
+              @update:openaiModel="openaiModel = $event"
+              @update:aiRenderMarkdown="aiRenderMarkdown = $event"
+              @update:aiRequestReasoning="aiRequestReasoning = $event"
+              @update:aiRule="aiRule = $event"
+              @update:aiAgentMode="aiAgentMode = $event"
               @save="handleSave"
             />
           </SettingsCard>

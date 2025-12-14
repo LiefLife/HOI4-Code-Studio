@@ -138,7 +138,8 @@ const availablePanesForMove = computed(() => {
 const {
   leftPanelWidth,
   rightPanelWidth,
-  startResizeLeft
+  startResizeLeft,
+  startResizeRight
 } = usePanelResize()
 
 // 搜索功能
@@ -1171,7 +1172,7 @@ async function handlePackageProject(fileName: string) {
 }
 
 // 右侧面板活动标签页
-const rightPanelActiveTab = ref<'info' | 'game' | 'errors' | 'search'>('info')
+const rightPanelActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai'>('info')
 
 // 切换右侧面板
 function toggleRightPanel() {
@@ -1590,6 +1591,13 @@ onUnmounted(() => {
         @preview-focus="handlePreviewFocus"
         @content-change="handleContentChange"
       />
+
+      <!-- 右侧拖动条 -->
+      <div
+        v-if="rightPanelExpanded"
+        class="w-1 bg-hoi4-border hover:bg-hoi4-accent cursor-col-resize flex-shrink-0"
+        @mousedown="startResizeRight"
+      ></div>
 
       <!-- 右侧面板 -->
       <RightPanel

@@ -46,6 +46,14 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.ai-solid-dropdown {
+  background-color: var(--theme-bg-secondary) !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-image: none !important;
+}
+
 /* 卡片样式 */
 .card {
   background-color: var(--onedark-bg-secondary);
