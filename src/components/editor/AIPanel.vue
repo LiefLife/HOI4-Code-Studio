@@ -20,6 +20,96 @@ interface ChatMessage {
   pending?: boolean
 }
 
+function shouldIgnoreDir(name: string) {
+  const n = (name || '').toLowerCase()
+  return (
+    n === '.git' ||
+    n === 'node_modules' ||
+    n === 'dist' ||
+    n === 'build' ||
+    n === 'target' ||
+    n === '.tauri' ||
+    n === '.idea' ||
+    n === '.vscode'
+  )
+}
+
+async function buildProjectTree(rootPath: string) {
+  const root = resolveAgainst(projectRootPath.value, rootPath)
+  if (!root) return ''
+
+  let count = 0
+  const lines: string[] = []
+
+  async function walk(dir: string, depth: number, prefix: string) {
+    if (depth > MAX_PROJECT_TREE_DEPTH) return
+    if (count >= MAX_PROJECT_TREE_ENTRIES) return
+
+    const res = await readDirectory(dir)
+    const entries = ((res as any)?.entries as any[]) || ((res as any)?.files as any[]) || []
+
+    const sorted = entries
+      .slice()
+      .sort((a, b) => {
+        const ad = !!a.is_directory
+        const bd = !!b.is_directory
+        if (ad !== bd) return ad ? -1 : 1
+        return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
+      })
+
+    for (let i = 0; i < sorted.length; i++) {
+      if (count >= MAX_PROJECT_TREE_ENTRIES) return
+      const e = sorted[i]
+      const name = String(e.name || '')
+      const isDir = !!e.is_directory
+      if (isDir && shouldIgnoreDir(name)) {
+        continue
+      }
+
+      const isLast = i === sorted.length - 1
+      const branch = isLast ? '└─ ' : '├─ '
+      lines.push(`${prefix}${branch}${name}${isDir ? '/' : ''}`)
+      count += 1
+
+      if (isDir && e.path && depth < MAX_PROJECT_TREE_DEPTH) {
+        const nextPrefix = `${prefix}${isLast ? '   ' : '│  '}`
+        await walk(String(e.path), depth + 1, nextPrefix)
+      }
+    }
+  }
+
+  lines.push(root)
+  await walk(root, 1, '')
+  if (count >= MAX_PROJECT_TREE_ENTRIES) {
+    lines.push('...（目录树已截断）')
+  }
+  return lines.join('\n')
+}
+
+async function ensureProjectTreeForCurrentSession() {
+  const s = getCurrentSession()
+  if (!s) return
+  if (s.projectTreeInjected) return
+  if (!projectRootPath.value) {
+    setCurrentSession({ projectTreeInjected: true, projectTree: '' })
+    return
+  }
+
+  const tree = await buildProjectTree(projectRootPath.value)
+  setCurrentSession({ projectTreeInjected: true, projectTree: tree })
+  await saveAiChatSessions()
+}
+
+interface ChatSession {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messages: ChatMessage[]
+  projectTree?: string
+  projectTreeInjected?: boolean
+}
+
 type ToolName = 'list_dir' | 'read_file' | 'edit_file'
 
 interface ToolCallBase {
@@ -54,6 +144,7 @@ const input = ref('')
 const isSending = ref(false)
 
 const settingsOpen = ref(false)
+const historyOpen = ref(false)
 const openaiApiKey = ref('')
 const openaiBaseUrl = ref('https://api.openai.com')
 const openaiModel = ref('gpt-4o-mini')
@@ -95,6 +186,12 @@ const aiAgentMode = ref<'plan' | 'code' | 'ask'>('plan')
 const agentModeMenuOpen = ref(false)
 const agentModeMenuOpenSettings = ref(false)
 
+const chatSessions = ref<ChatSession[]>([])
+const currentSessionId = ref('')
+
+const MAX_PROJECT_TREE_DEPTH = 4
+const MAX_PROJECT_TREE_ENTRIES = 600
+
 const route = useRoute()
 const projectRootPath = computed(() => {
   const p = route.query.path
@@ -130,14 +227,78 @@ function createId() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
+function makeSessionTitle(msgs: ChatMessage[]) {
+  const firstUser = msgs.find(m => m.role === 'user')
+  const raw = (firstUser?.content || '').trim()
+  if (!raw) return '新对话'
+  return raw.length > 24 ? `${raw.slice(0, 24)}...` : raw
+}
+
+function createNewSession() {
+  const now = Date.now()
+  return {
+    id: createId(),
+    title: '新对话',
+    createdAt: now,
+    updatedAt: now,
+    messages: []
+  } as ChatSession
+}
+
+function getCurrentSessionIndex() {
+  return chatSessions.value.findIndex(s => s.id === currentSessionId.value)
+}
+
+function syncMessagesToCurrentSession() {
+  const idx = getCurrentSessionIndex()
+  if (idx === -1) return
+  const now = Date.now()
+  const title = makeSessionTitle(messages.value)
+  chatSessions.value[idx] = {
+    ...chatSessions.value[idx],
+    title,
+    updatedAt: now,
+    messages: messages.value
+  }
+}
+
+function getCurrentSession() {
+  const idx = getCurrentSessionIndex()
+  if (idx === -1) return null
+  return chatSessions.value[idx]
+}
+
+function setCurrentSession(patch: Partial<ChatSession>) {
+  const idx = getCurrentSessionIndex()
+  if (idx === -1) return
+  chatSessions.value[idx] = {
+    ...chatSessions.value[idx],
+    ...patch
+  }
+}
+
+function loadSessionToMessages(sessionId: string) {
+  const s = chatSessions.value.find(x => x.id === sessionId)
+  if (!s) return
+  currentSessionId.value = s.id
+  messages.value = (s.messages || []).map(m => ({
+    ...m,
+    showReasoning: m.showReasoning || false
+  }))
+}
+
 function appendMessage(role: ChatRole, content: string, pending?: boolean) {
   messages.value.push({
     id: createId(),
     role,
     content,
     createdAt: Date.now(),
-    pending
+    pending,
+    reasoning: '',
+    showReasoning: false
   })
+
+  syncMessagesToCurrentSession()
 }
 
 function setMessageContent(id: string, content: string) {
@@ -148,6 +309,8 @@ function setMessageContent(id: string, content: string) {
     content,
     pending: false
   }
+
+  syncMessagesToCurrentSession()
 }
 
 function appendToMessage(id: string, delta: { content?: string; reasoning?: string }) {
@@ -160,6 +323,8 @@ function appendToMessage(id: string, delta: { content?: string; reasoning?: stri
     content: `${prev.content || ''}${delta.content || ''}`,
     reasoning: `${prev.reasoning || ''}${delta.reasoning || ''}`
   }
+
+  syncMessagesToCurrentSession()
 }
 
 function markMessageDone(id: string) {
@@ -173,6 +338,8 @@ function markMessageDone(id: string) {
     finishedAt: now,
     reasoningMs: typeof startedAt === 'number' ? Math.max(0, now - startedAt) : undefined
   }
+
+  syncMessagesToCurrentSession()
 }
 
 function stripContinueToken(text: string) {
@@ -434,12 +601,21 @@ function buildOpenAiMessages(): Array<{ role: ChatRole; content: string }> {
   const rule = aiRule.value.trim()
   const agentPrompt = getAgentPrompt(aiAgentMode.value).trim()
 
+  const session = getCurrentSession()
+  const projectTree = (session?.projectTreeInjected ? (session?.projectTree || '') : '').trim()
+
   const injected: Array<{ role: ChatRole; content: string }> = [{ role: 'system', content: SYSTEM_PROMPT }]
   if (rule) {
     injected.push({ role: 'system', content: `规则：${rule}` })
   }
   if (agentPrompt) {
     injected.push({ role: 'system', content: agentPrompt })
+  }
+  if (projectTree) {
+    injected.push({
+      role: 'system',
+      content: `项目目录结构（仅本会话首次聊天注入）：\n\n${projectTree}`
+    })
   }
 
   const base = messages.value
@@ -571,6 +747,9 @@ async function runAiTurns(firstUserContent: string) {
   let nextUserContent: string | null = firstUserContent
 
   while (nextUserContent !== null && turns < MAX_CONTINUE_TURNS) {
+    if (turns === 0) {
+      await ensureProjectTreeForCurrentSession()
+    }
     const userContent = nextUserContent
     nextUserContent = null
     turns += 1
@@ -670,9 +849,47 @@ async function loadAiSettings() {
       requestReasoning.value = (data.aiRequestReasoning as boolean) || false
       aiRule.value = (data.aiRule as string) || (data.aiSystemPrompt as string) || ''
       aiAgentMode.value = ((data.aiAgentMode as 'plan' | 'code' | 'ask') || 'plan')
+
+      const sessions = (data.aiChatSessions as any) || []
+      if (Array.isArray(sessions)) {
+        chatSessions.value = sessions as ChatSession[]
+      }
+      const current = (data.aiChatCurrentSessionId as string) || ''
+      if (current && chatSessions.value.some(s => s.id === current)) {
+        currentSessionId.value = current
+      }
     }
+
+    if (!currentSessionId.value || !chatSessions.value.some(s => s.id === currentSessionId.value)) {
+      const s = createNewSession()
+      chatSessions.value = [s, ...chatSessions.value]
+      currentSessionId.value = s.id
+    }
+    loadSessionToMessages(currentSessionId.value)
   } catch (err) {
     logger.error('加载AI设置失败:', err)
+  }
+}
+
+async function saveAiChatSessions() {
+  try {
+    const result = await loadSettings()
+    const current = (result.success && result.data) ? (result.data as Record<string, unknown>) : {}
+
+    // 剪裁历史条数，避免 settings 过大
+    const maxSessions = 30
+    const trimmed = chatSessions.value
+      .slice()
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .slice(0, maxSessions)
+
+    await saveSettings({
+      ...current,
+      aiChatSessions: trimmed,
+      aiChatCurrentSessionId: currentSessionId.value
+    } as any)
+  } catch (err) {
+    logger.error('保存聊天历史失败:', err)
   }
 }
 
@@ -699,6 +916,33 @@ function openSettings() {
   settingsOpen.value = true
 }
 
+function openHistory() {
+  historyOpen.value = true
+}
+
+async function closeHistory() {
+  historyOpen.value = false
+  await saveAiChatSessions()
+}
+
+async function startNewChat() {
+  // 先把当前会话同步并持久化
+  syncMessagesToCurrentSession()
+
+  const s = createNewSession()
+  chatSessions.value = [s, ...chatSessions.value]
+  currentSessionId.value = s.id
+  messages.value = []
+
+  await saveAiChatSessions()
+}
+
+async function selectChatSession(sessionId: string) {
+  syncMessagesToCurrentSession()
+  loadSessionToMessages(sessionId)
+  await saveAiChatSessions()
+}
+
 async function closeSettings() {
   settingsOpen.value = false
   await saveAiSettings()
@@ -723,13 +967,30 @@ watch(
   <div class="h-full overflow-hidden flex flex-col">
     <div class="px-3 pt-3">
       <div class="flex items-center justify-between px-3 py-2 bg-hoi4-gray/70 border border-hoi4-border/60 rounded-2xl shadow-lg backdrop-blur-sm">
-        <div class="text-hoi4-text font-bold text-sm tracking-wide">AI</div>
-        <button
-          class="px-3 py-1 rounded-xl text-sm bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 transition-all shadow-sm"
-          @click="openSettings"
-        >
-          设置
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1 rounded-xl text-sm bg-hoi4-border/40 hover:bg-hoi4-border/60 active:scale-95 transition-all shadow-sm text-hoi4-text"
+            @click="openHistory"
+          >
+            历史
+          </button>
+          <div class="text-hoi4-text font-bold text-sm tracking-wide">AI</div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            class="px-3 py-1 rounded-xl text-sm bg-hoi4-border/40 hover:bg-hoi4-border/60 active:scale-95 transition-all shadow-sm text-hoi4-text"
+            @click="startNewChat"
+          >
+            新对话
+          </button>
+          <button
+            class="px-3 py-1 rounded-xl text-sm bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 transition-all shadow-sm"
+            @click="openSettings"
+          >
+            设置
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1016,6 +1277,56 @@ watch(
           >
             完成
           </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="historyOpen"
+      class="fixed inset-0 flex items-center justify-center z-50 bg-black/55 backdrop-blur-sm"
+      @click.self="closeHistory"
+      tabindex="-1"
+    >
+      <div
+        class="border border-hoi4-border rounded-2xl shadow-2xl overflow-hidden w-[560px] max-w-[92vw] max-h-[85vh] ai-solid-dropdown"
+        @click.stop
+      >
+        <div class="px-6 py-4 border-b border-hoi4-border">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-hoi4-text">历史对话</h3>
+            <button
+              class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-full hover:bg-hoi4-border/60 transition-colors"
+              @click="closeHistory"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="px-6 py-5 overflow-y-auto" style="max-height: calc(85vh - 72px);">
+          <div v-if="chatSessions.length === 0" class="text-sm text-hoi4-text-dim">
+            暂无历史记录。
+          </div>
+
+          <div v-else class="space-y-2">
+            <button
+              v-for="s in chatSessions.slice().sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0))"
+              :key="s.id"
+              class="w-full text-left rounded-xl border px-3 py-2 transition-colors"
+              :class="s.id === currentSessionId ? 'border-hoi4-accent/70 bg-hoi4-accent/15' : 'border-hoi4-border/60 hover:bg-hoi4-border/40'"
+              @click="selectChatSession(s.id)"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-bold text-hoi4-text">{{ s.title || '新对话' }}</div>
+                <div class="text-xs text-hoi4-text-dim">{{ new Date(s.updatedAt || s.createdAt).toLocaleString() }}</div>
+              </div>
+              <div class="text-xs text-hoi4-text-dim mt-1">
+                {{ (s.messages || []).length }} 条消息
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
