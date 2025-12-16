@@ -41,21 +41,57 @@ function onToolDetailsToggle(id: string, e: Event) {
     还没有对话，输入内容开始聊天。
   </div>
   <div v-for="g in groupedMessages" :key="g.user.id" class="space-y-2">
-    <div class="rounded-xl px-3 py-2 border bg-hoi4-accent/20 border-hoi4-border/60 text-hoi4-text">
-      <div class="text-xs text-hoi4-text-dim mb-1">user</div>
+    <div class="rounded-xl px-3 py-2 border bg-hoi4-accent/30 border-hoi4-border/80 text-hoi4-text">
+      <div class="text-xs text-hoi4-text-dim mb-1 flex items-center gap-2">
+        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-hoi4-border/60 border border-hoi4-border/80">
+          <svg class="w-3 h-3 text-hoi4-text" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path
+              d="M20 21a8 8 0 0 0-16 0"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </span>
+      </div>
       <div class="text-sm whitespace-pre-wrap break-words">{{ g.user.content }}</div>
     </div>
 
     <div
       v-if="g.items.length > 0"
-      class="rounded-xl px-3 py-2 border bg-hoi4-gray/40 border-hoi4-border/60 text-hoi4-text"
+      class="rounded-xl px-3 py-2 border bg-hoi4-gray/70 border-hoi4-border/80 text-hoi4-text"
     >
-      <div class="text-xs text-hoi4-text-dim mb-2">assistant</div>
+      <div class="text-xs text-hoi4-text-dim mb-2 flex items-center gap-2">
+        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-hoi4-border/60 border border-hoi4-border/80">
+          <svg class="w-3.5 h-3.5 text-hoi4-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M9 3h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10 3v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M14 3v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M5 11a7 7 0 0 1 14 0v4a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-4Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M9 14h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            <path d="M15 14h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </span>
+      </div>
       <div class="space-y-2">
         <div v-for="m in g.items" :key="m.id">
           <div v-if="m.reasoning && m.reasoning.trim().length > 0" class="mb-2">
             <button
-              class="text-xs px-2 py-1 rounded-lg border border-hoi4-border/60 bg-hoi4-gray/60 hover:bg-hoi4-border/60 transition-colors"
+              class="text-xs px-2 py-1 rounded-lg border border-hoi4-border/80 bg-hoi4-gray/80 hover:bg-hoi4-border/70 transition-colors"
               :class="m.showReasoning ? 'text-hoi4-text' : 'text-hoi4-text-dim'"
               @click="toggleReasoning(m)"
             >
@@ -68,7 +104,7 @@ function onToolDetailsToggle(id: string, e: Event) {
 
             <div
               v-if="m.showReasoning"
-              class="mt-2 rounded-xl border border-hoi4-border/60 bg-hoi4-gray/80 px-3 py-2"
+              class="mt-2 rounded-xl border border-hoi4-border/80 bg-hoi4-gray/90 px-3 py-2"
             >
               <div class="text-xs text-hoi4-text-dim mb-1">reasoning</div>
               <div class="text-xs whitespace-pre-wrap break-words text-hoi4-text">
@@ -80,7 +116,7 @@ function onToolDetailsToggle(id: string, e: Event) {
           <div class="text-sm whitespace-pre-wrap break-words" :class="m.pending ? 'animate-pulse text-hoi4-text-dim' : ''">
             <template v-if="isToolResultMessage(m)">
               <details
-                class="rounded-xl border border-hoi4-border/60 bg-hoi4-gray/60 px-3 py-2"
+                class="rounded-xl border border-hoi4-border/80 bg-hoi4-gray/80 px-3 py-2"
                 @toggle="onToolDetailsToggle(m.id, $event)"
               >
                 <summary class="cursor-pointer select-none text-xs text-hoi4-text">
@@ -94,7 +130,7 @@ function onToolDetailsToggle(id: string, e: Event) {
                 </summary>
                 <pre
                   v-if="detailsOpenMap[m.id]"
-                  class="mt-2 text-xs whitespace-pre-wrap break-words text-hoi4-text-dim"
+                  class="mt-2 text-xs whitespace-pre-wrap break-words text-hoi4-text-dim bg-hoi4-gray/90 border border-hoi4-border/80 rounded-lg p-2"
                 >{{ m.content }}</pre>
               </details>
             </template>

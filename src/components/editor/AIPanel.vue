@@ -34,6 +34,7 @@ const {
   closeHistory,
   startNewChat,
   selectChatSession,
+  deleteChatSessions,
   handleSend,
   handleInputKeydown,
   toggleReasoning,
@@ -112,6 +113,7 @@ function setAgentMode(mode: 'plan' | 'code' | 'ask') {
       :current-session-id="currentSessionId"
       @close="closeHistory"
       @select="selectChatSession"
+      @delete-sessions="deleteChatSessions"
     />
   </div>
 </template>

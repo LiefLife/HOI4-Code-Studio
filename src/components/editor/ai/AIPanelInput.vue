@@ -18,13 +18,29 @@ const emit = defineEmits<{
 
 <template>
   <div class="bg-transparent p-3 pt-0">
-    <div class="relative rounded-2xl bg-hoi4-gray/70 border border-hoi4-border/60 shadow-lg">
+    <div class="relative rounded-2xl bg-hoi4-gray/85 border border-hoi4-border/80 shadow-lg">
       <div class="absolute left-2 bottom-2 flex items-center gap-2">
-        <div class="text-xs text-hoi4-text-dim">智能体：</div>
+        <div class="flex items-center gap-2 text-xs text-hoi4-text-dim">
+          <svg class="w-4 h-4 text-hoi4-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M9 3h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10 3v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M14 3v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M5 11a7 7 0 0 1 14 0v4a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-4Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path d="M9 14h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            <path d="M15 14h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </div>
         <div class="relative">
           <button
-            class="px-2 py-1 rounded-lg text-xs border border-hoi4-border/60 bg-hoi4-gray/60 hover:bg-hoi4-border/60 transition-colors text-hoi4-text"
+            class="px-2 py-1 rounded-lg text-xs border border-hoi4-border/70 bg-hoi4-border/50 hover:bg-hoi4-border/70 transition-colors text-hoi4-text"
             @click="emit('toggleAgentMenu')"
+            title="切换智能体模式"
           >
             {{ props.aiAgentMode === 'plan' ? 'Plan' : props.aiAgentMode === 'code' ? 'Code' : 'Ask' }}
           </button>
@@ -68,7 +84,7 @@ const emit = defineEmits<{
 
       <button
         class="absolute right-2 bottom-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95"
-        :class="props.canSend ? 'bg-hoi4-accent/80 hover:bg-hoi4-border/80 text-hoi4-text' : 'bg-hoi4-border/40 text-hoi4-text-dim cursor-not-allowed'"
+        :class="props.canSend ? 'bg-hoi4-accent/85 hover:bg-hoi4-border/80 text-hoi4-text' : 'bg-hoi4-border/50 text-hoi4-text-dim cursor-not-allowed'"
         :disabled="!props.canSend"
         @click="emit('send')"
       >

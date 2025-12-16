@@ -47,10 +47,15 @@ export function useAiChat() {
 {"tool":"edit_file","path":"绝对路径","content":"新的完整文件内容","confirm":true}
 \`\`\`
 
+\`\`\`tool
+{"tool":"search_field","query":"要搜索的字段","file_type":"*.yml,*.txt","case_insensitive":true,"regex":false,"with_snippet":true,"snippet_max_len":160}
+\`\`\`
+
 【工具说明】
 (1) list_dir: 列出目录内容（支持 paths 多目录；支持 start/end 对条目分页；end=-1 表示 all）
 (2) read_file: 读取文件内容（支持 paths 多文件；start/end 按“起始行号-结束行号”裁剪；end=-1 表示 all）
 (3) edit_file: 写入文件内容（为了安全，必须带 confirm:true 才会执行）
+(4) search_field: 按字段搜索项目内所有文本文件，返回每个文件命中的行号(不是次数!)（会跳过压缩包/图片等二进制；支持 file_type 文件筛选；支持大小写不敏感与正则；可返回命中行片段）
 
 【继续执行协议】
 当你需要基于工具结果继续自动进行下一轮推理/行动，请在回复末尾追加：<continue>，只需要一次就好，不需要多次继续
@@ -343,6 +348,15 @@ export function useAiChat() {
                 typeof obj.confirm === 'boolean'
               )
             }
+            if (t === 'search_field') {
+              return (
+                typeof obj.query === 'string' &&
+                obj.query.trim().length > 0 &&
+                (typeof obj.file_type === 'string' || typeof obj.file_type === 'undefined') &&
+                (typeof obj.case_insensitive === 'boolean' || typeof obj.case_insensitive === 'undefined') &&
+                (typeof obj.regex === 'boolean' || typeof obj.regex === 'undefined')
+              )
+            }
             return false
           })()
 
@@ -350,6 +364,8 @@ export function useAiChat() {
             // 合法的会在 extractToolCalls 里处理，这里忽略
             continue
           }
+          invalid.push({ tool: t, raw })
+          continue
         }
       } catch {
         // ignore
@@ -389,6 +405,9 @@ export function useAiChat() {
                 typeof obj.confirm === 'boolean'
               )
             }
+            if (t === 'search_field') {
+              return typeof obj.query === 'string' && obj.query.trim().length > 0
+            }
             return false
           })()
           if (ok) {
@@ -419,7 +438,56 @@ export function useAiChat() {
     if (tool === 'edit_file') {
       return '```tool\n{"tool":"edit_file","path":"相对或绝对路径","content":"新的完整文件内容","confirm":true}\n```'
     }
+    if (tool === 'search_field') {
+      return '```tool\n{"tool":"search_field","query":"要搜索的字段","file_type":"*.yml,*.txt","case_insensitive":true,"regex":false,"with_snippet":true,"snippet_max_len":160}\n```'
+    }
     return '```tool\n{"tool":"read_file","paths":["相对或绝对路径"],"start":1,"end":-1}\n```'
+  }
+
+  function basename(p: string) {
+    const norm = (p || '').replace(/\\/g, '/').replace(/\/+$/g, '')
+    if (!norm) return ''
+    const parts = norm.split('/')
+    return parts[parts.length - 1] || ''
+  }
+
+  function looksLikeBinaryByExt(p: string) {
+    const name = (p || '').toLowerCase()
+    const exts = [
+      '.zip',
+      '.7z',
+      '.rar',
+      '.gz',
+      '.tar',
+      '.bz2',
+      '.xz',
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.bmp',
+      '.ico',
+      '.tiff',
+      '.psd',
+      '.dds',
+      '.mp3',
+      '.wav',
+      '.ogg',
+      '.mp4',
+      '.mkv',
+      '.avi',
+      '.mov',
+      '.pdf',
+      '.exe',
+      '.dll',
+      '.pdb',
+      '.bin',
+      '.dat',
+      '.pak',
+      '.rpf'
+    ]
+    return exts.some(ext => name.endsWith(ext))
   }
 
   function sliceByLineRange(content: string, start?: number, end?: number) {
@@ -496,6 +564,56 @@ export function useAiChat() {
       return `\\\\${normalized.replace(/^\\+/, '')}`
     }
     return normalized
+  }
+
+  function normalizePathForRel(p: string) {
+    return (p || '').replace(/\\/g, '/').replace(/\/+$/g, '')
+  }
+
+  function toProjectRelativePath(absPath: string) {
+    const root = projectRootPath.value
+    if (!root) return absPath
+
+    const absNorm = normalizePathForRel(absPath)
+    const rootNorm = normalizePathForRel(root)
+    const absKey = absNorm.toLowerCase()
+    const rootKey = rootNorm.toLowerCase()
+    if (absKey === rootKey) return '.'
+    if (!absKey.startsWith(`${rootKey}/`)) return absPath
+    const rel = absNorm.slice(rootNorm.length).replace(/^\//, '')
+    return rel || '.'
+  }
+
+  function parseFileTypePatterns(fileType: string | undefined): string[] {
+    const raw = (fileType || '').trim()
+    if (!raw) return []
+    return raw
+      .split(/[;,\n\r]+/g)
+      .map(x => x.trim())
+      .filter(Boolean)
+  }
+
+  function globToRegExp(glob: string) {
+    const g = (glob || '').trim()
+    if (!g) return null
+    const escaped = g.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    const re = `^${escaped.replace(/\*/g, '.*').replace(/\?/g, '.')}$$`
+    try {
+      return new RegExp(re, 'i')
+    } catch {
+      return null
+    }
+  }
+
+  function matchFileType(pathOrName: string, patterns: string[]) {
+    if (patterns.length === 0) return true
+    const candidate = pathOrName.replace(/\\/g, '/')
+    for (const p of patterns) {
+      const re = globToRegExp(p)
+      if (!re) continue
+      if (re.test(candidate)) return true
+    }
+    return false
   }
 
   function shouldIgnoreDir(name: string) {
@@ -667,6 +785,156 @@ export function useAiChat() {
       return { ...res, resolved_path: resolvedPath }
     }
 
+    if (call.tool === 'search_field') {
+      const query = typeof (call as any).query === 'string' ? (call as any).query : ''
+      const q = query.trim()
+      if (!q) {
+        return { success: false, message: 'search_field 缺少 query' }
+      }
+      if (!projectRootPath.value) {
+        return { success: false, message: '项目根目录为空，无法搜索' }
+      }
+
+      const caseInsensitive = !!(call as any).case_insensitive
+      const useRegex = !!(call as any).regex
+      const withSnippet = !!(call as any).with_snippet
+      const snippetMaxLenRaw = typeof (call as any).snippet_max_len === 'number' ? (call as any).snippet_max_len : 160
+      const snippetMaxLen = Math.max(20, Math.min(800, snippetMaxLenRaw))
+      const fileType = typeof (call as any).file_type === 'string' ? (call as any).file_type : ''
+      const patterns = parseFileTypePatterns(fileType)
+
+      const matcher = (() => {
+        if (useRegex) {
+          try {
+            const flags = caseInsensitive ? 'i' : ''
+            const re = new RegExp(q, flags)
+            return (line: string) => re.test(line)
+          } catch {
+            return null
+          }
+        }
+        if (caseInsensitive) {
+          const needle = q.toLowerCase()
+          return (line: string) => line.toLowerCase().includes(needle)
+        }
+        return (line: string) => line.includes(q)
+      })()
+
+      if (!matcher) {
+        return { success: false, message: 'search_field 正则表达式无效' }
+      }
+
+      const matchLine = matcher
+
+      const MAX_FILES_SCANNED = 5000
+      const MAX_MATCH_FILES = 500
+      const MAX_MATCH_LINES_PER_FILE = 200
+
+      const matched: Array<{ file: string; rel: string; lines: number[]; snippets?: Array<{ line: number; snippet: string }> }> = []
+      let scannedFiles = 0
+      let skippedFiles = 0
+      let scannedDirs = 0
+
+      async function scanFile(filePath: string) {
+        if (matched.length >= MAX_MATCH_FILES) return
+        if (looksLikeBinaryByExt(filePath)) {
+          skippedFiles += 1
+          return
+        }
+
+        const rel = toProjectRelativePath(filePath)
+        if (patterns.length > 0) {
+          const name = basename(filePath) || filePath
+          if (!matchFileType(rel, patterns) && !matchFileType(name, patterns)) {
+            skippedFiles += 1
+            return
+          }
+        }
+
+        const res = await readFileContent(filePath)
+        if (!res?.success) {
+          skippedFiles += 1
+          return
+        }
+        if ((res as any).is_binary || (res as any).is_image) {
+          skippedFiles += 1
+          return
+        }
+        const content = typeof (res as any).content === 'string' ? ((res as any).content as string) : ''
+        if (!content) return
+
+        const lines = content.split(/\r?\n/)
+        const hitLines: number[] = []
+        const hitSnippets: Array<{ line: number; snippet: string }> = []
+        for (let i = 0; i < lines.length; i++) {
+          if (hitLines.length >= MAX_MATCH_LINES_PER_FILE) break
+          const lineText = lines[i] || ''
+          if (matchLine(lineText)) {
+            const ln = i + 1
+            hitLines.push(ln)
+            if (withSnippet) {
+              const snippet = lineText.length > snippetMaxLen ? `${lineText.slice(0, snippetMaxLen)}...` : lineText
+              hitSnippets.push({ line: ln, snippet })
+            }
+          }
+        }
+        if (hitLines.length > 0) {
+          matched.push({ file: filePath, rel, lines: hitLines, snippets: withSnippet ? hitSnippets : undefined })
+        }
+      }
+
+      async function walk(dir: string) {
+        if (scannedFiles >= MAX_FILES_SCANNED) return
+        if (matched.length >= MAX_MATCH_FILES) return
+        scannedDirs += 1
+
+        const res = await readDirectory(dir)
+        const entries = ((res as any)?.entries as any[]) || ((res as any)?.files as any[]) || []
+        for (const e of entries) {
+          if (scannedFiles >= MAX_FILES_SCANNED) return
+          if (matched.length >= MAX_MATCH_FILES) return
+          const name = String(e?.name || '')
+          const isDir = !!e?.is_directory
+          const p = String(e?.path || '')
+          if (!p) continue
+          if (isDir) {
+            if (shouldIgnoreDir(name)) continue
+            await walk(p)
+            continue
+          }
+          scannedFiles += 1
+          await scanFile(p)
+        }
+      }
+
+      await walk(projectRootPath.value)
+
+      const results = matched.map(x => {
+        const rel = x.rel || toProjectRelativePath(x.file)
+        return `${rel}(${x.lines.join(',')})`
+      })
+
+      return {
+        success: true,
+        message: 'OK',
+        query: q,
+        file_type: fileType || undefined,
+        case_insensitive: caseInsensitive,
+        regex: useRegex,
+        with_snippet: withSnippet,
+        snippet_max_len: snippetMaxLen,
+        results,
+        matches: withSnippet
+          ? matched.map(x => ({ path: x.rel || toProjectRelativePath(x.file), hits: (x.snippets || []).slice(0, MAX_MATCH_LINES_PER_FILE) }))
+          : undefined,
+        matched_files: matched.length,
+        scanned_files: scannedFiles,
+        scanned_dirs: scannedDirs,
+        skipped_files: skippedFiles,
+        truncated: scannedFiles >= MAX_FILES_SCANNED || matched.length >= MAX_MATCH_FILES
+      }
+    }
+
     return { success: false, message: '未知工具' }
   }
 
@@ -767,12 +1035,6 @@ export function useAiChat() {
     if (tool === 'tool_calling') {
       return { text: 'tool_calling', status: 'unknown' }
     }
-    function basename(p: string) {
-      const norm = (p || '').replace(/\\/g, '/').replace(/\/+$/g, '')
-      if (!norm) return ''
-      const parts = norm.split('/')
-      return parts[parts.length - 1] || ''
-    }
 
     const outputIncompleteHint = !outputParseOk && rawOutput.trim().startsWith('{') ? '（输出未完整）' : ''
 
@@ -822,6 +1084,18 @@ export function useAiChat() {
         return lines.join('\n')
       }
       if (tool === 'edit_file') return `写入文件 ${displayPath}`.trim()
+      if (tool === 'search_field') {
+        const q = typeof input?.query === 'string' ? input.query : ''
+        const fileType = typeof input?.file_type === 'string' ? input.file_type : ''
+        const ci = !!input?.case_insensitive
+        const re = !!input?.regex
+        const matchedCount = typeof output?.matched_files === 'number' ? output.matched_files : undefined
+        const truncated = !!output?.truncated
+        const flags = `${ci ? ' i' : ''}${re ? ' re' : ''}`.trim()
+        const scope = fileType ? ` ${fileType}` : ''
+        const suffix = typeof matchedCount === 'number' ? `（命中 ${matchedCount} 个文件${truncated ? '，已截断' : ''}）` : ''
+        return `search_field${scope} ${q}${flags ? ` [${flags}]` : ''}${suffix}`.trim()
+      }
       return tool
     })()
 
@@ -1379,6 +1653,34 @@ D 输出与回滚
     await saveAiChatSessions()
   }
 
+  async function deleteChatSessions(sessionIds: string[]) {
+    const ids = Array.isArray(sessionIds) ? sessionIds.filter(x => typeof x === 'string' && x.trim()) : []
+    if (ids.length === 0) return
+
+    const idSet = new Set(ids)
+    const deletingCurrent = idSet.has(currentSessionId.value)
+
+    chatSessions.value = (chatSessions.value || []).filter(s => !idSet.has(s.id))
+
+    if (deletingCurrent) {
+      // 当前会话被删：切到最近更新时间最新的会话；若无则创建新会话
+      const next = (chatSessions.value || [])
+        .slice()
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0]
+      if (next) {
+        currentSessionId.value = next.id
+        loadSessionToMessages(next.id)
+      } else {
+        const s = createNewSession()
+        chatSessions.value = [s]
+        currentSessionId.value = s.id
+        messages.value = []
+      }
+    }
+
+    await saveAiChatSessions()
+  }
+
   async function closeSettings() {
     settingsOpen.value = false
     await saveAiSettings()
@@ -1425,6 +1727,7 @@ D 输出与回滚
     closeHistory,
     startNewChat,
     selectChatSession,
+    deleteChatSessions,
     handleSend,
     handleInputKeydown,
     toggleReasoning,

@@ -23,7 +23,7 @@ export interface ChatSession {
   projectTreeInjected?: boolean
 }
 
-export type ToolName = 'list_dir' | 'read_file' | 'edit_file'
+export type ToolName = 'list_dir' | 'read_file' | 'edit_file' | 'search_field'
 
 export interface ToolCallBase {
   tool: ToolName
@@ -52,4 +52,14 @@ export interface ToolCallEditFile extends ToolCallBase {
   confirm?: boolean
 }
 
-export type ToolCall = ToolCallListDir | ToolCallReadFile | ToolCallEditFile
+export interface ToolCallSearchField extends ToolCallBase {
+  tool: 'search_field'
+  query: string
+  file_type?: string
+  case_insensitive?: boolean
+  regex?: boolean
+  with_snippet?: boolean
+  snippet_max_len?: number
+}
+
+export type ToolCall = ToolCallListDir | ToolCallReadFile | ToolCallEditFile | ToolCallSearchField
