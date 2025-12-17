@@ -22,6 +22,10 @@ export const changelog: VersionLog[] = [
     changes: [
       { type: 'feature', content: '主页面增加issue和pr直达按钮' },
       { type: 'feature', content: '加入未完善的AI AGENT功能' },
+      { type: 'feature', content: '加入文件/文件夹右键删除功能' },
+      { type: 'improvement', content: '新建文件支持withBOM' },
+      { type: 'improvement', content: '搜索支持替换功能' },
+      { type: 'fix', content: '修复依赖项数字显示问题' },
     ]
   },
   {
