@@ -1570,6 +1570,48 @@ fn rename_path(old_path: String, new_path: String) -> serde_json::Value {
     }
 }
 
+/// 删除文件或文件夹
+#[tauri::command]
+fn delete_path(target_path: String) -> serde_json::Value {
+    use std::fs;
+    use std::path::Path;
+
+    println!("删除路径: {}", target_path);
+
+    let path = Path::new(&target_path);
+
+    if !path.exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "目标路径不存在"
+        });
+    }
+
+    if path.is_file() {
+        match fs::remove_file(path) {
+            Ok(_) => serde_json::json!({
+                "success": true,
+                "message": "文件删除成功"
+            }),
+            Err(e) => serde_json::json!({
+                "success": false,
+                "message": format!("删除文件失败: {}", e)
+            }),
+        }
+    } else {
+        match fs::remove_dir_all(path) {
+            Ok(_) => serde_json::json!({
+                "success": true,
+                "message": "文件夹删除成功"
+            }),
+            Err(e) => serde_json::json!({
+                "success": false,
+                "message": format!("删除文件夹失败: {}", e)
+            }),
+        }
+    }
+}
+
 // ==================== 搜索功能 ====================
 
 /// 搜索结果结构体
@@ -2410,6 +2452,7 @@ pub fn run() {
             create_file,
             create_folder,
             rename_path,
+            delete_path,
             load_settings,
             save_settings,
             validate_game_directory,

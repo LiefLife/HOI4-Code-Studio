@@ -22,7 +22,41 @@ const emit = defineEmits<{
   'update:searchScope': [value: string]
   'update:includeAllFiles': [value: boolean]
   performSearch: []
+  performReplace: [replaceText: string]
 }>()
+
+const replaceText = ref('')
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function getReplacePreviewHtml(result: SearchResult): string {
+  const content = result.content ?? ''
+  const start = Math.max(0, Math.min(result.matchStart ?? 0, content.length))
+  const end = Math.max(start, Math.min(result.matchEnd ?? start, content.length))
+
+  const before = escapeHtml(content.slice(0, start))
+  const matched = escapeHtml(content.slice(start, end))
+  const after = escapeHtml(content.slice(end))
+
+  const replacement = escapeHtml(replaceText.value)
+
+  if (!replacement) {
+    return `${before}<span class="px-1 rounded bg-red-600/30 text-hoi4-text">${matched}</span>${after}`
+  }
+
+  return `${before}`
+    + `<span class="px-1 rounded bg-red-600/30 text-hoi4-text">${matched}</span>`
+    + `<span class="mx-1 text-[10px] text-hoi4-text-dim">→</span>`
+    + `<span class="px-1 rounded bg-green-600/30 text-hoi4-text">${replacement}</span>`
+    + `${after}`
+}
 
 // 键盘导航
 const selectedIndex = ref(0)
@@ -53,6 +87,11 @@ watch([() => props.searchQuery, () => props.searchCaseSensitive, () => props.sea
   }, 1000)
 }, { flush: 'post' })
 
+function handleReplaceAll() {
+  if (!props.searchQuery.trim()) return
+  emit('performReplace', replaceText.value)
+}
+
 // 当组件挂载时聚焦输入框
 setTimeout(() => {
   inputRef.value?.focus()
@@ -75,6 +114,23 @@ setTimeout(() => {
         placeholder="搜索..."
         class="w-full px-3 py-2 bg-hoi4-dark border border-hoi4-border rounded focus:outline-none focus:border-hoi4-accent text-hoi4-text"
       />
+
+      <div class="mt-3 flex gap-2">
+        <input
+          v-model="replaceText"
+          type="text"
+          placeholder="替换为..."
+          class="flex-1 px-2 py-1 bg-hoi4-dark border border-hoi4-border rounded focus:outline-none focus:border-hoi4-accent text-hoi4-text text-sm"
+        />
+        <button
+          type="button"
+          class="px-2 py-1 rounded bg-hoi4-border/40 hover:bg-hoi4-border/60 text-hoi4-text text-xs transition-colors whitespace-nowrap"
+          :disabled="isSearching || !searchQuery.trim() || searchResults.length === 0"
+          @click="handleReplaceAll"
+        >
+          替换全部
+        </button>
+      </div>
       
       <!-- 选项 -->
       <div class="flex items-center gap-3 mt-3 text-xs flex-wrap">
@@ -170,7 +226,7 @@ setTimeout(() => {
             {{ result.file.name }}:{{ result.line }}
           </div>
           <div class="text-xs text-hoi4-text font-mono bg-hoi4-dark/30 p-2 rounded border border-hoi4-border/30">
-            {{ result.content }}
+            <span v-html="getReplacePreviewHtml(result)"></span>
           </div>
         </div>
       </div>

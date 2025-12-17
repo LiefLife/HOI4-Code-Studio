@@ -18,9 +18,10 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.11-dev',
-    description: '主页面新增按钮',
+    description: '主页面新增按钮、AI功能',
     changes: [
       { type: 'feature', content: '主页面增加issue和pr直达按钮' },
+      { type: 'feature', content: '加入未完善的AI AGENT功能' },
     ]
   },
   {

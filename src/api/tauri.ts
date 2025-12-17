@@ -165,6 +165,13 @@ export async function renamePath(oldPath: string, newPath: string): Promise<File
 }
 
 /**
+ * 删除文件或文件夹
+ */
+export async function deletePath(targetPath: string): Promise<FileOperationResult> {
+  return await invoke('delete_path', { targetPath })
+}
+
+/**
  * 打开文件夹
  */
 export async function openFolder(path: string): Promise<FileOperationResult> {

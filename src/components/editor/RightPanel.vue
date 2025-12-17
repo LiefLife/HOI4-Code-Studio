@@ -40,6 +40,7 @@ const emit = defineEmits<{
   'update:searchScope': [value: string]
   'update:includeAllFiles': [value: boolean]
   performSearch: []
+  performReplace: [replaceText: string]
   jumpToSearchResult: [result: SearchResult]
   'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search' | 'ai']
 }>()
@@ -174,6 +175,7 @@ watch(localActiveTab, (newTab) => {
             @update:search-scope="emit('update:searchScope', $event)"
             @update:include-all-files="emit('update:includeAllFiles', $event)"
             @perform-search="emit('performSearch')"
+            @perform-replace="emit('performReplace', $event)"
           />
         </div>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { loadSettings, saveSettings, buildDirectoryTreeFast, createFile, createFolder, writeJsonFile, launchGame, renamePath, openFolder } from '../api/tauri'
+import { loadSettings, saveSettings, buildDirectoryTreeFast, createFile, createFolder, writeFileContent, writeJsonFile, launchGame, renamePath, deletePath, openFolder } from '../api/tauri'
 import 'highlight.js/styles/github-dark.css'
 import 'highlight.js/lib/languages/json'
 import 'highlight.js/lib/languages/yaml'
@@ -101,6 +101,88 @@ function handleConfirmDialogConfirm() {
     confirmDialogResolve(true)
     confirmDialogResolve = null
   }
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+async function handlePerformReplace(replaceText: string) {
+  if (!searchQuery.value.trim()) return
+  if (searchResults.value.length === 0) return
+
+  const confirmed = await showConfirmDialog(
+    `确定要将搜索到的内容替换为 "${replaceText}" 吗？该操作将直接修改文件内容，且不可恢复。`,
+    '✏️ 替换确认',
+    'warning'
+  )
+  if (!confirmed) return
+
+  const flags = searchCaseSensitive.value ? 'g' : 'gi'
+  let pattern: RegExp
+  try {
+    pattern = searchRegex.value
+      ? new RegExp(searchQuery.value, flags)
+      : new RegExp(escapeRegExp(searchQuery.value), flags)
+  } catch (error) {
+    alert(`替换失败：无效的正则表达式: ${error}`)
+    return
+  }
+
+  const filePaths = Array.from(new Set(searchResults.value.map(r => r.file.path)))
+  let totalReplacements = 0
+  const updatedContents = new Map<string, string>()
+
+  function syncOpenedFilesContent() {
+    if (!editorGroupRef.value) return
+
+    for (const pane of editorGroupRef.value.panes) {
+      for (const openFile of pane.openFiles) {
+        if (!openFile?.node?.path) continue
+        if (openFile.hasUnsavedChanges) continue
+        if (openFile.isImage) continue
+
+        const updated = updatedContents.get(openFile.node.path)
+        if (updated !== undefined) {
+          openFile.content = updated
+        }
+      }
+    }
+  }
+
+  try {
+    for (const filePath of filePaths) {
+      const readResult = await readFileContent(filePath)
+      if (!readResult.success) {
+        alert(`读取文件失败: ${filePath}\n${readResult.message}`)
+        continue
+      }
+
+      const original = readResult.content ?? ''
+      const matches = original.match(pattern)
+      const matchCount = matches ? matches.length : 0
+      if (matchCount === 0) continue
+
+      const updated = original.replace(pattern, replaceText)
+      const writeResult = await writeFileContent(filePath, updated)
+      if (!writeResult.success) {
+        alert(`写入文件失败: ${filePath}\n${writeResult.message}`)
+        continue
+      }
+
+      updatedContents.set(filePath, updated)
+      totalReplacements += matchCount
+    }
+  } catch (error) {
+    logger.error('替换失败:', error)
+    alert(`替换失败: ${error}`)
+    return
+  }
+
+  syncOpenedFilesContent()
+
+  await handlePerformSearch()
+  alert(`替换完成：共替换 ${totalReplacements} 处。`)
 }
 
 /**
@@ -561,6 +643,37 @@ function hideContextMenu() {
   contextMenuVisible.value = false
 }
 
+function isPathUnder(target: string, base: string): boolean {
+  const normalize = (p: string) => p.replace(/\\/g, '/').toLowerCase().replace(/\/+$/g, '')
+  const t = normalize(target)
+  const b = normalize(base)
+  return t === b || t.startsWith(b + '/')
+}
+
+async function closeOpenedFilesUnderPath(basePath: string) {
+  if (!editorGroupRef.value) return
+
+  for (const pane of editorGroupRef.value.panes) {
+    const indicesToClose: number[] = []
+    for (let i = 0; i < pane.openFiles.length; i++) {
+      const file = pane.openFiles[i]
+      if (file?.node?.path && isPathUnder(file.node.path, basePath)) {
+        indicesToClose.push(i)
+      }
+    }
+
+    for (let i = indicesToClose.length - 1; i >= 0; i--) {
+      pane.openFiles.splice(indicesToClose[i], 1)
+    }
+
+    if (pane.openFiles.length === 0) {
+      pane.activeFileIndex = -1
+    } else if (pane.activeFileIndex >= pane.openFiles.length) {
+      pane.activeFileIndex = pane.openFiles.length - 1
+    }
+  }
+}
+
 async function handleContextMenuAction(action: string, payload?: any) {
   if (contextMenuType.value === 'pane') {
     const pane = editorGroupRef.value?.panes.find(p => p.id === contextMenuPaneId.value)
@@ -652,6 +765,38 @@ async function handleContextMenuAction(action: string, payload?: any) {
       createDialogMode.value = 'rename'
       createDialogInitialValue.value = treeContextMenuNode.value.name
       createDialogVisible.value = true
+    } else if (action === 'delete') {
+      if (!treeContextMenuNode.value) return
+
+      const node = treeContextMenuNode.value
+      const confirmed = await showConfirmDialog(
+        node.isDirectory
+          ? `确定要删除文件夹 "${node.name}" 吗？该操作将递归删除其下所有内容，且不可恢复。`
+          : `确定要删除文件 "${node.name}" 吗？该操作不可恢复。`,
+        '🗑️ 删除确认',
+        'danger'
+      )
+      if (!confirmed) return
+
+      try {
+        const result = await deletePath(node.path)
+        if (!result.success) {
+          alert(result.message || '删除失败')
+          return
+        }
+
+        await closeOpenedFilesUnderPath(node.path)
+
+        if (leftPanelActiveTab.value === 'dependencies' && activeDependencyId.value) {
+          dependencyFileTrees.value.delete(activeDependencyId.value)
+          await loadDependencyFileTree(activeDependencyId.value)
+        } else {
+          await loadFileTree()
+        }
+      } catch (error) {
+        logger.error('删除失败:', error)
+        alert(`删除失败: ${error}`)
+      }
     } else if (action === 'copyPath') {
       if (treeContextMenuNode.value) {
         navigator.clipboard.writeText(treeContextMenuNode.value.path).catch(err => {
@@ -685,7 +830,7 @@ async function handleContextMenuAction(action: string, payload?: any) {
 }
 
 // 创建文件/文件夹
-async function handleCreateConfirm(name: string) {
+async function handleCreateConfirm(name: string, useBom: boolean = false) {
   if (createDialogMode.value === 'rename') {
     if (!treeContextMenuNode.value) return
     
@@ -726,7 +871,7 @@ async function handleCreateConfirm(name: string) {
   try {
     let result
     if (createDialogType.value === 'file') {
-      result = await createFile(targetPath, '', false)
+      result = await createFile(targetPath, '', useBom)
     } else {
       result = await createFolder(targetPath)
     }
@@ -1627,6 +1772,7 @@ onUnmounted(() => {
         @update:search-scope="searchScope = $event as 'project' | 'game' | 'dependencies'"
         @update:include-all-files="includeAllFiles = $event"
         @perform-search="handlePerformSearch"
+        @perform-replace="handlePerformReplace"
         @jumpToSearchResult="handleJumpToSearchResult"
       />
     </div>

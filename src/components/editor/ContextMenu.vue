@@ -143,6 +143,13 @@ function hideMoveMenu() {
       ✏️ 重命名
     </button>
     <button
+      @click="handleAction('delete')"
+      class="w-full px-4 py-2 text-left text-sm border-t whitespace-nowrap transition-colors context-menu-item"
+      :style="{ color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
+    >
+      🗑️ 删除
+    </button>
+    <button
       @click="handleAction('copyPath')"
       class="w-full px-4 py-2 text-left text-sm whitespace-nowrap transition-colors context-menu-item"
       :style="{ color: currentTheme.colors.fg }"
