@@ -30,6 +30,14 @@ const emit = defineEmits<{
  async function openIflowDocs() {
    await openUrl('https://platform.iflow.cn/docs')
  }
+
+ async function openNvidiaBuild() {
+   await openUrl('https://build.nvidia.com/explore/discover')
+ }
+
+ async function openModelScope() {
+   await openUrl('https://www.modelscope.cn/')
+ }
 </script>
 
 <template>
@@ -185,7 +193,10 @@ const emit = defineEmits<{
             使用的模型名称（不同 OpenAI 兼容服务可能不同）。
           </div>
           <div class="text-hoi4-text-dim text-xs mt-2">
-            如果没有可用的 API Key/服务，可以使用 <a class="text-blue-400 hover:text-blue-300 hover:underline" href="#" @click.prevent="openIflowDocs">IFLOW 心流 API</a>。
+            如果没有可用的 API Key/服务，可以使用
+            <a class="text-blue-400 hover:text-blue-300 hover:underline" href="#" @click.prevent="openIflowDocs">IFLOW 心流 API</a>、
+            <a class="text-blue-400 hover:text-blue-300 hover:underline" href="#" @click.prevent="openNvidiaBuild">Nvidia</a>、
+            <a class="text-blue-400 hover:text-blue-300 hover:underline" href="#" @click.prevent="openModelScope">魔搭社区</a>。
           </div>
         </div>
       </div>
