@@ -1,4 +1,6 @@
 <script setup lang="ts">
+ import { openUrl } from '../../../api/tauri'
+
 const props = withDefaults(defineProps<{
   open: boolean
   aiRule: string
@@ -24,6 +26,10 @@ const emit = defineEmits<{
   'update:openaiBaseUrl': [value: string]
   'update:openaiModel': [value: string]
 }>()
+
+ async function openIflowDocs() {
+   await openUrl('https://platform.iflow.cn/docs')
+ }
 </script>
 
 <template>
@@ -177,6 +183,9 @@ const emit = defineEmits<{
           />
           <div class="text-hoi4-text-dim text-xs mt-2">
             使用的模型名称（不同 OpenAI 兼容服务可能不同）。
+          </div>
+          <div class="text-hoi4-text-dim text-xs mt-2">
+            如果没有可用的 API Key/服务，可以使用 <a class="text-blue-400 hover:text-blue-300 hover:underline" href="#" @click.prevent="openIflowDocs">IFLOW 心流 API</a>。
           </div>
         </div>
       </div>
