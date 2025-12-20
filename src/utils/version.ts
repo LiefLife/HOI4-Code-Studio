@@ -6,6 +6,7 @@
 interface VersionCache {
   version: string
   url: string
+  releaseNotes?: string
   timestamp: number
 }
 
@@ -38,11 +39,12 @@ function getCache(): VersionCache | null {
 }
 
 // 保存到缓存
-function setCache(version: string, url: string): void {
+function setCache(version: string, url: string, releaseNotes?: string): void {
   try {
     const cache: VersionCache = {
       version,
       url,
+      releaseNotes,
       timestamp: Date.now()
     }
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
@@ -142,6 +144,7 @@ export async function checkForUpdates(
   hasUpdate: boolean
   latestVersion?: string
   releaseUrl?: string
+  releaseNotes?: string
   error?: string
 }> {
   try {
@@ -154,11 +157,16 @@ export async function checkForUpdates(
       if (cached) {
         console.log('[版本检查] ✅ 使用缓存数据:', cached.version)
         const hasUpdate = compareVersions(currentVersion, cached.version)
-        return {
-          hasUpdate,
-          latestVersion: cached.version,
-          releaseUrl: cached.url
+        const cachedNotes = typeof cached.releaseNotes === 'string' ? cached.releaseNotes : ''
+        if (!hasUpdate || cachedNotes.trim().length > 0) {
+          return {
+            hasUpdate,
+            latestVersion: cached.version,
+            releaseUrl: cached.url,
+            releaseNotes: cached.releaseNotes
+          }
         }
+        console.log('[版本检查] 缓存缺少 releaseNotes，回退到网络请求补齐')
       }
       console.log('[版本检查] 缓存未命中或已过期，发起网络请求')
     }
@@ -204,6 +212,7 @@ export async function checkForUpdates(
     
     const tagName = data.tag_name // 例如: "v0_2_0" 或 "Dev_0_1_1"
     const releaseUrl = data.html_url
+    const releaseNotes = typeof data.body === 'string' ? data.body : ''
     
     // 将标签格式转换为版本格式
     const latestVersion = parseTagToVersion(tagName)
@@ -211,7 +220,7 @@ export async function checkForUpdates(
     
     // 保存到缓存
     if (useCache) {
-      setCache(latestVersion, releaseUrl)
+      setCache(latestVersion, releaseUrl, releaseNotes)
     }
     
     // 比较版本
@@ -221,7 +230,8 @@ export async function checkForUpdates(
     return {
       hasUpdate,
       latestVersion,
-      releaseUrl
+      releaseUrl,
+      releaseNotes
     }
   } catch (error) {
     console.error('[版本检查] ❌ 检查更新失败:')

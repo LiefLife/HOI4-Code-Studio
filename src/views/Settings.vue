@@ -5,6 +5,7 @@ import { loadSettings, saveSettings, openUrl } from '../api/tauri'
 import { useTheme, themes } from '../composables/useTheme'
 import { useFileTreeIcons, iconSets } from '../composables/useFileTreeIcons'
 import { getDefaultMenuItem } from '../data/settingsMenu'
+import MarkdownIt from 'markdown-it'
 
 // 导入子组件
 import SettingsSidebar from '../components/settings/SettingsSidebar.vue'
@@ -84,7 +85,24 @@ const isInitializing = ref(true)
 
 // 更新对话框
 const showUpdateDialog = ref(false)
-const updateInfo = ref<{ version: string; url: string } | null>(null)
+const updateInfo = ref<{ version: string; url: string; releaseNotes?: string } | null>(null)
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true
+})
+
+function updateNotesHtml() {
+  const notes = updateInfo.value?.releaseNotes
+  if (!notes || !notes.trim()) return ''
+  return md.render(notes)
+}
+
+function handleShowUpdateDialog(info: { version: string; url: string; releaseNotes?: string }) {
+  updateInfo.value = info
+  showUpdateDialog.value = true
+}
 
 // 显示状态消息
 function displayStatus(message: string, duration: number = 3000) {
@@ -431,7 +449,7 @@ onMounted(async () => {
               @update:githubVersion="githubVersion = $event"
               @update:isCheckingUpdate="isCheckingUpdate = $event"
               @status-message="displayStatus"
-              @show-update-dialog="(info) => { updateInfo = info; showUpdateDialog = true }"
+              @show-update-dialog="handleShowUpdateDialog"
             />
           </SettingsCard>
         </div>
@@ -468,6 +486,13 @@ onMounted(async () => {
           <p class="text-hoi4-text">
             新版本已发布，建议更新以获得最新功能和修复。
           </p>
+
+          <div v-if="updateInfo?.releaseNotes" class="rounded-lg border border-hoi4-border bg-hoi4-gray/70 p-3 max-h-56 overflow-auto">
+            <div class="ai-markdown text-sm text-hoi4-text" v-html="updateNotesHtml()"></div>
+          </div>
+          <div v-else class="rounded-lg border border-hoi4-border bg-hoi4-gray/70 p-3">
+            <div class="text-xs text-hoi4-comment">暂无更新内容</div>
+          </div>
           
           <div class="flex space-x-3 pt-2">
             <button
@@ -527,3 +552,40 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.ai-markdown :deep(h1) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(h2) {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(h3) {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(p) {
+  margin: 0.25rem 0;
+}
+
+.ai-markdown :deep(blockquote) {
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+}
+
+.ai-markdown :deep(a) {
+  color: rgba(140, 200, 255, 0.95);
+  text-decoration: underline;
+}
+</style>

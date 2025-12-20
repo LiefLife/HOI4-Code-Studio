@@ -59,7 +59,7 @@ interface Emits {
   (e: 'update:githubVersion', value: string): void
   (e: 'update:isCheckingUpdate', value: boolean): void
   (e: 'status-message', message: string): void
-  (e: 'show-update-dialog', info: { version: string; url: string }): void
+  (e: 'show-update-dialog', info: { version: string; url: string; releaseNotes?: string }): void
 }
 
 const props = defineProps<Props>()
@@ -85,7 +85,8 @@ async function handleCheckUpdate() {
       if (result.hasUpdate && result.releaseUrl) {
         emit('show-update-dialog', {
           version: result.latestVersion,
-          url: result.releaseUrl
+          url: result.releaseUrl,
+          releaseNotes: result.releaseNotes
         })
       } else {
         emit('status-message', '当前已是最新版本')

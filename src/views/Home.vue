@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { openFileDialog, openProject, initializeProject, loadSettings, openUrl } from '../api/tauri'
 import { checkForUpdates } from '../utils/version'
 import ChangelogPanel from '../components/ChangelogPanel.vue'
+import MarkdownIt from 'markdown-it'
 
 const router = useRouter()
 const statusMessage = ref('')
@@ -14,7 +15,19 @@ const CURRENT_VERSION = 'v0.2.11-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
-const updateInfo = ref<{ version: string; url: string } | null>(null)
+const updateInfo = ref<{ version: string; url: string; releaseNotes?: string } | null>(null)
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true
+})
+
+function updateNotesHtml() {
+  const notes = updateInfo.value?.releaseNotes
+  if (!notes || !notes.trim()) return ''
+  return md.render(notes)
+}
 
 // 游戏目录提醒
 const showGameDirDialog = ref(false)
@@ -116,7 +129,8 @@ async function checkAppUpdates() {
     if (result.hasUpdate && result.latestVersion && result.releaseUrl) {
       updateInfo.value = {
         version: result.latestVersion,
-        url: result.releaseUrl
+        url: result.releaseUrl,
+        releaseNotes: result.releaseNotes
       }
       showUpdateDialog.value = true
     }
@@ -296,7 +310,7 @@ onMounted(() => {
             >
               <div class="flex flex-col items-center justify-center gap-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 4h.01M8 4h8a2 2 0 012 2v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                 </svg>
                 <span class="text-sm font-semibold">文档</span>
               </div>
@@ -398,6 +412,13 @@ onMounted(() => {
           <p class="text-onedark-fg">
             新版本已发布，建议更新以获得最新功能和修复。
           </p>
+
+          <div v-if="updateInfo?.releaseNotes" class="rounded-lg border border-onedark-border bg-onedark-bg-secondary/60 p-3 max-h-56 overflow-auto">
+            <div class="ai-markdown text-sm text-onedark-fg" v-html="updateNotesHtml()"></div>
+          </div>
+          <div v-else class="rounded-lg border border-onedark-border bg-onedark-bg-secondary/60 p-3">
+            <div class="text-xs text-onedark-comment">暂无更新内容</div>
+          </div>
           
           <div class="flex space-x-3 pt-2">
             <button
@@ -495,5 +516,40 @@ onMounted(() => {
   min-height: 5.5rem;
   padding-top: 0.875rem;
   padding-bottom: 0.875rem;
+}
+
+.ai-markdown :deep(h1) {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(h2) {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(h3) {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.ai-markdown :deep(p) {
+  margin: 0.25rem 0;
+}
+
+.ai-markdown :deep(blockquote) {
+  margin: 0.35rem 0;
+  padding: 0.35rem 0.6rem;
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.5rem;
+}
+
+.ai-markdown :deep(a) {
+  color: rgba(140, 200, 255, 0.95);
+  text-decoration: underline;
 }
 </style>
