@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.13-dev',
+    description: '图片加载修复',
+    changes: [
+      { type: 'fix', content: '修复图片预览高分辨率图片时会出现图片加载错误的问题' },
+    ]
+  },
+  {
     version: 'v0.2.12-dev',
     description: '更新提示优化',
     changes: [
