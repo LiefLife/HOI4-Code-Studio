@@ -18,7 +18,6 @@
           :src="imageUrl" 
           :alt="fileName"
           class="block"
-          :style="imageStyle"
           @load="handleImageLoad"
           @error="handleImageError"
         />
@@ -171,22 +170,20 @@ const imageWrapperStyle = computed(() => {
   }
 })
 
-const imageStyle = computed(() => ({
-  width: `${imageDimensions.value.width}px`,
-  height: `${imageDimensions.value.height}px`,
-  // 添加硬件加速提示
-  backfaceVisibility: 'hidden' as const,
-  // 提升渲染性能
-  imageRendering: 'auto' as const
-}))
-
 // 事件处理
 const handleImageLoad = async (event: Event) => {
   const img = event.target as HTMLImageElement
-  imageDimensions.value = {
-    width: img.naturalWidth,
-    height: img.naturalHeight
-  }
+
+  requestAnimationFrame(() => {
+    const rect = img.getBoundingClientRect()
+    const width = Math.round(rect.width)
+    const height = Math.round(rect.height)
+    imageDimensions.value = {
+      width: width || img.naturalWidth,
+      height: height || img.naturalHeight
+    }
+    resetView()
+  })
   
   // 预加载并缓存图片
   try {
@@ -194,8 +191,6 @@ const handleImageLoad = async (event: Event) => {
   } catch (error) {
     console.warn('Failed to preload image:', error)
   }
-  
-  resetView()
 }
 
 const handleImageError = (event: Event) => {
