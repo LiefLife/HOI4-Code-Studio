@@ -425,12 +425,12 @@ defineExpose({
 
 <template>
   <div 
-    class="h-full flex flex-col bg-hoi4-gray/70 border border-hoi4-border/60 rounded-2xl shadow-lg overflow-hidden transition-all duration-200"
-    :class="{ 'ring-2 ring-hoi4-selected/80 shadow-xl': isActive }"
+    class="h-full flex flex-col bg-hoi4-gray/70 border border-hoi4-border/30 rounded-xl shadow-sm overflow-hidden transition-colors duration-200"
+    :class="{ 'ring-1 ring-hoi4-selected/50 shadow-sm': isActive }"
     @click="handleActivate"
   >
     <!-- 文件标签栏 -->
-    <div v-if="pane.openFiles.length > 0" class="bg-hoi4-gray/80 border-b border-hoi4-border/60 backdrop-blur-sm">
+    <div v-if="pane.openFiles.length > 0" class="bg-hoi4-gray/80 border-b border-hoi4-border/30">
       <EditorTabs
         :open-files="pane.openFiles"
         :active-file-index="pane.activeFileIndex"
@@ -440,7 +440,7 @@ defineExpose({
       />
       
       <!-- 编辑器工具栏 -->
-      <div class="px-4 py-2 flex items-center justify-between bg-hoi4-accent/70 border-t border-hoi4-border/40 backdrop-blur-sm">
+      <div class="px-4 py-2 flex items-center justify-between bg-hoi4-accent/60 border-t border-hoi4-border/30">
         <div class="flex items-center space-x-2">
           <button
             @click="handleSaveFile"

@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.14-dev',
+    description: '紧急修复',
+    changes: [
+      { type: 'improvement', content: '优化样式' },
+    ]
+  },
+  {
     version: 'v0.2.13-dev',
     description: '图片加载修复',
     changes: [

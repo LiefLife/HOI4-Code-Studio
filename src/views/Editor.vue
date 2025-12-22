@@ -1652,7 +1652,7 @@ onUnmounted(() => {
     <div class="flex-1 flex overflow-hidden">
       <!-- 左侧文件树面板 -->
       <div
-        class="bg-hoi4-gray/80 border border-hoi4-border/60 flex-shrink-0 rounded-2xl shadow-lg my-2 ml-2 flex flex-col overflow-hidden"
+        class="bg-hoi4-gray/80 border border-hoi4-border/30 flex-shrink-0 rounded-xl shadow-sm my-2 ml-2 flex flex-col overflow-hidden"
         :style="{ width: leftPanelWidth + 'px' }"
       >
         <!-- 左侧面板标签栏 -->

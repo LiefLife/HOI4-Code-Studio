@@ -11,7 +11,7 @@ const statusMessage = ref('')
 const showStatus = ref(false)
 
 // 当前版本
-const CURRENT_VERSION = 'v0.2.12-dev'
+const CURRENT_VERSION = 'v0.2.13-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
@@ -241,7 +241,7 @@ onMounted(() => {
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-        v0.2.12-dev
+        v0.2.13-dev
       </div>
     </div>
 

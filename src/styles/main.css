@@ -57,9 +57,9 @@ body {
 /* 卡片样式 */
 .card {
   background-color: var(--onedark-bg-secondary);
-  border: 2px solid var(--onedark-border);
+  border: 1px solid var(--onedark-border);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   padding: 1.5rem;
 }
 
@@ -70,7 +70,7 @@ body {
   font-weight: bold;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  border: 2px solid var(--onedark-accent);
+  border: 1px solid var(--onedark-accent);
   transition: all 0.2s;
 }
 
@@ -86,7 +86,7 @@ body {
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  border: 2px solid var(--onedark-border);
+  border: 1px solid var(--onedark-border);
   transition: all 0.2s;
 }
 
@@ -98,7 +98,7 @@ body {
 /* 输入框样式 */
 .input-field {
   background-color: var(--onedark-bg-secondary);
-  border: 2px solid var(--onedark-border);
+  border: 1px solid var(--onedark-border);
   border-radius: 0.5rem;
   padding: 0.5rem 1rem;
   color: var(--onedark-fg);
@@ -113,6 +113,19 @@ body {
 /* 文本阴影效果 */
 .text-shadow {
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 扁平化：降低/移除通用阴影（覆盖 Tailwind 的 shadow-*） */
+.shadow-sm {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+}
+
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl {
+  box-shadow: none !important;
 }
 
 /* 自定义滚动条 */

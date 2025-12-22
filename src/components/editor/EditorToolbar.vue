@@ -31,11 +31,11 @@ const totalLoadedCount = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-4 py-2 bg-hoi4-gray/90 border-b border-hoi4-border/60 shadow-md backdrop-blur-sm">
+  <div class="flex items-center justify-between px-4 py-2 bg-hoi4-gray/90 border-b border-hoi4-border/30">
     <div class="flex items-center space-x-4">
       <button
         @click="emit('goBack')"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors"
         title="返回主页"
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +58,7 @@ const totalLoadedCount = computed(() => {
       <!-- 加载监控按钮 -->
       <button
         @click="emit('toggleLoadingMonitor')"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm relative hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors relative"
         :title="`已加载 ${tagCount || 0} 个Tag, ${ideaCount || 0} 个Idea`"
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +67,7 @@ const totalLoadedCount = computed(() => {
         <!-- 数字徽章 -->
         <span 
           v-if="totalLoadedCount > 0"
-          class="absolute -top-1 -right-1 bg-hoi4-accent text-hoi4-text text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 shadow-md"
+          class="absolute -top-1 -right-1 bg-hoi4-accent text-hoi4-text text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1"
         >
           {{ totalLoadedCount > 999 ? '999+' : totalLoadedCount }}
         </span>
@@ -75,7 +75,7 @@ const totalLoadedCount = computed(() => {
       <button
         @click="emit('launchGame')"
         :disabled="isLaunchingGame"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 active:bg-hoi4-border rounded-full transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         :title="isLaunchingGame ? '启动中...' : '启动游戏'"
       >
         <svg 
@@ -92,7 +92,7 @@ const totalLoadedCount = computed(() => {
       </button>
       <button
         @click="emit('manageDependencies')"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors"
         title="依赖项管理"
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +101,7 @@ const totalLoadedCount = computed(() => {
       </button>
       <button
         @click="emit('packageProject')"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors"
         title="打包项目"
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@ const totalLoadedCount = computed(() => {
       </button>
       <button
         @click="emit('toggleAutoSave')"
-        class="p-2 rounded-full transition-all shadow-sm active:scale-95 hover-scale"
+        class="p-2 rounded-md transition-colors"
         :class="autoSave ? 'bg-green-600/80 hover:bg-green-700/80' : 'bg-hoi4-accent/80 hover:bg-hoi4-border/80'"
         :title="autoSave ? '自动保存已启用' : '自动保存已禁用'"
       >
@@ -120,7 +120,7 @@ const totalLoadedCount = computed(() => {
       </button>
       <button
         @click="emit('toggleRightPanel')"
-        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/80 active:scale-95 rounded-full transition-all shadow-sm hover-scale"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors"
         :title="rightPanelExpanded ? '隐藏侧边栏' : '显示侧边栏'"
       >
         <svg v-if="rightPanelExpanded" class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,16 +137,16 @@ const totalLoadedCount = computed(() => {
 <style scoped>
 /* 悬停放大动画 */
 .hover-scale {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .hover-scale:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: none;
 }
 
 .hover-scale:active {
-  transform: scale(0.95);
-  transition: transform 0.1s ease;
+  transform: none;
+  transition: background-color 0.1s ease;
 }
 </style>

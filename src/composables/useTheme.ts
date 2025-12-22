@@ -1091,6 +1091,17 @@ const currentThemeId = ref('onedark')
 // 主题面板可见性
 const themePanelVisible = ref(false)
 
+function withAlpha(hexColor: string, alpha: number) {
+  const color = hexColor.trim()
+  if (!color.startsWith('#') || (color.length !== 7)) return hexColor
+  const r = Number.parseInt(color.slice(1, 3), 16)
+  const g = Number.parseInt(color.slice(3, 5), 16)
+  const b = Number.parseInt(color.slice(5, 7), 16)
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return hexColor
+  const a = Math.max(0, Math.min(1, alpha))
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+
 /**
  * 获取当前主题
  */
@@ -1104,13 +1115,14 @@ const currentTheme = computed(() => {
 function applyTheme(theme: Theme) {
   const root = document.documentElement
   const colors = theme.colors
+  const uiBorder = withAlpha(colors.border, 0.25)
   
   // 基础主题变量
   root.style.setProperty('--theme-bg', colors.bg)
   root.style.setProperty('--theme-bg-secondary', colors.bgSecondary)
   root.style.setProperty('--theme-fg', colors.fg)
   root.style.setProperty('--theme-comment', colors.comment)
-  root.style.setProperty('--theme-border', colors.border)
+  root.style.setProperty('--theme-border', uiBorder)
   root.style.setProperty('--theme-selection', colors.selection)
   root.style.setProperty('--theme-accent', colors.accent)
   root.style.setProperty('--theme-success', colors.success)
@@ -1121,31 +1133,31 @@ function applyTheme(theme: Theme) {
   // HOI4 兼容变量
   root.style.setProperty('--hoi4-dark', colors.bg)
   root.style.setProperty('--hoi4-gray', colors.bgSecondary)
-  root.style.setProperty('--hoi4-border', colors.border)
+  root.style.setProperty('--hoi4-border', uiBorder)
   root.style.setProperty('--hoi4-accent', colors.accent)
   root.style.setProperty('--hoi4-text', colors.fg)
   root.style.setProperty('--hoi4-comment', colors.comment)
   
   // 设置页面专用变量
   root.style.setProperty('--settings-sidebar-bg', colors.bgSecondary)
-  root.style.setProperty('--settings-sidebar-border', colors.border)
+  root.style.setProperty('--settings-sidebar-border', uiBorder)
   root.style.setProperty('--settings-sidebar-hover', colors.selection)
   root.style.setProperty('--settings-sidebar-active', colors.accent)
   root.style.setProperty('--settings-content-bg', colors.bg)
   root.style.setProperty('--settings-card-bg', colors.bgSecondary)
-  root.style.setProperty('--settings-card-border', colors.border)
+  root.style.setProperty('--settings-card-border', uiBorder)
   root.style.setProperty('--settings-card-hover', colors.selection)
   
   // 高级主题变量（用于更复杂的UI效果）
   root.style.setProperty('--theme-island-bg', colors.bgSecondary + 'dd')
-  root.style.setProperty('--theme-island-shadow', '0 8px 32px rgba(0, 0, 0, 0.3)')
-  root.style.setProperty('--theme-island-border', `1px solid ${colors.border}`)
+  root.style.setProperty('--theme-island-shadow', '0 0 0 rgba(0, 0, 0, 0)')
+  root.style.setProperty('--theme-island-border', `1px solid ${uiBorder}`)
   root.style.setProperty('--theme-fg-glass', colors.fg + '33')
-  root.style.setProperty('--theme-island-hover-shadow', '0 12px 48px rgba(0, 0, 0, 0.4)')
-  root.style.setProperty('--theme-accent-island-bg', colors.accent + '22')
-  root.style.setProperty('--theme-accent-glow', colors.accent + '66')
-  root.style.setProperty('--theme-section-bg', colors.bgSecondary + 'bb')
-  root.style.setProperty('--theme-bg-hover', colors.selection + '44')
+  root.style.setProperty('--theme-island-hover-shadow', '0 0 0 rgba(0, 0, 0, 0)')
+  root.style.setProperty('--theme-accent-island-bg', colors.accent + '14')
+  root.style.setProperty('--theme-accent-glow', colors.accent + '2a')
+  root.style.setProperty('--theme-section-bg', colors.bgSecondary + 'ee')
+  root.style.setProperty('--theme-bg-hover', colors.selection + '33')
 }
 
 /**

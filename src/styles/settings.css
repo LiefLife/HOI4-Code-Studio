@@ -107,14 +107,14 @@
 
 .settings-menu-item:hover {
   background-color: var(--settings-sidebar-hover);
-  transform: translateX(2px);
+  transform: none;
 }
 
 .settings-menu-item.active {
   background-color: var(--settings-sidebar-active);
   color: var(--theme-bg);
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }
 
 .settings-menu-item.active::before {
@@ -189,13 +189,13 @@
   border-radius: 12px;
   padding: 24px;
   margin-bottom: var(--settings-card-gap);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   transition: all var(--settings-transition-speed) var(--settings-transition-timing);
 }
 
 .settings-card:hover {
   border-color: var(--theme-accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
 }
 
 .settings-card-header {

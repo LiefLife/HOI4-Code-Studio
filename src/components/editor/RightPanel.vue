@@ -62,16 +62,16 @@ watch(localActiveTab, (newTab) => {
 
 <template>
   <div
-    class="bg-hoi4-gray/80 border border-hoi4-border/60 flex-shrink-0 overflow-hidden flex flex-col shadow-lg rounded-2xl my-2 mr-2"
+    class="bg-hoi4-gray/80 border border-hoi4-border/30 flex-shrink-0 overflow-hidden flex flex-col shadow-sm rounded-xl my-2 mr-2"
     :style="{ width: width + 'px' }"
   >
     <!-- 标签栏 -->
-    <div class="bg-hoi4-gray/90 border-b border-hoi4-border/60 flex items-center justify-between backdrop-blur-sm rounded-t-2xl">
+    <div class="bg-hoi4-gray/90 border-b border-hoi4-border/30 flex items-center justify-between rounded-t-xl">
       <div class="flex gap-1 p-1">
         <button
           @click="localActiveTab = 'info'"
           class="p-2 transition-all rounded-lg hover-scale"
-          :class="localActiveTab === 'info' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'info' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="项目信息"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +81,7 @@ watch(localActiveTab, (newTab) => {
         <button
           @click="localActiveTab = 'game'"
           class="p-2 transition-all rounded-lg hover-scale"
-          :class="localActiveTab === 'game' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'game' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="游戏目录"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@ watch(localActiveTab, (newTab) => {
         <button
           @click="localActiveTab = 'errors'"
           class="p-2 transition-all rounded-lg hover-scale"
-          :class="localActiveTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'errors' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="错误列表"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -101,7 +101,7 @@ watch(localActiveTab, (newTab) => {
         <button
           @click="localActiveTab = 'search'"
           class="p-2 transition-all rounded-lg hover-scale"
-          :class="localActiveTab === 'search' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'search' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="搜索"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +111,7 @@ watch(localActiveTab, (newTab) => {
         <button
           @click="localActiveTab = 'ai'"
           class="px-3 py-2 transition-all rounded-lg hover-scale text-sm font-bold"
-          :class="localActiveTab === 'ai' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          :class="localActiveTab === 'ai' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
           title="AI"
         >
           AI
@@ -119,7 +119,7 @@ watch(localActiveTab, (newTab) => {
       </div>
       <button
         @click="emit('close')"
-        class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-full hover:bg-hoi4-border/60 transition-colors hover-scale"
+        class="px-3 text-hoi4-text-dim hover:text-hoi4-text rounded-md hover:bg-hoi4-border/40 transition-colors"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -191,16 +191,16 @@ watch(localActiveTab, (newTab) => {
 <style scoped>
 /* 悬停放大动画 */
 .hover-scale {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .hover-scale:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: none;
 }
 
 .hover-scale:active {
-  transform: scale(0.95);
-  transition: transform 0.1s ease;
+  transform: none;
+  transition: background-color 0.1s ease;
 }
 </style>

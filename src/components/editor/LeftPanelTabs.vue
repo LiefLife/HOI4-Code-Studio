@@ -21,12 +21,12 @@ const enabledDependencies = computed(() =>
 </script>
 
 <template>
-  <div class="bg-hoi4-gray/90 border-b border-hoi4-border/60 p-1 flex items-center gap-1 overflow-x-auto">
+  <div class="bg-hoi4-gray/90 border-b border-hoi4-border/30 p-1 flex items-center gap-1 overflow-x-auto">
     <!-- 当前项目标签 -->
     <button
       @click="emit('switchToProject')"
       class="p-2 transition-all rounded-lg flex-shrink-0 hover-scale"
-      :class="activeTab === 'project' ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+      :class="activeTab === 'project' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
       title="当前项目"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +42,7 @@ const enabledDependencies = computed(() =>
         :key="dep.id"
         @click="emit('switchToDependency', dep.id)"
         class="p-2 transition-all rounded-lg flex-shrink-0 relative group hover-scale"
-        :class="activeTab === 'dependencies' && activeDependencyId === dep.id ? 'bg-hoi4-accent text-hoi4-text shadow-md' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+        :class="activeTab === 'dependencies' && activeDependencyId === dep.id ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
         :title="dep.name"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,16 +92,16 @@ const enabledDependencies = computed(() =>
 
 /* 悬停放大动画 */
 .hover-scale {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .hover-scale:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: none;
 }
 
 .hover-scale:active {
-  transform: scale(0.95);
-  transition: transform 0.1s ease;
+  transform: none;
+  transition: background-color 0.1s ease;
 }
 </style>
