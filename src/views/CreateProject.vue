@@ -144,13 +144,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col p-[2vh] bg-onedark-bg">
+  <div class="h-full w-full flex flex-col p-[2vh] bg-onedark-bg create-page">
     <!-- 顶部栏 -->
-    <div class="flex items-center mb-[3vh]">
+    <div class="flex items-center mb-[3vh] gap-3 create-header">
       <button
         @click="goBack"
-        class="btn-secondary flex items-center space-x-2"
-        style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 1.5rem)"
+        class="flat-btn ghost flex items-center gap-2"
         title="返回主界面"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,18 +157,21 @@ onMounted(() => {
         </svg>
         <span>返回</span>
       </button>
-      <h1 class="ml-[3vw] font-bold text-onedark-fg" style="font-size: clamp(1.25rem, 2.5vw, 2rem)">
-        创建新项目
-      </h1>
+      <div>
+        <p class="text-onedark-comment text-sm leading-tight">创建新HOICS项目</p>
+        <h1 class="font-bold text-onedark-fg leading-tight" style="font-size: clamp(1.25rem, 2.5vw, 2rem)">
+          创建新项目
+        </h1>
+      </div>
     </div>
 
     <!-- 表单容器 -->
     <div class="flex-1 overflow-y-auto">
-      <div class="card max-w-3xl mx-auto">
-        <form @submit.prevent="handleSubmit" class="space-y-[2vh]">
+      <div class="create-card max-w-3xl mx-auto">
+        <form @submit.prevent="handleSubmit" class="space-y-6">
           <!-- 项目名称 -->
-          <div>
-            <label for="project-name" class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+          <div class="field">
+            <label for="project-name" class="field-label">
               项目名称 <span class="text-red-400">*</span>
             </label>
             <input
@@ -178,14 +180,14 @@ onMounted(() => {
               id="project-name"
               required
               placeholder="例如: MyAwesomeMod"
-              class="input-field w-full"
-              style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(0.75rem, 1.5vw, 1rem); font-size: clamp(0.875rem, 1.2vw, 1rem);"
+              class="flat-input w-full"
             />
+            <p class="field-tip">用于生成 mod 目录名与描述文件，可随时在 mod 内调整。</p>
           </div>
 
           <!-- 项目版本 -->
-          <div>
-            <label for="project-version" class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+          <div class="field">
+            <label for="project-version" class="field-label">
               版本 <span class="text-red-400">*</span>
             </label>
             <input
@@ -194,75 +196,75 @@ onMounted(() => {
               id="project-version"
               required
               placeholder="例如: 1.0.0"
-              class="input-field w-full"
-              style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(0.75rem, 1.5vw, 1rem); font-size: clamp(0.875rem, 1.2vw, 1rem);"
+              class="flat-input w-full"
             />
+            <p class="field-tip">建议与游戏版本保持一致，方便后续管理与发布。</p>
           </div>
 
           <!-- 项目路径 -->
-          <div>
-            <label class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
+          <div class="field">
+            <label class="field-label">
               项目路径 <span class="text-red-400">*</span>
             </label>
-            <div class="flex space-x-2">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center">
               <input
                 v-model="projectPath"
                 type="text"
                 readonly
                 placeholder="点击选择项目保存位置"
-                class="input-field flex-1"
-                style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(0.75rem, 1.5vw, 1rem); font-size: clamp(0.875rem, 1.2vw, 1rem);"
+                class="flat-input flex-1"
               />
               <button
                 type="button"
                 @click="selectProjectPath"
-                class="btn-primary"
-                style="padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 1.5rem)"
+                class="flat-btn primary md:w-auto w-full"
               >
                 浏览
               </button>
             </div>
+            <p class="field-tip">请选择空文件夹或新建目录，避免覆盖已有内容。</p>
           </div>
 
           <!-- Replace Path 选项 -->
-          <div>
-            <label class="block text-onedark-fg mb-[1vh]" style="font-size: clamp(0.875rem, 1.2vw, 1rem)">
-              Replace Path 目录替换
-              <span class="text-onedark-comment text-xs ml-2">(可选，用于大型 Mod)</span>
-            </label>
-            <div class="space-y-[1vh] bg-onedark-bg-secondary p-[1.5vh] rounded-lg border-2 border-onedark-border">
+          <div class="field">
+            <div class="flex items-center gap-2 mb-2">
+              <label class="field-label mb-0">
+                Replace Path 目录替换
+              </label>
+              <span class="text-onedark-comment text-xs">(可选，用于大型 Mod)</span>
+            </div>
+            <div class="replace-box">
               <label
                 v-for="option in replacePathOptions"
                 :key="option.value"
-                class="flex items-center space-x-3 cursor-pointer hover:bg-onedark-selection p-[1vh] rounded transition-colors">
+                class="replace-item"
               >
                 <input
                   type="checkbox"
                   :value="option.value"
                   v-model="selectedReplacePaths"
-                  class="w-4 h-4 accent-onedark-accent">
+                  class="checkbox"
                 />
-                <span style="font-size: clamp(0.75rem, 1vw, 0.875rem)">{{ option.label }}</span>
+                <span>{{ option.label }}</span>
               </label>
             </div>
+            <p class="field-tip">勾选后会在对应目录生成 replace_path，适合覆盖原版同名资源。</p>
           </div>
 
           <!-- 提交按钮 -->
-          <div class="flex justify-end space-x-3 pt-4">
+          <div class="action-bar">
             <button
               type="button"
               @click="goBack"
-              class="btn-secondary"
-              style="padding: clamp(0.75rem, 1.5vh, 1rem) clamp(1.5rem, 3vw, 2rem)"
+              class="flat-btn ghost"
             >
               取消
             </button>
             <button
               type="submit"
               :disabled="isCreating"
-              class="btn-primary"
-              :class="{ 'opacity-50 cursor-not-allowed': isCreating }"
-              style="padding: clamp(0.75rem, 1.5vh, 1rem) clamp(1.5rem, 3vw, 2rem)"
+              class="flat-btn primary"
+              :class="{ 'disabled': isCreating }"
             >
               {{ isCreating ? '创建中...' : '创建项目' }}
             </button>
@@ -273,25 +275,26 @@ onMounted(() => {
 
     <!-- 状态提示 -->
     <div v-if="showStatus" class="fixed bottom-[2vh] right-[2vw] z-50">
-      <div class="bg-onedark-bg-secondary border-2 border-onedark-border rounded-lg shadow-lg" style="padding: clamp(0.5rem, 1.5vh, 0.75rem) clamp(1rem, 3vw, 1.5rem); max-width: min(90vw, 24rem);">
-        <p class="text-onedark-fg" style="font-size: clamp(0.75rem, 1.2vw, 0.875rem);">{{ statusMessage }}</p>
+      <div class="toast">
+        <p>{{ statusMessage }}</p>
       </div>
     </div>
 
     <!-- 错误对话框 -->
-    <div v-if="showErrorDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" @click="closeErrorDialog">
-      <div class="bg-onedark-bg-secondary border-4 border-red-600 rounded-lg shadow-2xl max-w-md w-full mx-4" style="padding: clamp(1.5rem, 3vh, 2rem);" @click.stop>
-        <div class="flex items-center mb-4">
-          <svg class="w-8 h-8 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div v-if="showErrorDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" @click="closeErrorDialog">
+      <div class="create-card max-w-md w-full mx-4 border border-red-500/60" @click.stop>
+        <div class="flex items-start gap-3 mb-3">
+          <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
-          <h2 class="text-onedark-fg font-bold" style="font-size: clamp(1.25rem, 2vw, 1.5rem);">{{ errorTitle }}</h2>
+          <div>
+            <h2 class="text-onedark-fg font-bold text-lg mb-1">{{ errorTitle }}</h2>
+            <p class="text-onedark-comment text-sm leading-6">{{ errorMessage }}</p>
+          </div>
         </div>
-        <p class="text-onedark-comment mb-6" style="font-size: clamp(0.875rem, 1.2vw, 1rem); line-height: 1.6;">{{ errorMessage }}</p>
         <button 
           @click="closeErrorDialog"
-          class="w-full bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors" 
-          style="padding: clamp(0.75rem, 1.5vh, 1rem); font-size: clamp(0.875rem, 1.2vw, 1rem);"
+          class="flat-btn primary w-full"
         >
           确定
         </button>
@@ -301,5 +304,159 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 组件特定样式 */
+.create-page {
+  gap: 0.75rem;
+}
+
+.create-header svg {
+  color: var(--onedark-fg);
+}
+
+.create-card {
+  background: var(--onedark-bg-secondary);
+  border: 1px solid #2a2f37;
+  border-radius: 0.75rem;
+  box-shadow: none;
+  padding: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-label {
+  color: var(--onedark-fg);
+  font-weight: 700;
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  margin-bottom: 0.25rem;
+}
+
+.field-tip {
+  color: var(--onedark-comment);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.flat-input {
+  background: var(--onedark-bg);
+  border: 1px solid #2f343d;
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  color: var(--onedark-fg);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.flat-input:focus {
+  outline: none;
+  border-color: var(--onedark-accent);
+  background: var(--onedark-bg-secondary);
+}
+
+.flat-btn {
+  border: 1px solid #2f343d;
+  border-radius: 0.6rem;
+  padding: 0.75rem 1.2rem;
+  background: var(--onedark-bg-secondary);
+  color: var(--onedark-fg);
+  font-weight: 700;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  text-align: center;
+}
+
+.flat-btn:hover {
+  background: var(--onedark-selection);
+  border-color: var(--onedark-accent);
+}
+
+.flat-btn:active {
+  transform: translateY(1px);
+}
+
+.flat-btn.primary {
+  background: var(--onedark-accent);
+  border-color: var(--onedark-accent);
+  color: var(--onedark-bg);
+}
+
+.flat-btn.primary:hover {
+  background: var(--onedark-keyword);
+  border-color: var(--onedark-keyword);
+}
+
+.flat-btn.ghost {
+  background: var(--onedark-bg);
+  border-color: #2f343d;
+  color: var(--onedark-fg);
+}
+
+.flat-btn.disabled,
+.flat-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.replace-box {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+  background: var(--onedark-bg);
+  border: 1px solid #2f343d;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+}
+
+.replace-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.6rem;
+  color: var(--onedark-fg);
+  border: 1px solid transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.replace-item:hover {
+  background: var(--onedark-selection);
+  border-color: var(--onedark-accent);
+}
+
+.replace-item span {
+  font-size: 0.9rem;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--onedark-accent);
+}
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.toast {
+  background: var(--onedark-bg-secondary);
+  border: 1px solid #2a2f37;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  color: var(--onedark-fg);
+  font-size: 0.9rem;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .action-bar {
+    flex-direction: column;
+  }
+
+  .action-bar .flat-btn {
+    width: 100%;
+  }
+}
 </style>

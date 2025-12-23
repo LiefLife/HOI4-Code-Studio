@@ -223,21 +223,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col items-center justify-center p-[2vh] bg-onedark-bg">
+  <div class="h-full w-full flex flex-col items-center justify-center p-[2vh] bg-onedark-bg home-hero">
     <!-- 标题区域 -->
-    <div class="text-center mb-[3vh]">
+    <div class="text-center mb-[3vh] home-title">
       <!-- 应用图标 -->
       <div class="flex justify-center mb-[2vh]">
         <img 
           src="/HOICS.png" 
           alt="HOI4 Code Studio" 
-          class="w-[clamp(4rem,10vw,8rem)] h-[clamp(4rem,10vw,8rem)] drop-shadow-lg"
+          class="w-[clamp(4rem,10vw,8rem)] h-[clamp(4rem,10vw,8rem)]"
         />
       </div>
-      <h1 class="font-bold text-onedark-fg text-shadow mb-[1vh]" style="font-size: clamp(1.5rem, 4vw, 3rem);">
+      <h1 class="font-bold text-onedark-fg mb-[0.5vh]" style="font-size: clamp(1.5rem, 4vw, 3rem);">
         Hearts of Iron IV
       </h1>
-      <h2 class="font-light text-onedark-comment text-shadow" style="font-size: clamp(1rem, 2.5vw, 1.875rem);">
+      <h2 class="font-light text-onedark-comment" style="font-size: clamp(1rem, 2.5vw, 1.875rem);">
         Code Studio
       </h2>
       <div class="mt-[1vh] text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
@@ -249,14 +249,14 @@ onMounted(() => {
     <div class="w-full max-w-[90vw] sm:max-w-2xl">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- 左侧按钮组 -->
-        <div class="card flex flex-col gap-4">
+        <div class="card home-panel flex flex-col gap-4">
           <h3 class="text-lg font-bold text-onedark-fg text-center mb-2">项目操作</h3>
 
           <div class="grid grid-cols-2 gap-3">
             <!-- 创建新项目按钮（占两列，视觉上作为主入口） -->
             <button
               @click="handleNewProject"
-              class="btn-primary w-full hover-scale tile-button col-span-2"
+              class="home-btn home-primary w-full tile-button col-span-2"
               title="创建一个新的 GUI Mod 项目"
             >
               <div class="flex items-center justify-center space-x-3">
@@ -270,7 +270,7 @@ onMounted(() => {
             <!-- 打开现有项目按钮 -->
             <button
               @click="handleOpenProject"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="打开已存在的 GUI Mod 项目"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -284,7 +284,7 @@ onMounted(() => {
             <!-- 最近项目按钮 -->
             <button
               @click="handleRecentProjects"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="查看最近打开的项目"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -298,14 +298,14 @@ onMounted(() => {
         </div>
 
         <!-- 右侧按钮组 -->
-        <div class="card flex flex-col gap-4">
+        <div class="card home-panel flex flex-col gap-4">
           <h3 class="text-lg font-bold text-onedark-fg text-center mb-2">应用功能</h3>
 
           <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
             <!-- 文档按钮 -->
             <button
               @click="handleDocumentation"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="查看使用文档"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -318,7 +318,7 @@ onMounted(() => {
 
             <button
               @click="handleContribute"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="前往 GitHub 参与贡献"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -331,7 +331,7 @@ onMounted(() => {
 
             <button
               @click="handleReportIssue"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="前往 GitHub 报告问题"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -345,7 +345,7 @@ onMounted(() => {
             <!-- 更新日志按钮 -->
             <button
               @click="handleChangelog"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="查看版本更新日志"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -359,7 +359,7 @@ onMounted(() => {
             <!-- 设置按钮 -->
             <button
               @click="handleSettings"
-              class="btn-secondary w-full hover-scale tile-button"
+              class="home-btn home-ghost w-full tile-button"
               title="应用程序设置"
             >
               <div class="flex flex-col items-center justify-center gap-2">
@@ -497,25 +497,69 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 悬停放大动画 */
-.hover-scale {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.home-hero {
+  background-color: var(--onedark-bg);
 }
 
-.hover-scale:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+.home-title h1,
+.home-title h2 {
+  letter-spacing: 0.02em;
 }
 
-.hover-scale:active {
-  transform: scale(0.98);
-  transition: transform 0.1s ease;
+.home-title div {
+  color: var(--onedark-comment);
+}
+
+.home-panel {
+  background-color: var(--onedark-bg-secondary);
+  border: 1px solid #2a2f37;
+  box-shadow: none;
+}
+
+.home-btn {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #30353f;
+  background: var(--onedark-bg);
+  color: var(--onedark-fg);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+  font-weight: 600;
+}
+
+.home-btn:hover {
+  background: var(--onedark-selection);
+  border-color: var(--onedark-accent);
+}
+
+.home-btn:active {
+  transform: translateY(1px);
+}
+
+.home-primary {
+  background: var(--onedark-accent);
+  border-color: var(--onedark-accent);
+  color: var(--onedark-bg);
+  font-weight: 700;
+}
+
+.home-primary:hover {
+  background: var(--onedark-keyword);
+  border-color: var(--onedark-keyword);
+}
+
+.home-ghost {
+  background: var(--onedark-bg-secondary);
+  border-color: #30353f;
 }
 
 .tile-button {
-  min-height: 5.5rem;
+  min-height: 5.25rem;
   padding-top: 0.875rem;
   padding-bottom: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .ai-markdown :deep(h1) {
