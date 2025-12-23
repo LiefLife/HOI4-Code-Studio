@@ -47,8 +47,8 @@ function handleTabsWheel(event: WheelEvent) {
       :key="file.node.path"
       @click="emit('switchFile', index)"
       @contextmenu.prevent="emit('contextMenu', $event, index)"
-      class="flex items-center px-3 py-1 rounded-xl border border-hoi4-border/50 bg-hoi4-gray/80 cursor-pointer hover:bg-hoi4-accent/70 hover:border-hoi4-selected/70 transition-all duration-150 whitespace-nowrap shadow-sm"
-      :class="{ 'bg-hoi4-accent/90 border-hoi4-selected shadow-md': index === activeFileIndex }"
+      class="flex items-center px-3 py-1 rounded-xl cursor-pointer transition-all duration-150 whitespace-nowrap ui-surface-2 hover:bg-hoi4-accent/70 shadow-sm"
+      :class="{ 'bg-hoi4-accent/90 shadow-md': index === activeFileIndex }"
     >
       <span class="text-hoi4-text text-sm whitespace-nowrap">{{ file.node.name }}</span>
       <span v-if="file.hasUnsavedChanges" class="text-red-400 text-xs ml-1">●</span>

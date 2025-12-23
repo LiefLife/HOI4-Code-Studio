@@ -105,9 +105,9 @@ defineExpose({
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
     @click.self="handleClose"
   >
-    <div class="card max-w-xl w-full mx-4">
+    <div class="ui-island max-w-xl w-full mx-4 p-6">
       <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-4 pb-4 border-b border-hoi4-border">
+      <div class="flex items-center justify-between mb-4 pb-4 ui-separator-bottom">
         <h2 class="text-2xl font-bold text-hoi4-text">
           {{ isPacking ? '正在打包...' : (packResult ? '打包结果' : '项目打包') }}
         </h2>
@@ -203,7 +203,7 @@ defineExpose({
             v-model="fileName"
             type="text"
             placeholder="请输入文件名（如：project.zip）"
-            class="input-field w-full"
+            class="ui-input w-full px-3 py-2"
             @keyup.enter="handleConfirm"
           />
           <p v-if="fileNameError" class="text-red-400 text-xs mt-1">{{ fileNameError }}</p>

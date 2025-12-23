@@ -15,7 +15,6 @@ const emit = defineEmits<{
   jumpToFocus: [focusId: string, line: number]
 }>()
 
-const containerRef = ref<HTMLDivElement | null>(null)
 const cyContainerRef = ref<HTMLDivElement | null>(null)
 let cy: cytoscape.Core | null = null
 
@@ -497,7 +496,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="w-full h-full flex flex-col bg-hoi4-gray/50">
+  <div class="w-full h-full flex flex-col bg-hoi4-gray/50">
     <!-- 工具栏 -->
     <div class="flex items-center justify-between px-4 py-2 bg-hoi4-accent/70 border-b border-hoi4-border/40">
       <div class="flex items-center space-x-3">
@@ -530,7 +529,7 @@ onUnmounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder="搜索国策 ID..."
-            class="px-2 py-1 bg-hoi4-gray/50 border border-hoi4-border/60 rounded text-hoi4-text text-xs focus:outline-none focus:border-hoi4-accent w-40"
+            class="ui-input px-2 py-1 text-xs w-40"
             @keyup.enter="handleSearch"
           />
           <button

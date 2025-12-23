@@ -141,10 +141,10 @@ function deleteOneFromMenu() {
     tabindex="-1"
   >
     <div
-      class="border border-hoi4-border rounded-2xl shadow-2xl overflow-hidden w-[560px] max-w-[92vw] max-h-[85vh] ai-solid-dropdown"
+      class="ui-island overflow-hidden w-[560px] max-w-[92vw] max-h-[85vh] ai-solid-dropdown"
       @click.stop
     >
-      <div class="px-6 py-4 border-b border-hoi4-border">
+      <div class="px-6 py-4 ui-island-header ui-separator-bottom">
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-bold text-hoi4-text">历史对话</h3>
           <button
@@ -168,7 +168,7 @@ function deleteOneFromMenu() {
             <div class="flex items-center justify-between">
               <div class="text-xs font-bold text-hoi4-text-dim">{{ g.label }}</div>
               <button
-                class="text-xs px-2 py-1 rounded-lg border border-hoi4-border/70 bg-hoi4-border/40 hover:bg-hoi4-border/60 transition-colors text-hoi4-text"
+                class="text-xs px-2 py-1 rounded-lg bg-hoi4-border/40 hover:bg-hoi4-border/60 transition-colors text-hoi4-text"
                 @click="onDeleteGroup(g)"
               >
                 删除该组
@@ -178,8 +178,8 @@ function deleteOneFromMenu() {
             <button
               v-for="s in g.sessions"
               :key="s.id"
-              class="w-full text-left rounded-xl border px-3 py-2 transition-colors"
-              :class="s.id === props.currentSessionId ? 'border-hoi4-accent/70 bg-hoi4-accent/15' : 'border-hoi4-border/60 hover:bg-hoi4-border/40'"
+              class="w-full text-left rounded-xl px-3 py-2 transition-colors ui-surface-1"
+              :class="s.id === props.currentSessionId ? 'bg-hoi4-accent/15' : 'hover:bg-hoi4-border/40'"
               @click="emit('select', s.id)"
               @contextmenu="openContextMenu($event, s.id)"
             >
@@ -204,17 +204,17 @@ function deleteOneFromMenu() {
         </div>
       </div>
 
-      <div v-if="selectedCount > 0" class="px-6 py-3 border-t border-hoi4-border flex items-center justify-between">
+      <div v-if="selectedCount > 0" class="px-6 py-3 ui-separator-bottom flex items-center justify-between">
         <div class="text-xs text-hoi4-text-dim">已选择 {{ selectedCount }} 条</div>
         <div class="flex items-center gap-2">
           <button
-            class="text-xs px-2 py-1 rounded-lg border border-hoi4-border/70 bg-hoi4-border/40 hover:bg-hoi4-border/60 transition-colors text-hoi4-text"
+            class="text-xs px-2 py-1 rounded-lg bg-hoi4-border/40 hover:bg-hoi4-border/60 transition-colors text-hoi4-text"
             @click="clearSelected"
           >
             清空选择
           </button>
           <button
-            class="text-xs px-2 py-1 rounded-lg border border-hoi4-border/70 bg-red-600/70 hover:bg-red-600/85 transition-colors text-white"
+            class="text-xs px-2 py-1 rounded-lg bg-red-600/70 hover:bg-red-600/85 transition-colors text-white"
             @click="deleteSelected"
           >
             删除所选
@@ -226,7 +226,7 @@ function deleteOneFromMenu() {
 
   <div
     v-if="contextMenu.open"
-    class="fixed z-[60] min-w-32 rounded-xl border border-hoi4-border/80 shadow-2xl ai-solid-dropdown"
+    class="fixed z-[60] min-w-32 rounded-xl shadow-2xl ai-solid-dropdown ui-island"
     :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
     @click.stop
   >

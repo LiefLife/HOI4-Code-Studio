@@ -48,10 +48,10 @@ const emit = defineEmits<{
     tabindex="-1"
   >
     <div
-      class="border border-hoi4-border rounded-2xl shadow-2xl overflow-hidden w-[520px] max-w-[90vw] max-h-[85vh] ai-solid-dropdown"
+      class="ui-island overflow-hidden w-[520px] max-w-[90vw] max-h-[85vh] ai-solid-dropdown"
       @click.stop
     >
-      <div class="px-6 py-4 border-b border-hoi4-border">
+      <div class="px-6 py-4 ui-island-header ui-separator-bottom">
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-bold text-hoi4-text">AI 设置</h3>
           <button
@@ -70,7 +70,7 @@ const emit = defineEmits<{
           <div class="text-sm font-bold text-hoi4-text mb-2">规则</div>
           <textarea
             :value="props.aiRule"
-            class="w-full resize-none rounded-xl bg-hoi4-gray/70 border border-hoi4-border/60 text-hoi4-text text-sm px-3 py-2 focus:outline-none focus:border-hoi4-accent"
+            class="ui-textarea w-full resize-none text-sm px-3 py-2"
             :rows="5"
             placeholder="填写规则（单条）..."
             @input="emit('update:aiRule', ($event.target as HTMLTextAreaElement).value)"
@@ -80,7 +80,7 @@ const emit = defineEmits<{
           </div>
         </div>
 
-        <div class="rounded-xl border border-hoi4-border/60 bg-hoi4-gray/40 px-3 py-2">
+        <div class="rounded-xl ui-surface-2 px-3 py-2 shadow-sm">
           <div class="text-sm font-bold text-hoi4-text mb-2">智能体</div>
           <div class="relative inline-block">
             <button
@@ -91,7 +91,7 @@ const emit = defineEmits<{
             </button>
             <div
               v-if="props.agentModeMenuOpenSettings"
-              class="absolute left-0 top-12 min-w-44 rounded-xl border border-hoi4-border shadow-2xl overflow-hidden z-50 ai-solid-dropdown"
+              class="absolute left-0 top-12 min-w-44 rounded-xl shadow-2xl overflow-hidden z-50 ai-solid-dropdown ui-island"
             >
               <button
                 class="w-full text-left px-3 py-2 text-sm transition-colors"
@@ -153,7 +153,7 @@ const emit = defineEmits<{
           <div class="text-sm font-bold text-hoi4-text mb-2">OpenAI API Key</div>
           <input
             :value="props.openaiApiKey"
-            class="w-full rounded-xl bg-hoi4-gray/70 border border-hoi4-border/60 text-hoi4-text text-sm px-3 py-2 focus:outline-none focus:border-hoi4-accent"
+            class="ui-input w-full px-3 py-2 text-sm"
             placeholder="sk-..."
             type="password"
             autocomplete="off"
@@ -166,7 +166,7 @@ const emit = defineEmits<{
           <div class="text-sm font-bold text-hoi4-text mb-2">Base URL</div>
           <input
             :value="props.openaiBaseUrl"
-            class="w-full rounded-xl bg-hoi4-gray/70 border border-hoi4-border/60 text-hoi4-text text-sm px-3 py-2 focus:outline-none focus:border-hoi4-accent"
+            class="ui-input w-full px-3 py-2 text-sm"
             placeholder="https://api.openai.com"
             type="text"
             autocomplete="off"
@@ -182,7 +182,7 @@ const emit = defineEmits<{
           <div class="text-sm font-bold text-hoi4-text mb-2">Model</div>
           <input
             :value="props.openaiModel"
-            class="w-full rounded-xl bg-hoi4-gray/70 border border-hoi4-border/60 text-hoi4-text text-sm px-3 py-2 focus:outline-none focus:border-hoi4-accent"
+            class="ui-input w-full px-3 py-2 text-sm"
             placeholder="gpt-4o-mini"
             type="text"
             autocomplete="off"
@@ -201,7 +201,7 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <div class="px-6 py-4 border-t-2 flex justify-end gap-3" style="border-color: #2a2a2a;">
+      <div class="px-6 py-4 ui-separator-bottom flex justify-end gap-3">
         <button
           class="px-5 py-2 rounded text-sm transition-colors font-medium"
           style="background-color: #2a2a2a; color: #a0a0a0;"

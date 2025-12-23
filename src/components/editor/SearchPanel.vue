@@ -105,14 +105,14 @@ setTimeout(() => {
     @keydown="handleKeyDown"
   >
     <!-- 搜索输入区 -->
-    <div class="p-4 border-b border-hoi4-border/60">
+    <div class="p-4 ui-separator-bottom">
       <input
         ref="inputRef"
         :value="searchQuery"
         @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
         type="text"
         placeholder="搜索..."
-        class="w-full px-3 py-2 bg-hoi4-dark border border-hoi4-border rounded focus:outline-none focus:border-hoi4-accent text-hoi4-text"
+        class="ui-input w-full px-3 py-2"
       />
 
       <div class="mt-3 flex gap-2">
@@ -120,7 +120,7 @@ setTimeout(() => {
           v-model="replaceText"
           type="text"
           placeholder="替换为..."
-          class="flex-1 px-2 py-1 bg-hoi4-dark border border-hoi4-border rounded focus:outline-none focus:border-hoi4-accent text-hoi4-text text-sm"
+          class="ui-input flex-1 px-2 py-1 text-sm"
         />
         <button
           type="button"
@@ -212,9 +212,9 @@ setTimeout(() => {
           v-for="(result, index) in searchResults"
           :key="`${result.file.path}-${result.line}-${index}`"
           :class="[
-            'px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-sm border border-transparent',
+            'px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-sm border-transparent',
             index === selectedIndex
-              ? 'bg-hoi4-accent/20 border-hoi4-accent shadow-md'
+              ? 'bg-hoi4-accent/20 shadow-md'
               : 'bg-hoi4-dark/50 hover:bg-hoi4-dark/80 hover:shadow-md'
           ]"
           @click="emit('jumpToResult', result)"
@@ -225,7 +225,7 @@ setTimeout(() => {
             </svg>
             {{ result.file.name }}:{{ result.line }}
           </div>
-          <div class="text-xs text-hoi4-text font-mono bg-hoi4-dark/30 p-2 rounded border border-hoi4-border/30">
+          <div class="text-xs text-hoi4-text font-mono bg-hoi4-dark/30 p-2 rounded">
             <span v-html="getReplacePreviewHtml(result)"></span>
           </div>
         </div>

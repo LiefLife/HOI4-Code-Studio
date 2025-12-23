@@ -1158,6 +1158,10 @@ function applyTheme(theme: Theme) {
   root.style.setProperty('--theme-accent-glow', colors.accent + '2a')
   root.style.setProperty('--theme-section-bg', colors.bgSecondary + 'ee')
   root.style.setProperty('--theme-bg-hover', colors.selection + '33')
+
+  root.style.setProperty('--theme-surface-1', colors.bg + 'f2')
+  root.style.setProperty('--theme-surface-2', colors.bgSecondary + 'cc')
+  root.style.setProperty('--theme-surface-3', colors.bgSecondary + 'ff')
 }
 
 /**

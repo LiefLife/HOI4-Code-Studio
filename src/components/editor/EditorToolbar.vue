@@ -31,7 +31,7 @@ const totalLoadedCount = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-4 py-2 bg-hoi4-gray/90 border-b border-hoi4-border/30">
+  <div class="flex items-center justify-between px-4 py-2 ui-topbar">
     <div class="flex items-center space-x-4">
       <button
         @click="emit('goBack')"

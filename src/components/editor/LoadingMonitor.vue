@@ -161,9 +161,9 @@ onUnmounted(() => {
     class="fixed inset-0 bg-black/50 flex items-center justify-end z-50 backdrop-blur-sm"
     @click.self="emit('close')"
   >
-    <div class="card h-full max-w-2xl w-full mx-0 rounded-none rounded-l-2xl flex flex-col animate-slide-in-right">
+    <div class="ui-island h-full max-w-2xl w-full mx-0 rounded-none rounded-l-2xl flex flex-col animate-slide-in-right p-6">
       <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-4 pb-4 border-b border-hoi4-border">
+      <div class="flex items-center justify-between mb-4 pb-4 ui-separator-bottom">
         <div class="flex items-center gap-3">
           <svg class="w-6 h-6 text-hoi4-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -219,7 +219,7 @@ onUnmounted(() => {
             v-model="searchQuery"
             type="text"
             :placeholder="activeTab === 'tags' ? '搜索 Tag 代码或名称...' : '搜索 Idea ID...'"
-            class="input-field pl-10 w-full"
+            class="ui-input pl-10 w-full px-3 py-2"
           />
           <svg class="w-5 h-5 text-hoi4-text-dim absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -245,7 +245,7 @@ onUnmounted(() => {
           <div
             v-for="tag in filteredTags"
             :key="tag.code"
-            class="bg-hoi4-border/20 rounded-lg p-3 border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-colors"
+            class="ui-surface-1 rounded-lg p-3 shadow-sm transition-colors"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1 min-w-0">
@@ -287,7 +287,7 @@ onUnmounted(() => {
           <div
             v-for="idea in filteredIdeas"
             :key="idea.id"
-            class="bg-hoi4-border/20 rounded-lg p-3 border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-colors"
+            class="ui-surface-1 rounded-lg p-3 shadow-sm transition-colors"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1 min-w-0">
@@ -310,7 +310,7 @@ onUnmounted(() => {
       </div>
 
       <!-- 底部操作栏 -->
-      <div class="pt-4 border-t border-hoi4-border space-y-3">
+      <div class="pt-4 ui-separator-bottom space-y-3">
         <!-- 自动刷新设置 -->
         <div class="flex items-center justify-between p-3 bg-hoi4-border/20 rounded-lg">
           <div class="flex items-center gap-3">

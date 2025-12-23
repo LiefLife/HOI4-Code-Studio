@@ -18,7 +18,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="bg-transparent p-3 pt-0">
-    <div class="relative rounded-2xl bg-hoi4-gray/85 border border-hoi4-border/80 shadow-lg">
+    <div class="relative rounded-2xl ui-island">
       <div class="absolute left-2 bottom-2 flex items-center gap-2">
         <div class="flex items-center gap-2 text-xs text-hoi4-text-dim">
           <svg class="w-4 h-4 text-hoi4-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -38,7 +38,7 @@ const emit = defineEmits<{
         </div>
         <div class="relative">
           <button
-            class="px-2 py-1 rounded-lg text-xs border border-hoi4-border/70 bg-hoi4-border/50 hover:bg-hoi4-border/70 transition-colors text-hoi4-text"
+            class="px-2 py-1 rounded-lg text-xs bg-hoi4-border/50 hover:bg-hoi4-border/70 transition-colors text-hoi4-text"
             @click="emit('toggleAgentMenu')"
             title="切换智能体模式"
           >
@@ -46,7 +46,7 @@ const emit = defineEmits<{
           </button>
           <div
             v-if="props.agentModeMenuOpen"
-            class="absolute left-0 bottom-8 min-w-32 rounded-xl border border-hoi4-border shadow-2xl overflow-hidden z-50 ai-solid-dropdown"
+            class="absolute left-0 bottom-8 min-w-32 rounded-xl shadow-2xl overflow-hidden z-50 ai-solid-dropdown ui-island"
           >
             <button
               class="w-full text-left px-3 py-2 text-xs transition-colors"
@@ -75,7 +75,7 @@ const emit = defineEmits<{
 
       <textarea
         :value="props.modelValue"
-        class="w-full resize-none rounded-2xl bg-transparent text-hoi4-text text-sm px-3 py-3 pr-20 pb-12 focus:outline-none focus:border-hoi4-accent"
+        class="ui-textarea w-full resize-none text-sm px-3 py-3 pr-20 pb-12 bg-transparent"
         :rows="3"
         placeholder="输入消息... (Enter 发送，Ctrl+Enter 换行)"
         @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"

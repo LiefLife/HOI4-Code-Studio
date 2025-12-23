@@ -73,17 +73,16 @@ function handleKeydown(event: KeyboardEvent) {
     @click.self="handleCancel"
   >
     <div
-      class="border rounded-2xl shadow-2xl overflow-hidden"
+      class="ui-island rounded-2xl overflow-hidden"
       :style="{
         backgroundColor: currentTheme.colors.bgSecondary,
-        borderColor: currentTheme.colors.border,
         width: '400px',
         maxWidth: '90vw'
       }"
       @click.stop
     >
       <!-- 对话框标题 -->
-      <div class="px-6 py-4 border-b-2" :style="{ borderColor: currentTheme.colors.border }">
+      <div class="px-6 py-4 ui-island-header ui-separator-bottom">
         <h3 class="text-lg font-bold" :style="{ color: currentTheme.colors.fg }">
           {{ mode === 'rename'
               ? (type === 'file' ? '✏️ 重命名文件' : '✏️ 重命名文件夹')
@@ -100,12 +99,10 @@ function handleKeydown(event: KeyboardEvent) {
         <input
           v-model="input"
           type="text"
-          class="create-dialog-input w-full px-3 py-2 rounded border-2 text-sm focus:outline-none transition-colors"
-          :style="{ backgroundColor: currentTheme.colors.bg, color: currentTheme.colors.fg, borderColor: currentTheme.colors.border }"
+          class="ui-input w-full px-3 py-2 text-sm"
+          :style="{ backgroundColor: currentTheme.colors.bg, color: currentTheme.colors.fg }"
           :placeholder="type === 'file' ? '例如: main.txt' : '例如: scripts'"
           @keydown="handleKeydown"
-          @focus="(e) => (e.target as HTMLInputElement).style.borderColor = currentTheme.colors.accent"
-          @blur="(e) => (e.target as HTMLInputElement).style.borderColor = currentTheme.colors.border"
         />
 
         <div
@@ -138,7 +135,7 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
 
       <!-- 对话框按钮 -->
-      <div class="px-6 py-4 border-t-2 flex justify-end gap-3" :style="{ borderColor: currentTheme.colors.border }">
+      <div class="px-6 py-4 ui-separator-bottom flex justify-end gap-3">
         <button
           @click="handleCancel"
           class="px-4 py-2 rounded text-sm transition-colors"
@@ -151,7 +148,7 @@ function handleKeydown(event: KeyboardEvent) {
         <button
           @click="handleConfirm"
           class="px-4 py-2 rounded text-sm transition-colors"
-          :style="{ backgroundColor: currentTheme.colors.bg, color: currentTheme.colors.fg, border: '1px solid ' + currentTheme.colors.border }"
+          :style="{ backgroundColor: currentTheme.colors.bg, color: currentTheme.colors.fg }"
           @mouseenter="(e) => (e.target as HTMLElement).style.backgroundColor = currentTheme.colors.selection"
           @mouseleave="(e) => (e.target as HTMLElement).style.backgroundColor = currentTheme.colors.bg"
         >

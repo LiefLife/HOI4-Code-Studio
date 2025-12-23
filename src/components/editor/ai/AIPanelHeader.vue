@@ -8,7 +8,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="px-3 pt-3">
-    <div class="flex items-center justify-between px-3 py-2 bg-hoi4-gray/85 border border-hoi4-border/80 rounded-2xl shadow-lg backdrop-blur-sm">
+    <div class="flex items-center justify-between px-3 py-2 rounded-2xl ui-island backdrop-blur-sm">
       <div class="flex items-center gap-2">
         <button
           class="p-2 rounded-xl text-sm bg-hoi4-border/50 hover:bg-hoi4-border/70 active:scale-95 transition-all shadow-sm text-hoi4-text"

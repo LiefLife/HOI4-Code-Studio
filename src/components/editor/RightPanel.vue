@@ -62,11 +62,11 @@ watch(localActiveTab, (newTab) => {
 
 <template>
   <div
-    class="bg-hoi4-gray/80 border border-hoi4-border/30 flex-shrink-0 overflow-hidden flex flex-col shadow-sm rounded-xl my-2 mr-2"
+    class="ui-island flex-shrink-0 overflow-hidden flex flex-col rounded-xl my-2 mr-2"
     :style="{ width: width + 'px' }"
   >
     <!-- 标签栏 -->
-    <div class="bg-hoi4-gray/90 border-b border-hoi4-border/30 flex items-center justify-between rounded-t-xl">
+    <div class="ui-island-header ui-separator-bottom flex items-center justify-between rounded-t-xl">
       <div class="flex gap-1 p-1">
         <button
           @click="localActiveTab = 'info'"

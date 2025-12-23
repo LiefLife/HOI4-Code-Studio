@@ -21,7 +21,7 @@ const enabledDependencies = computed(() =>
 </script>
 
 <template>
-  <div class="bg-hoi4-gray/90 border-b border-hoi4-border/30 p-1 flex items-center gap-1 overflow-x-auto">
+  <div class="ui-island-header ui-separator-bottom p-1 flex items-center gap-1 overflow-x-auto">
     <!-- 当前项目标签 -->
     <button
       @click="emit('switchToProject')"

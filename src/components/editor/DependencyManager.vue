@@ -66,9 +66,9 @@ function formatDate(dateStr: string): string {
     class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
     @click.self="emit('close')"
   >
-    <div class="card max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+    <div class="ui-island max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col p-6">
       <!-- 标题栏 -->
-      <div class="flex items-center justify-between mb-4 pb-4 border-b border-hoi4-border">
+      <div class="flex items-center justify-between mb-4 pb-4 ui-separator-bottom">
         <h2 class="text-2xl font-bold text-hoi4-text">依赖项管理</h2>
         <button
           @click="emit('close')"
@@ -90,7 +90,7 @@ function formatDate(dateStr: string): string {
             v-model="addingPath"
             type="text"
             placeholder="选择 HOICS 项目或 HOI4 Mod 目录"
-            class="input-field flex-1"
+            class="ui-input flex-1 px-3 py-2"
             :disabled="isLoading"
             @keyup.enter="handleAdd"
           />
@@ -130,7 +130,7 @@ function formatDate(dateStr: string): string {
           <div
             v-for="dep in dependencies"
             :key="dep.id"
-            class="bg-hoi4-border/20 rounded-lg p-4 border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-colors relative"
+            class="ui-surface-1 rounded-lg p-4 shadow-sm transition-colors relative"
           >
             <!-- SVG图标 - 位于黄色框位置 -->
             <div class="absolute left-3 top-3 flex items-center justify-center">
@@ -199,7 +199,7 @@ function formatDate(dateStr: string): string {
       </div>
 
       <!-- 底部提示 -->
-      <div class="mt-4 pt-4 border-t border-hoi4-border">
+      <div class="mt-4 pt-4 ui-separator-bottom">
         <div class="flex items-start gap-2 text-hoi4-comment text-sm">
           <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>

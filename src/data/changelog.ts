@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.15-dev',
+    description: '编辑页 UI 岛屿无边框化',
+    changes: [
+      { type: 'improvement', content: '优化样式为无边框' },
+    ]
+  },
+  {
     version: 'v0.2.14-dev',
     description: '紧急修复',
     changes: [
