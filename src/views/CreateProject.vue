@@ -91,6 +91,10 @@ async function selectProjectPath() {
 
 // 提交表单
 async function handleSubmit() {
+  if (isCreating.value) {
+    return
+  }
+  
   if (!projectName.value.trim()) {
     displayStatus('请填写所有必填项', 3000)
     return

@@ -13,6 +13,7 @@ vi.mock('../api/tauri', () => ({
   openFolder: vi.fn(() => Promise.resolve()),
   launchGame: vi.fn(() => Promise.resolve()),
   writeJsonFile: vi.fn(() => Promise.resolve({ success: true })),
+  openUrl: vi.fn(() => Promise.resolve()),
 }))
 
 // Mock router
