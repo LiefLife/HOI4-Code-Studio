@@ -18,11 +18,13 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.16-dev',
-    description: '国策优化',
+    description: '国策和优化',
     changes: [
-      { type: 'improvement', content: '国策支持本地化国策名显示' },
-      { type: 'feature', content: '国策支持左键转跳源码' },
-      { type: 'fix', content: '修复国策图标缓存无法使用的问题' },
+      { type: 'improvement', content: '国策预览支持本地化国策名显示' },
+      { type: 'improvement', content: '搜索/国策预览跳行现在会跳转到第一行而非最后一行' },
+      { type: 'feature', content: '国策预览支持左键转跳源码' },
+      { type: 'feature', content: '国策预览支持缩略显示国策信息' },
+      { type: 'fix', content: '修复国策预览图标缓存无法使用的问题' },
     ]
   },
   {

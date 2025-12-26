@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { parseFocusTreeFile, searchFocuses } from '../../utils/focusTreeParser'
 import cytoscape from 'cytoscape'
 import { useImageProcessor } from '../../composables/useImageProcessor'
@@ -66,6 +66,250 @@ const zoomLevel = ref(1.0)
 
 const localizationMap = ref<Map<string, string>>(new Map())
 const isLoadingLocalization = ref(false)
+
+const tooltipVisible = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+const tooltipFocusId = ref('')
+const tooltipLine = ref<number | null>(null)
+const tooltipCost = ref<number | null>(null)
+const tooltipXGrid = ref<number | null>(null)
+const tooltipYGrid = ref<number | null>(null)
+const tooltipModifierText = ref<string | null>(null)
+const tooltipCompletionRewardText = ref<string | null>(null)
+const tooltipPrerequisiteText = ref<string | null>(null)
+const tooltipExclusiveText = ref<string | null>(null)
+
+const tooltipName = computed(() => {
+  const id = tooltipFocusId.value
+  if (!id) return ''
+  return localizationMap.value.get(id) || ''
+})
+
+const tooltipDesc = computed(() => {
+  const id = tooltipFocusId.value
+  if (!id) return ''
+  return localizationMap.value.get(`${id}_desc`) || ''
+})
+
+const tooltipDays = computed(() => {
+  const c = tooltipCost.value
+  if (typeof c !== 'number' || Number.isNaN(c)) return null
+  return Math.round(c * 7)
+})
+
+const isTooltipPinned = ref(false)
+const isHoveringNode = ref(false)
+const isHoveringTooltip = ref(false)
+let pinTimer: number | null = null
+
+type PinnedCard = {
+  key: string
+  focusId: string
+  name: string
+  desc: string
+  line: number | null
+  cost: number | null
+  days: number | null
+  x: number | null
+  y: number | null
+  modifierText: string | null
+  completionRewardText: string | null
+  prerequisiteText: string | null
+  exclusiveText: string | null
+  left: number
+  top: number
+}
+
+const pinnedCards = ref<PinnedCard[]>([])
+const activeDragKey = ref<string | null>(null)
+const dragStartX = ref(0)
+const dragStartY = ref(0)
+const dragStartLeft = ref(0)
+const dragStartTop = ref(0)
+
+const tooltipBoxRef = ref<HTMLDivElement | null>(null)
+const tooltipBoxWidth = ref(0)
+const tooltipBoxHeight = ref(0)
+const TOOLTIP_OFFSET_X = 12
+const TOOLTIP_OFFSET_Y = -6
+
+function updateTooltipBoxSize() {
+  const el = tooltipBoxRef.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  tooltipBoxWidth.value = rect.width
+  tooltipBoxHeight.value = rect.height
+}
+
+const tooltipStyle = computed(() => {
+  const rect = cyContainerRef.value?.getBoundingClientRect()
+  const containerW = rect?.width ?? 0
+  const containerH = rect?.height ?? 0
+
+  let left = tooltipX.value + TOOLTIP_OFFSET_X
+  let top = tooltipY.value + TOOLTIP_OFFSET_Y
+
+  const w = tooltipBoxWidth.value
+  const h = tooltipBoxHeight.value
+
+  if (containerW > 0 && w > 0) {
+    if (left + w > containerW) {
+      left = Math.max(0, tooltipX.value - TOOLTIP_OFFSET_X - w)
+    }
+  }
+  if (containerH > 0 && h > 0) {
+    if (top + h > containerH) {
+      top = Math.max(0, tooltipY.value - TOOLTIP_OFFSET_Y - h)
+    }
+  }
+
+  return {
+    left: `${left}px`,
+    top: `${top}px`
+  }
+})
+
+function updateTooltipPosition(e: MouseEvent) {
+  const rect = cyContainerRef.value?.getBoundingClientRect()
+  if (!rect) {
+    tooltipX.value = e.clientX
+    tooltipY.value = e.clientY
+    return
+  }
+  tooltipX.value = e.clientX - rect.left
+  tooltipY.value = e.clientY - rect.top
+}
+
+function maybeHideTooltip() {
+  if (isHoveringNode.value) return
+  if (isHoveringTooltip.value) return
+
+  tooltipVisible.value = false
+  isTooltipPinned.value = false
+  if (pinTimer !== null) {
+    window.clearTimeout(pinTimer)
+    pinTimer = null
+  }
+}
+
+function addPinnedCard() {
+  const focusId = tooltipFocusId.value
+  if (!focusId) return
+
+  const left = parseFloat((tooltipStyle.value as any).left || '0')
+  const top = Math.max(0, parseFloat((tooltipStyle.value as any).top || '0') - 10)
+
+  const card: PinnedCard = {
+    key: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    focusId,
+    name: tooltipName.value,
+    desc: tooltipDesc.value,
+    line: tooltipLine.value,
+    cost: tooltipCost.value,
+    days: tooltipDays.value,
+    x: tooltipXGrid.value,
+    y: tooltipYGrid.value,
+    modifierText: tooltipModifierText.value,
+    completionRewardText: tooltipCompletionRewardText.value,
+    prerequisiteText: tooltipPrerequisiteText.value,
+    exclusiveText: tooltipExclusiveText.value,
+    left,
+    top
+  }
+
+  pinnedCards.value = [...pinnedCards.value, card]
+}
+
+function removePinnedCard(key: string) {
+  pinnedCards.value = pinnedCards.value.filter(c => c.key !== key)
+}
+
+function startPinnedCardDrag(key: string, e: MouseEvent) {
+  const rect = cyContainerRef.value?.getBoundingClientRect()
+  if (!rect) return
+
+  const card = pinnedCards.value.find(c => c.key === key)
+  if (!card) return
+
+  activeDragKey.value = key
+  dragStartX.value = e.clientX
+  dragStartY.value = e.clientY
+  dragStartLeft.value = card.left
+  dragStartTop.value = card.top
+
+  window.addEventListener('mousemove', onPinnedCardDragMove)
+  window.addEventListener('mouseup', stopPinnedCardDrag)
+  e.preventDefault()
+}
+
+function onPinnedCardDragMove(e: MouseEvent) {
+  const key = activeDragKey.value
+  if (!key) return
+
+  const rect = cyContainerRef.value?.getBoundingClientRect()
+  if (!rect) return
+
+  const idx = pinnedCards.value.findIndex(c => c.key === key)
+  if (idx === -1) return
+
+  const dx = e.clientX - dragStartX.value
+  const dy = e.clientY - dragStartY.value
+
+  const w = tooltipBoxWidth.value || 440
+  const h = tooltipBoxHeight.value || 360
+  const maxLeft = w > 0 ? Math.max(0, rect.width - w) : rect.width
+  const maxTop = h > 0 ? Math.max(0, rect.height - h) : rect.height
+
+  const left = Math.max(0, Math.min(maxLeft, dragStartLeft.value + dx))
+  const top = Math.max(0, Math.min(maxTop, dragStartTop.value + dy))
+
+  const next = [...pinnedCards.value]
+  next[idx] = { ...next[idx], left, top }
+  pinnedCards.value = next
+}
+
+function stopPinnedCardDrag() {
+  activeDragKey.value = null
+  window.removeEventListener('mousemove', onPinnedCardDragMove)
+  window.removeEventListener('mouseup', stopPinnedCardDrag)
+}
+
+function formatPrerequisite(prereq: unknown): string | null {
+  if (!Array.isArray(prereq)) return null
+
+  const formatFocusRef = (id: string): string => {
+    const name = localizationMap.value.get(id)
+    return name ? `${id} (${name})` : id
+  }
+
+  const groups = prereq
+    .filter((g) => Array.isArray(g))
+    .map((g: any[]) => g.filter((x) => typeof x === 'string' && x.trim().length > 0))
+    .filter((g: string[]) => g.length > 0)
+
+  if (groups.length === 0) return null
+
+  return groups
+    .map((g: string[]) => {
+      const rendered = g.map(formatFocusRef)
+      return rendered.length > 1 ? `(${rendered.join(' + ')})` : rendered[0]
+    })
+    .join(' OR ')
+}
+
+function formatExclusive(exclusive: unknown): string | null {
+  if (!Array.isArray(exclusive)) return null
+
+  const formatFocusRef = (id: string): string => {
+    const name = localizationMap.value.get(id)
+    return name ? `${id} (${name})` : id
+  }
+
+  const ids = exclusive.filter((x) => typeof x === 'string' && x.trim().length > 0)
+  if (ids.length === 0) return null
+  return ids.map(formatFocusRef).join(', ')
+}
 
 function normalizePath(p?: string): string {
   return (p || '').replace(/\\/g, '/').toLowerCase()
@@ -269,6 +513,10 @@ async function initCytoscape() {
         label: localizationMap.value.get(node.id) ? `${node.id}\n${localizationMap.value.get(node.id)}` : node.id,
         icon: node.icon,
         cost: node.cost,
+        modifierText: node.modifierText,
+        completionRewardText: node.completionRewardText,
+        prerequisite: node.prerequisite,
+        mutually_exclusive: node.mutually_exclusive,
         line: node.line,
         x: node.absoluteX ?? node.x,
         y: node.absoluteY ?? node.y
@@ -443,6 +691,63 @@ async function initCytoscape() {
 
   cy.on('mouseout', 'node', (event) => {
     event.target.removeClass('hovered')
+    isHoveringNode.value = false
+    if (pinTimer !== null) {
+      window.clearTimeout(pinTimer)
+      pinTimer = null
+    }
+    if (isTooltipPinned.value) {
+      setTimeout(() => {
+        maybeHideTooltip()
+      }, 0)
+    } else {
+      maybeHideTooltip()
+    }
+  })
+
+  cy.on('mouseover', 'node', (event) => {
+    const originalEvent = (event as any)?.originalEvent as MouseEvent | undefined
+    if (originalEvent) updateTooltipPosition(originalEvent)
+
+    const n = event.target
+    isHoveringNode.value = true
+    tooltipFocusId.value = n.id()
+    tooltipLine.value = n.data('line') ?? null
+    tooltipCost.value = typeof n.data('cost') === 'number' ? n.data('cost') : null
+    tooltipXGrid.value = typeof n.data('x') === 'number' ? n.data('x') : null
+    tooltipYGrid.value = typeof n.data('y') === 'number' ? n.data('y') : null
+    tooltipModifierText.value = typeof n.data('modifierText') === 'string' ? n.data('modifierText') : null
+    tooltipCompletionRewardText.value = typeof n.data('completionRewardText') === 'string' ? n.data('completionRewardText') : null
+    tooltipPrerequisiteText.value = formatPrerequisite(n.data('prerequisite'))
+    tooltipExclusiveText.value = formatExclusive(n.data('mutually_exclusive'))
+    tooltipVisible.value = true
+
+    void nextTick(() => {
+      updateTooltipBoxSize()
+    })
+
+    if (pinTimer !== null) {
+      window.clearTimeout(pinTimer)
+      pinTimer = null
+    }
+    isTooltipPinned.value = false
+    pinTimer = window.setTimeout(() => {
+      if (tooltipVisible.value && isHoveringNode.value) {
+        isTooltipPinned.value = true
+        void nextTick(() => {
+          updateTooltipBoxSize()
+        })
+      }
+      pinTimer = null
+    }, 750)
+  })
+
+  cy.on('mousemove', (event) => {
+    const originalEvent = (event as any)?.originalEvent as MouseEvent | undefined
+    if (!originalEvent) return
+    if (!tooltipVisible.value) return
+    if (isTooltipPinned.value) return
+    updateTooltipPosition(originalEvent)
   })
 
   // 恢复视图状态或初始居中
@@ -679,13 +984,136 @@ onUnmounted(() => {
         ref="cyContainerRef"
         class="w-full h-full"
       ></div>
+
+      <div
+        v-for="card in pinnedCards"
+        :key="card.key"
+        class="absolute z-30 ui-island rounded-2xl backdrop-blur-sm px-4 py-3 max-w-[440px] max-h-[360px] overflow-y-auto"
+        :style="{ left: card.left + 'px', top: card.top + 'px' }"
+      >
+        <div
+          class="text-hoi4-text font-bold text-sm tracking-wide cursor-move select-none pr-12"
+          @mousedown.stop="startPinnedCardDrag(card.key, $event)"
+        >
+          {{ card.focusId }}
+          <span v-if="card.name" class="text-hoi4-text-dim font-normal">  {{ card.name }}</span>
+        </div>
+
+        <button
+          class="absolute top-2 right-2 text-hoi4-text-dim hover:text-hoi4-text transition-colors"
+          title="关闭"
+          @click.stop="removePinnedCard(card.key)"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+
+        <div v-if="card.desc" class="mt-2 text-hoi4-text-dim text-xs whitespace-pre-wrap">
+          {{ card.desc }}
+        </div>
+
+        <div class="mt-3 h-px bg-hoi4-border/40"></div>
+
+        <div class="mt-3 grid grid-cols-3 gap-x-3 gap-y-1 text-xs text-hoi4-text-dim">
+          <div><span class="text-hoi4-text">天数:</span> {{ card.days ?? '-' }}</div>
+          <div><span class="text-hoi4-text">cost:</span> {{ card.cost ?? '-' }}</div>
+          <div><span class="text-hoi4-text">行:</span> {{ card.line ?? '-' }}</div>
+          <div><span class="text-hoi4-text">X:</span> {{ card.x ?? '-' }}</div>
+          <div><span class="text-hoi4-text">Y:</span> {{ card.y ?? '-' }}</div>
+        </div>
+
+        <div v-if="card.prerequisiteText" class="mt-3 text-xs text-hoi4-text-dim whitespace-pre-wrap">
+          <span class="text-hoi4-text font-semibold">前置:</span>
+          {{ card.prerequisiteText }}
+        </div>
+
+        <div v-if="card.exclusiveText" class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">
+          <span class="text-hoi4-text font-semibold">互斥:</span>
+          {{ card.exclusiveText }}
+        </div>
+
+        <details v-if="card.modifierText" class="mt-3">
+          <summary class="cursor-pointer select-none text-hoi4-text text-xs font-bold">modifier</summary>
+          <pre class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">{{ card.modifierText }}</pre>
+        </details>
+
+        <details v-if="card.completionRewardText" class="mt-3">
+          <summary class="cursor-pointer select-none text-hoi4-text text-xs font-bold">completion_reward</summary>
+          <pre class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">{{ card.completionRewardText }}</pre>
+        </details>
+      </div>
+
+      <div
+        v-if="tooltipVisible"
+        class="absolute z-20"
+        :class="isTooltipPinned ? 'pointer-events-auto' : 'pointer-events-none'"
+        :style="tooltipStyle"
+        @mouseenter="isHoveringTooltip = true"
+        @mouseleave="isHoveringTooltip = false; maybeHideTooltip()"
+      >
+        <div ref="tooltipBoxRef" class="ui-island rounded-2xl backdrop-blur-sm px-4 py-3 max-w-[440px] max-h-[360px] overflow-y-auto relative">
+          <button
+            v-if="isTooltipPinned"
+            class="absolute top-2 right-2 text-hoi4-text-dim hover:text-hoi4-text transition-colors"
+            title="钉住（可多开）"
+            @click.stop="addPinnedCard"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              <path d="M16 3l5 5" stroke-width="2" stroke-linecap="round" />
+              <path d="M3 21l6-6" stroke-width="2" stroke-linecap="round" />
+              <path d="M7 17l4-4" stroke-width="2" stroke-linecap="round" />
+              <path d="M14 4l6 6-4 4-6-6 4-4Z" stroke-width="2" stroke-linejoin="round" />
+            </svg>
+          </button>
+
+          <div class="text-hoi4-text font-bold text-sm tracking-wide pr-6">
+            {{ tooltipFocusId }}
+            <span v-if="tooltipName" class="text-hoi4-text-dim font-normal">  {{ tooltipName }}</span>
+          </div>
+
+          <div v-if="tooltipDesc" class="mt-2 text-hoi4-text-dim text-xs whitespace-pre-wrap">
+            {{ tooltipDesc }}
+          </div>
+
+          <div class="mt-3 h-px bg-hoi4-border/40"></div>
+
+          <div class="mt-3 grid grid-cols-3 gap-x-3 gap-y-1 text-xs text-hoi4-text-dim">
+            <div><span class="text-hoi4-text">天数:</span> {{ tooltipDays ?? '-' }}</div>
+            <div><span class="text-hoi4-text">cost:</span> {{ tooltipCost ?? '-' }}</div>
+            <div><span class="text-hoi4-text">行:</span> {{ tooltipLine ?? '-' }}</div>
+            <div><span class="text-hoi4-text">X:</span> {{ tooltipXGrid ?? '-' }}</div>
+            <div><span class="text-hoi4-text">Y:</span> {{ tooltipYGrid ?? '-' }}</div>
+          </div>
+
+          <div v-if="tooltipPrerequisiteText" class="mt-3 text-xs text-hoi4-text-dim whitespace-pre-wrap">
+            <span class="text-hoi4-text font-semibold">前置:</span>
+            {{ tooltipPrerequisiteText }}
+          </div>
+
+          <div v-if="tooltipExclusiveText" class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">
+            <span class="text-hoi4-text font-semibold">互斥:</span>
+            {{ tooltipExclusiveText }}
+          </div>
+
+          <details v-if="tooltipModifierText" class="mt-3">
+            <summary class="cursor-pointer select-none text-hoi4-text text-xs font-bold">modifier</summary>
+            <pre class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">{{ tooltipModifierText }}</pre>
+          </details>
+
+          <details v-if="tooltipCompletionRewardText" class="mt-3">
+            <summary class="cursor-pointer select-none text-hoi4-text text-xs font-bold">completion_reward</summary>
+            <pre class="mt-2 text-xs text-hoi4-text-dim whitespace-pre-wrap">{{ tooltipCompletionRewardText }}</pre>
+          </details>
+        </div>
+      </div>
     </div>
 
     <!-- 提示信息 -->
     <div class="px-4 py-2 bg-hoi4-accent/70 border-t border-hoi4-border/40">
       <div class="flex items-center justify-between">
         <p class="text-hoi4-text-dim text-xs">
-          💡 提示: 滚轮缩放 | 拖拽平移 | 双击节点跳转到定义
+          💡 提示: 滚轮缩放 | 拖拽平移 | 左键点击节点跳转到定义
         </p>
         <div class="flex items-center space-x-3 text-xs">
           <span class="flex items-center space-x-1">

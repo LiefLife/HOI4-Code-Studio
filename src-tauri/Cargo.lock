@@ -2006,7 +2006,7 @@ dependencies = [
 
 [[package]]
 name = "hoi4-code-studio"
-version = "0.2.15-dev"
+version = "0.2.16-dev"
 dependencies = [
  "base64 0.22.1",
  "chardetng",

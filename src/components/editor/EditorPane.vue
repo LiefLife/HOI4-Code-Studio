@@ -9,6 +9,7 @@ import ImagePreviewer from './ImagePreviewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
+import { EditorView } from '@codemirror/view'
 
 const props = defineProps<{
   pane: EditorPane
@@ -314,7 +315,7 @@ function jumpToLine(line: number) {
     // 滚动到该行并设置光标位置到行首
     view.dispatch({
       selection: { anchor: lineInfo.from, head: lineInfo.from },
-      scrollIntoView: true
+      effects: EditorView.scrollIntoView(lineInfo.from, { y: 'start' })
     })
     
     console.log('[EditorPane] Dispatched selection and scroll')
@@ -370,7 +371,7 @@ function jumpToSearchResult(result: any) {
     // 跳转并选中匹配的文本
     view.dispatch({
       selection: { anchor: pos, head: endPos },
-      scrollIntoView: true
+      effects: EditorView.scrollIntoView(pos, { y: 'start' })
     })
     
     console.log('[EditorPane] Dispatched search result selection and scroll')

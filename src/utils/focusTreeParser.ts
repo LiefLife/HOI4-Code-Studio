@@ -15,6 +15,8 @@ export interface FocusNode {
   relative_position_id?: string // 相对定位基准
   completion_reward?: any
   available?: any
+  modifierText?: string
+  completionRewardText?: string
   line: number                 // 源文件行号
   absoluteX?: number           // 计算后的绝对X坐标
   absoluteY?: number           // 计算后的绝对Y坐标
@@ -99,6 +101,71 @@ function extractField(blockContent: string, fieldName: string): string | null {
 function extractNumber(blockContent: string, fieldName: string): number | undefined {
   const value = extractField(blockContent, fieldName)
   return value !== null ? parseFloat(value) : undefined
+}
+
+function extractTopLevelField(blockContent: string, fieldName: string): string | null {
+  // 仅在当前 focus 的顶层（花括号深度=1）匹配字段，避免误命中 completion_reward/modifier 等嵌套块
+  // 注意：上层 parseFocusTreeFile 已经 removeLineComments，这里无需处理 # 行注释
+  const nameRegex = new RegExp(`\\b${fieldName}\\b`)
+  const valueRegex = new RegExp(`\\b${fieldName}\\s*=\\s*([+-]?(?:\\d+\\.\\d+|\\d+))`)
+
+  let depth = 0
+  let inString = false
+
+  for (let i = 0; i < blockContent.length; i++) {
+    const ch = blockContent[i]
+
+    if (ch === '"') {
+      if (i === 0 || blockContent[i - 1] !== '\\') {
+        inString = !inString
+      }
+    }
+    if (inString) continue
+
+    if (ch === '{') {
+      depth++
+      continue
+    }
+    if (ch === '}') {
+      depth = Math.max(0, depth - 1)
+      continue
+    }
+
+    if (depth !== 1) continue
+
+    // 快速过滤：不是字母/下划线起始就跳过
+    if (!/[A-Za-z_]/.test(ch)) continue
+
+    // 取当前行片段（减少正则扫描范围）
+    const lineEnd = blockContent.indexOf('\n', i)
+    const end = lineEnd === -1 ? blockContent.length : lineEnd
+    const slice = blockContent.substring(i, end)
+
+    if (!nameRegex.test(slice)) continue
+    const m = slice.match(valueRegex)
+    if (m) return m[1]
+  }
+
+  return null
+}
+
+function extractTopLevelNumber(blockContent: string, fieldName: string): number | undefined {
+  const v = extractTopLevelField(blockContent, fieldName)
+  if (v === null) return undefined
+  const n = parseFloat(v)
+  return Number.isNaN(n) ? undefined : n
+}
+
+function extractBlockText(blockContent: string, fieldName: string): string | undefined {
+  const regex = new RegExp(`\\b${fieldName}\\s*=\\s*\\{`, 'g')
+  const match = regex.exec(blockContent)
+  if (!match) return undefined
+
+  const blockStart = match.index + match[0].length
+  const blockEnd = findBlockEnd(blockContent, blockStart)
+  if (blockEnd === -1) return undefined
+
+  return blockContent.substring(blockStart, blockEnd).trim()
 }
 
 /**
@@ -260,12 +327,14 @@ export function parseFocusTreeFile(content: string): FocusTree | null {
     const node: FocusNode = {
       id: focusId,
       icon: extractField(focusContent, 'icon') || undefined,
-      x: extractNumber(focusContent, 'x') || 0,
-      y: extractNumber(focusContent, 'y') || 0,
+      x: extractTopLevelNumber(focusContent, 'x') || 0,
+      y: extractTopLevelNumber(focusContent, 'y') || 0,
       cost: extractNumber(focusContent, 'cost'),
       prerequisite: extractPrerequisites(focusContent),
       mutually_exclusive: extractMutuallyExclusive(focusContent),
       relative_position_id: extractField(focusContent, 'relative_position_id') || undefined,
+      modifierText: extractBlockText(focusContent, 'modifier'),
+      completionRewardText: extractBlockText(focusContent, 'completion_reward'),
       line: getLineNumber(contentWithoutComments, match.index! + focusMatch.index)
     }
 
