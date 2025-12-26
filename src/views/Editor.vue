@@ -103,6 +103,38 @@ function handleConfirmDialogConfirm() {
   }
 }
 
+async function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, _focusId: string, line: number) {
+  if (!editorGroupRef.value) return
+
+  const panes = editorGroupRef.value.panes
+  let targetPane = panes.find(p => {
+    const active = p.openFiles[p.activeFileIndex]
+    return !!active && active.isFocusTree !== true
+  })
+
+  if (!targetPane) {
+    targetPane = panes.find(p => p.id === sourcePaneId)
+  }
+  if (!targetPane) return
+
+  editorGroupRef.value.setActivePane(targetPane.id)
+
+  const node: FileNode = {
+    name: basename(sourceFilePath),
+    path: sourceFilePath,
+    isDirectory: false
+  }
+
+  await handleOpenFile(node, targetPane.id)
+
+  setTimeout(() => {
+    const paneRef = (editorGroupRef.value as any)?.paneRefs?.get?.(targetPane!.id)
+    if (paneRef?.jumpToLine) {
+      paneRef.jumpToLine(line)
+    }
+  }, 80)
+}
+
 function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -263,6 +295,10 @@ const {
   toggleDependency,
   loadDependencies: loadDependenciesList
 } = dependencyManager
+
+const enabledDependencyRoots = computed(() =>
+  (dependencies.value || []).filter(d => d.enabled).map(d => d.path)
+)
 
 async function handleRefreshTags() {
   await refreshTags()
@@ -531,6 +567,10 @@ function isImageFile(filePath: string): boolean {
   return ['png', 'jpg', 'jpeg', 'tga', 'bmp', 'gif', 'webp' ,'dds'].includes(ext || '')
 }
 
+function basename(p: string): string {
+  return p.replace(/\\/g, '/').split('/').pop() || p
+}
+
 // 打开文件处理
 async function handleOpenFile(node: FileNode, paneId?: string, jumpInfo?: any) {
   if (node.isDirectory) return
@@ -543,7 +583,7 @@ async function handleOpenFile(node: FileNode, paneId?: string, jumpInfo?: any) {
   if (!pane) return
   
   // 检查文件是否已在该窗格中打开
-  const existingIndex = pane.openFiles.findIndex(f => f.node.path === node.path)
+  const existingIndex = pane.openFiles.findIndex(f => f.node.path === node.path && !f.isPreview)
   if (existingIndex !== -1) {
     pane.activeFileIndex = existingIndex
     
@@ -1726,6 +1766,7 @@ onUnmounted(() => {
         ref="editorGroupRef"
         :project-path="projectPath"
         :game-directory="gameDirectory"
+        :dependency-roots="enabledDependencyRoots"
         :auto-save="autoSave"
         :disable-error-handling="disableErrorHandling"
         @context-menu="showFileTabContextMenu"
@@ -1734,6 +1775,7 @@ onUnmounted(() => {
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
         @preview-focus="handlePreviewFocus"
+        @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         @content-change="handleContentChange"
       />
 

@@ -367,6 +367,18 @@ export async function buildDirectoryTreeFast(
   return await invoke('build_directory_tree_fast', { path, maxDepth })
 }
 
+// ==================== Focus Localizations ====================
+
+export interface FocusLocalizationLoadResponse {
+  success: boolean
+  message: string
+  map?: Record<string, string>
+}
+
+export async function loadFocusLocalizations(roots: string[]): Promise<FocusLocalizationLoadResponse> {
+  return invoke<FocusLocalizationLoadResponse>('load_focus_localizations', { roots })
+}
+
 // ==================== Country Tags ====================
 
 export interface TagEntry {
@@ -628,13 +640,26 @@ export interface ImageReadResult {
   message?: string
   base64?: string
   mimeType?: string
+  mime_type?: string
+}
+
+function normalizeImageReadResult(result: any): ImageReadResult {
+  if (!result || typeof result !== 'object') return { success: false, message: 'invalid response' }
+  return {
+    success: !!result.success,
+    message: result.message,
+    base64: result.base64,
+    mimeType: result.mimeType ?? result.mime_type,
+    mime_type: result.mime_type ?? result.mimeType
+  }
 }
 
 /**
  * 读取图片文件为 base64
  */
 export async function readImageAsBase64(filePath: string): Promise<ImageReadResult> {
-  return await invoke('read_image_as_base64', { filePath })
+  const resp = await invoke('read_image_as_base64', { filePath })
+  return normalizeImageReadResult(resp)
 }
 
 /**
@@ -645,7 +670,8 @@ export async function loadFocusIcon(
   projectRoot?: string,
   gameRoot?: string
 ): Promise<ImageReadResult> {
-  return await invoke('load_focus_icon', { iconName, projectRoot, gameRoot })
+  const resp = await invoke('load_focus_icon', { iconName, projectRoot, gameRoot })
+  return normalizeImageReadResult(resp)
 }
 
 // ==================== 图标缓存 ====================
@@ -654,7 +680,8 @@ export async function loadFocusIcon(
  * 读取图标缓存
  */
 export async function readIconCache(iconName: string): Promise<ImageReadResult> {
-  return await invoke('read_icon_cache', { iconName })
+  const resp = await invoke('read_icon_cache', { iconName })
+  return normalizeImageReadResult(resp)
 }
 
 /**
@@ -665,12 +692,14 @@ export async function writeIconCache(
   base64: string,
   mimeType: string
 ): Promise<ImageReadResult> {
-  return await invoke('write_icon_cache', { iconName, base64, mimeType })
+  const resp = await invoke('write_icon_cache', { iconName, base64, mimeType, mime_type: mimeType })
+  return normalizeImageReadResult(resp)
 }
 
 /**
  * 清理图标缓存
  */
 export async function clearIconCache(): Promise<ImageReadResult> {
-  return await invoke('clear_icon_cache')
+  const resp = await invoke('clear_icon_cache')
+  return normalizeImageReadResult(resp)
 }

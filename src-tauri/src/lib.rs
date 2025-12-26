@@ -17,6 +17,7 @@ mod country_tags;
 mod idea_registry;
 mod tag_validator;
 mod dependency;
+mod focus_localization;
 
 use json_decoder::{
     get_json_path,
@@ -384,11 +385,11 @@ fn initialize_project(project_path: String) -> OpenProjectResult {
         obj.insert("path".to_string(), serde_json::json!(project_path.clone()));
     }
 
-    // // 扫描项目文件
-    // let files = scan_project_files(&project_path);
-    // if let Some(obj) = config.as_object_mut() {
-    //     obj.insert("files".to_string(), serde_json::json!(files));
-    // }
+    // 扫描项目文件
+    let files = scan_project_files(&project_path);
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("files".to_string(), serde_json::json!(files));
+    }
 
     // 保存配置文件
     let config_str = match serde_json::to_string_pretty(&config) {
@@ -958,7 +959,34 @@ fn hash_string(s: &str) -> String {
 }
 
 /// 获取图标缓存路径
+fn sanitize_icon_cache_filename(icon_name: &str) -> String {
+    let trimmed = icon_name.trim();
+    if trimmed.is_empty() {
+        return "unknown".to_string();
+    }
+
+    let mut out = String::with_capacity(trimmed.len());
+    for ch in trimmed.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.') {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "unknown".to_string()
+    } else {
+        out
+    }
+}
+
 fn get_icon_cache_path(icon_name: &str) -> std::path::PathBuf {
+    let cache_dir = get_cache_dir();
+    let safe = sanitize_icon_cache_filename(icon_name);
+    cache_dir.join(format!("{}.png", safe))
+}
+
+fn get_legacy_icon_cache_path(icon_name: &str) -> std::path::PathBuf {
     let cache_dir = get_cache_dir();
     let hash = hash_string(icon_name);
     cache_dir.join(format!("{}.png", hash))
@@ -988,10 +1016,29 @@ fn read_icon_cache_impl(icon_name: String) -> serde_json::Value {
             }
         }
     } else {
-        serde_json::json!({
-            "success": false,
-            "message": "缓存不存在"
-        })
+        let legacy_path = get_legacy_icon_cache_path(&icon_name);
+        if legacy_path.exists() {
+            match std::fs::read(&legacy_path) {
+                Ok(data) => {
+                    let _ = std::fs::write(&cache_path, &data);
+                    let base64 = base64::engine::general_purpose::STANDARD.encode(&data);
+                    serde_json::json!({
+                        "success": true,
+                        "base64": base64,
+                        "mime_type": "image/png"
+                    })
+                }
+                Err(e) => serde_json::json!({
+                    "success": false,
+                    "message": format!("读取缓存失败: {}", e)
+                }),
+            }
+        } else {
+            serde_json::json!({
+                "success": false,
+                "message": "缓存不存在"
+            })
+        }
     }
 }
 
@@ -2486,7 +2533,8 @@ pub fn run() {
             load_focus_icon,
             read_icon_cache,
             write_icon_cache,
-            clear_icon_cache
+            clear_icon_cache,
+            focus_localization::load_focus_localizations,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

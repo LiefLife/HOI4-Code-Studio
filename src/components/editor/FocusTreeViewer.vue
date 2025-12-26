@@ -3,12 +3,14 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { parseFocusTreeFile, searchFocuses } from '../../utils/focusTreeParser'
 import cytoscape from 'cytoscape'
 import { useImageProcessor } from '../../composables/useImageProcessor'
+import { loadFocusLocalizations } from '../../api/tauri'
 
 const props = defineProps<{
   content: string
   filePath: string
   gameDirectory?: string
   projectPath?: string
+  dependencyRoots?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -61,6 +63,57 @@ const errorMessage = computed(() => {
 })
 
 const zoomLevel = ref(1.0)
+
+const localizationMap = ref<Map<string, string>>(new Map())
+const isLoadingLocalization = ref(false)
+
+function normalizePath(p?: string): string {
+  return (p || '').replace(/\\/g, '/').toLowerCase()
+}
+
+const fileSource = computed<'project' | 'dependency' | 'game'>(() => {
+  const file = normalizePath(props.filePath)
+  const project = normalizePath(props.projectPath)
+  const game = normalizePath(props.gameDirectory)
+  const depRoots = (props.dependencyRoots || []).map(normalizePath)
+
+  if (game && file.startsWith(game)) return 'game'
+  if (project && file.startsWith(project)) return 'project'
+  if (depRoots.some(r => r && file.startsWith(r))) return 'dependency'
+  return 'project'
+})
+
+async function refreshLocalization() {
+  if (!focusTree.value) return
+
+  const roots: string[] = []
+  if (fileSource.value === 'project') {
+    if (props.projectPath) roots.push(props.projectPath)
+  } else if (fileSource.value === 'game') {
+    if (props.gameDirectory) roots.push(props.gameDirectory)
+  } else {
+    const deps = (props.dependencyRoots || []).filter(Boolean)
+    roots.push(...deps)
+    if (props.projectPath) roots.push(props.projectPath)
+  }
+
+  isLoadingLocalization.value = true
+  try {
+    const resp = await loadFocusLocalizations(roots).catch(() => null)
+    const mapObj = resp && resp.success && resp.map ? resp.map : {}
+    localizationMap.value = new Map(Object.entries(mapObj))
+    if (cy) {
+      cy.nodes().forEach(n => {
+        const id = n.id()
+        const name = localizationMap.value.get(id)
+        const label = name ? `${id}\n${name}` : id
+        n.data('label', label)
+      })
+    }
+  } finally {
+    isLoadingLocalization.value = false
+  }
+}
 
 /**
  * 初始化图片处理
@@ -213,7 +266,7 @@ async function initCytoscape() {
     elements.push({
       data: {
         id: node.id,
-        label: node.id,
+        label: localizationMap.value.get(node.id) ? `${node.id}\n${localizationMap.value.get(node.id)}` : node.id,
         icon: node.icon,
         cost: node.cost,
         line: node.line,
@@ -371,8 +424,11 @@ async function initCytoscape() {
     if (cy) zoomLevel.value = cy.zoom()
   })
 
-  // 双击跳转
-  cy.on('dblclick', 'node', (event) => {
+  // 左键点击跳转
+  cy.on('tap', 'node', (event) => {
+    const originalEvent = (event as any)?.originalEvent as MouseEvent | undefined
+    if (originalEvent && typeof originalEvent.button === 'number' && originalEvent.button !== 0) return
+
     const node = event.target
     const focusId = node.id()
     const line = node.data('line')
@@ -405,6 +461,10 @@ async function initCytoscape() {
   setTimeout(() => {
     loadFocusIcons()
   }, 200)
+
+  setTimeout(() => {
+    refreshLocalization()
+  }, 50)
 }
 
 function resetView() {
@@ -471,6 +531,15 @@ watch(focusTree, () => {
   setTimeout(() => initCytoscape(), 50)
 })
 
+watch([
+  () => props.filePath,
+  () => props.projectPath,
+  () => props.gameDirectory,
+  () => props.dependencyRoots
+], () => {
+  refreshLocalization()
+})
+
 // 直接监听内容变化，确保实时更新
 watch(() => props.content, (newContent, oldContent) => {
   console.log('FocusTreeViewer: 内容发生变化，重新解析渲染')
@@ -507,6 +576,17 @@ onUnmounted(() => {
         <span v-if="focusTree" class="text-hoi4-text-dim text-xs">
           {{ focusTree.focuses.size }} 个国策
         </span>
+
+        <div class="flex items-center space-x-2 ml-3">
+          <div v-if="isLoadingLocalization" class="flex items-center space-x-2">
+            <div class="animate-spin w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
+            <span class="text-hoi4-text-dim text-xs">加载本地化...</span>
+          </div>
+          <div v-else class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-emerald-400/80 rounded-full"></div>
+            <span class="text-hoi4-text-dim text-xs">本地化 {{ localizationMap.size }}</span>
+          </div>
+        </div>
         
         <!-- 图片加载指示器 -->
         <div v-if="showImageLoadingIndicator" class="flex items-center space-x-2 ml-4">

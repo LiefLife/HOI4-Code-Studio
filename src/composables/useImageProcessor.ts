@@ -242,8 +242,10 @@ function loadIconAsync(
 
       // 尝试从磁盘缓存读取
       const cacheResult = await readIconCache(iconName)
-      if (cacheResult.success && cacheResult.base64 && cacheResult.mimeType) {
-        const dataUrl = `data:${cacheResult.mimeType};base64,${cacheResult.base64}`
+      const cacheMime = (cacheResult as any).mimeType || (cacheResult as any).mime_type
+      if (cacheResult.success && cacheResult.base64 && cacheMime) {
+        console.info(`[icon] cache hit: ${iconName}`)
+        const dataUrl = `data:${cacheMime};base64,${cacheResult.base64}`
         
         // 更新主线程缓存
         const newCache = new Map(mainThreadCache.value)
@@ -252,6 +254,8 @@ function loadIconAsync(
         
         return dataUrl
       }
+
+      console.info(`[icon] cache miss: ${iconName}, loading via load_focus_icon`)
 
       // 调用API获取
       const result = await loadFocusIconApi(iconName, projectPath, gameDirectory)
@@ -265,9 +269,17 @@ function loadIconAsync(
         mainThreadCache.value = newCache
         
         // 异步写入磁盘缓存
-        writeIconCache(iconName, result.base64, result.mimeType).catch(error => {
-          console.warn(`写入磁盘缓存失败: ${iconName}`, error)
-        })
+        writeIconCache(iconName, result.base64, result.mimeType)
+          .then((resp) => {
+            if ((resp as any)?.success) {
+              console.info(`[icon] cache write ok: ${iconName}`)
+            } else {
+              console.warn(`[icon] cache write fail: ${iconName}`, (resp as any)?.message)
+            }
+          })
+          .catch(error => {
+            console.warn(`[icon] cache write error: ${iconName}`, error)
+          })
         
         return dataUrl
       }

@@ -8,17 +8,19 @@ import type { FileNode } from '../../composables/useFileManager'
 const props = defineProps<{
   projectPath: string
   gameDirectory: string
+  dependencyRoots?: string[]
   autoSave: boolean
   disableErrorHandling?: boolean
 }>()
 
 const emit = defineEmits<{
-  contextMenu: [event: MouseEvent, paneId: string, fileIndex: number]
   openFile: [node: FileNode, paneId?: string]
+  contextMenu: [event: MouseEvent, paneId: string, fileIndex: number]
   errorsChange: [paneId: string, errors: Array<{line: number, msg: string, type: string}>]
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
+  jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
   contentChange: [paneId: string, content: string]
 }>()
 
@@ -248,6 +250,11 @@ function handlePreviewFocus(paneId: string) {
   emit('previewFocus', paneId)
 }
 
+// 处理跳转到焦点
+function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, focusId: string, line: number) {
+  emit('jumpToFocusFromPreview', sourcePaneId, sourceFilePath, focusId, line)
+}
+
 // 处理关闭窗格
 function handleClosePane(paneId: string) {
   closePane(paneId)
@@ -429,6 +436,7 @@ defineExpose({
           :is-active="pane.id === activePaneId"
           :project-path="projectPath"
           :game-directory="gameDirectory"
+          :dependency-roots="props.dependencyRoots"
           :is-read-only="isPaneReadOnly(pane.id)"
           :disable-error-handling="props.disableErrorHandling"
           @switch-file="handleSwitchFile"
@@ -443,6 +451,7 @@ defineExpose({
           @editor-context-menu-action="handleEditorContextMenuAction"
           @preview-event="handlePreviewEvent"
           @preview-focus="handlePreviewFocus"
+          @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         />
       </div>
       

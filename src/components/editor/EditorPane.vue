@@ -15,6 +15,7 @@ const props = defineProps<{
   isActive: boolean
   projectPath: string
   gameDirectory: string
+  dependencyRoots?: string[]
   isReadOnly: boolean
   disableErrorHandling?: boolean
 }>()
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
+  jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
 }>()
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -264,6 +266,15 @@ function handleJumpToEvent(eventId: string, line: number) {
 
 function handleJumpToFocus(focusId: string, line: number) {
   console.log('Jump to focus:', focusId, 'at line:', line)
+
+  // 如果当前是国策树预览页，则需要跳回源文件
+  if (isCurrentFileFocusTree.value) {
+    const sourcePath = currentFile.value?.sourceFilePath || currentFile.value?.node.path
+    if (!sourcePath) return
+    emit('jumpToFocusFromPreview', props.pane.id, sourcePath, focusId, line)
+    return
+  }
+
   jumpToLine(line)
 }
 
@@ -526,6 +537,7 @@ defineExpose({
         :file-path="currentFile.node.path"
         :game-directory="gameDirectory"
         :project-path="projectPath"
+        :dependency-roots="dependencyRoots"
         @jump-to-focus="handleJumpToFocus"
       />
       

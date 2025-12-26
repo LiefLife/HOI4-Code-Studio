@@ -17,6 +17,15 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.16-dev',
+    description: '国策优化',
+    changes: [
+      { type: 'improvement', content: '国策支持本地化国策名显示' },
+      { type: 'feature', content: '国策支持左键转跳源码' },
+      { type: 'fix', content: '修复国策图标缓存无法使用的问题' },
+    ]
+  },
+  {
     version: 'v0.2.15-dev',
     description: '编辑页 UI 岛屿无边框化',
     changes: [
