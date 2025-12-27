@@ -42,14 +42,14 @@ const emit = defineEmits<{
         v-for="(error, index) in errors"
         :key="index"
         @click="emit('jumpToError', error)"
-        class="group relative bg-[rgba(255,0,0,0.3)] hover:bg-[rgba(255,0,0,0.4)] border border-hoi4-border hover:border-onedark-error/40 rounded-lg p-3 cursor-pointer transition-all duration-200 ease-out shadow-sm hover:shadow-md overflow-hidden"
+        class="group relative bg-[rgba(255,0,0,0.4)] hover:bg-[rgba(255,0,0,0.5)] rounded-lg p-3 cursor-pointer transition-all duration-200 ease-out shadow-md hover:shadow-lg overflow-hidden"
       >
         <!-- 左侧强调条 -->
         <div class="absolute left-0 top-0 bottom-0 w-1 bg-onedark-error opacity-60 group-hover:opacity-100 transition-opacity"></div>
 
         <div class="pl-2 flex gap-3">
           <!-- 行号 Box -->
-          <div class="flex-shrink-0 flex flex-col items-center justify-center w-9 h-9 bg-hoi4-dark rounded border border-hoi4-border group-hover:border-onedark-error/20 transition-colors mt-0.5">
+          <div class="flex-shrink-0 flex flex-col items-center justify-center w-9 h-9 bg-hoi4-dark/80 rounded transition-colors mt-0.5 shadow-inner">
             <span class="text-[9px] text-hoi4-text-dim uppercase font-bold scale-75 origin-bottom">Line</span>
             <span class="text-sm font-mono font-bold text-hoi4-text group-hover:text-onedark-error transition-colors">{{ error.line }}</span>
           </div>

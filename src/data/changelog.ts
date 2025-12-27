@@ -38,7 +38,8 @@ export const changelog: VersionLog[] = [
     version: 'v0.2.15-dev',
     description: '编辑页 UI 岛屿无边框化',
     changes: [
-      { type: 'improvement', content: '优化样式为无边框' },
+      { type: 'improvement', content: '优化编辑页 UI 样式为无边框设计' },
+      { type: 'improvement', content: '同步更新项目信息模块内置岛为无边框样式' },
     ]
   },
   {

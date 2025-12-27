@@ -132,19 +132,33 @@ function formatDate(dateStr: string): string {
             :key="dep.id"
             class="ui-surface-1 rounded-lg p-4 shadow-sm transition-colors relative"
           >
-            <!-- SVG图标 - 位于黄色框位置 -->
-            <div class="absolute left-3 top-3 flex items-center justify-center">
-              <svg v-if="dep.type === 'hoics'" class="w-18 h-18 text-hoi4-accent" fill="currentColor" viewBox="0 0 24 24">
-                <!-- HOICS项目图标 - 程序窗口 -->
-                <path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm1 1h12v2H6V6zm0 4h12v2H6v-2zm0 4h8v2H6v-2z"/>
+            <!-- SVG图标 - 装饰性背景 -->
+            <div class="absolute -right-4 -bottom-4 opacity-15 flex items-center justify-center pointer-events-none">
+              <svg v-if="dep.type === 'hoics'" class="w-32 h-32 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- HOICS项目图标 - 代码/终端 -->
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
               </svg>
-              <svg v-else class="w-18 h-18 text-hoi4-accent" fill="currentColor" viewBox="0 0 24 24">
-                <!-- HOI4 Mod图标 - HOI4图标 -->
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              <svg v-else class="w-32 h-32 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- HOI4 Mod图标 - 地图 -->
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6zm6-3v15m6-12v15"/>
               </svg>
             </div>
             
-            <div class="flex items-start gap-3 ml-6">
+            <div class="flex items-start gap-4">
+              <!-- 类型图标 - 小图标 -->
+              <div class="flex-shrink-0 mt-0.5">
+                <div 
+                  class="w-32 h-24 rounded-xl flex items-center justify-center shadow-lg"
+                  :class="dep.type === 'hoics' ? 'bg-indigo-500/25 text-indigo-400' : 'bg-green-500/25 text-green-400'"
+                >
+                  <svg v-if="dep.type === 'hoics'" class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                  <svg v-else class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6zm6-3v15m6-12v15"/>
+                  </svg>
+                </div>
+              </div>
               <!-- 启用/禁用开关 -->
               <div class="flex-shrink-0 pt-1">
                 <button

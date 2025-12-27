@@ -14,14 +14,26 @@ const formattedDependencies = computed(() => {
 })
 
 // 获取依赖项类型标签
-function getDependencyTypeLabel(type: string): { text: string; color: string } {
+function getDependencyTypeLabel(type: string): { text: string; color: string; icon: string } {
   switch (type) {
     case 'hoics':
-      return { text: 'HOICS 项目', color: 'bg-hoi4-accent/30 text-hoi4-accent' }
+      return { 
+        text: 'HOICS 项目', 
+        color: 'bg-indigo-500/20 text-indigo-400',
+        icon: 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+      }
     case 'hoi4mod':
-      return { text: 'HOI4 Mod', color: 'bg-blue-500/30 text-blue-400' }
+      return { 
+        text: 'HOI4 Mod', 
+        color: 'bg-green-500/20 text-green-400',
+        icon: 'M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6zm6-3v15m6-12v15'
+      }
     default:
-      return { text: type, color: 'bg-hoi4-border/50 text-hoi4-text-dim' }
+      return { 
+        text: type, 
+        color: 'bg-hoi4-border/50 text-hoi4-text-dim',
+        icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'
+      }
   }
 }
 
@@ -51,7 +63,7 @@ async function copyToClipboard(text: string): Promise<void> {
       <div v-if="!projectInfo" class="text-hoi4-text-dim text-sm">加载项目信息...</div>
       <div v-else class="space-y-4">
         <!-- 项目名称 -->
-        <div class="relative overflow-hidden bg-gradient-to-r from-hoi4-accent/20 to-hoi4-accent/5 p-4 rounded-xl border border-hoi4-accent/30">
+        <div class="relative overflow-hidden bg-gradient-to-r from-hoi4-accent/25 to-hoi4-accent/10 p-4 rounded-xl shadow-md">
           <div class="absolute inset-0 bg-gradient-to-r from-transparent via-hoi4-accent/10 to-transparent animate-pulse"></div>
           <div class="flex items-center gap-3 relative z-10">
             <div class="w-10 h-10 bg-hoi4-accent/30 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -67,7 +79,7 @@ async function copyToClipboard(text: string): Promise<void> {
         </div>
         
         <!-- 版本 -->
-        <div class="bg-hoi4-gray/50 p-3 rounded-lg border border-hoi4-border/40 hover:border-hoi4-accent/30 transition-colors">
+        <div class="bg-hoi4-gray/60 p-3 rounded-lg shadow-sm transition-colors">
           <div class="flex items-center gap-2 mb-2">
             <svg class="w-4 h-4 text-hoi4-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
@@ -82,7 +94,7 @@ async function copyToClipboard(text: string): Promise<void> {
         </div>
         
         <!-- 创建时间 -->
-        <div class="bg-hoi4-gray/50 p-3 rounded-lg border border-hoi4-border/40 hover:border-hoi4-accent/30 transition-colors">
+        <div class="bg-hoi4-gray/60 p-3 rounded-lg shadow-sm transition-colors">
           <div class="flex items-center gap-2 mb-2">
             <svg class="w-4 h-4 text-hoi4-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -132,7 +144,7 @@ async function copyToClipboard(text: string): Promise<void> {
             <div
               v-for="(dep, index) in formattedDependencies"
               :key="dep.id || index"
-              class="relative group bg-hoi4-gray/50 rounded-xl border border-hoi4-border/40 hover:border-hoi4-accent/40 transition-all duration-200 hover:shadow-lg hover:shadow-hoi4-accent/10 overflow-hidden"
+              class="relative group bg-hoi4-gray/70 rounded-xl shadow-sm transition-all duration-200 hover:shadow-lg hover:shadow-hoi4-accent/10 overflow-hidden"
             >
               <!-- 左侧状态指示条 -->
               <div 
@@ -153,9 +165,12 @@ async function copyToClipboard(text: string): Promise<void> {
                       </span>
                       <span
                         v-if="dep.type"
-                        class="text-xs px-2 py-1 rounded-lg font-semibold"
+                        class="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg font-semibold"
                         :class="getDependencyTypeLabel(dep.type).color"
                       >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="getDependencyTypeLabel(dep.type).icon"></path>
+                        </svg>
                         {{ getDependencyTypeLabel(dep.type).text }}
                       </span>
                       <span 
@@ -179,7 +194,7 @@ async function copyToClipboard(text: string): Promise<void> {
                 </div>
                 
                 <!-- 路径信息 -->
-                <div v-if="dep.path" class="bg-hoi4-border/20 p-3 rounded-lg border border-hoi4-border/30 group-hover:border-hoi4-accent/20 transition-colors">
+                <div v-if="dep.path" class="bg-hoi4-border/20 p-3 rounded-lg transition-colors">
                   <div class="flex items-center gap-2 mb-2">
                     <svg class="w-3 h-3 text-hoi4-comment" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path>
@@ -209,7 +224,7 @@ async function copyToClipboard(text: string): Promise<void> {
         </div>
         
         <!-- 无依赖项时的提示 -->
-        <div v-else class="bg-hoi4-gray/30 rounded-lg border border-dashed border-hoi4-border/40 p-6 text-center">
+        <div v-else class="bg-hoi4-gray/30 rounded-lg p-6 text-center">
           <svg class="w-8 h-8 text-hoi4-comment mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
           </svg>
@@ -218,8 +233,8 @@ async function copyToClipboard(text: string): Promise<void> {
         </div>
 
         <!-- 项目路径 -->
-        <div v-if="projectInfo.path" class="bg-hoi4-gray/50 rounded-xl border border-hoi4-border/40 hover:border-hoi4-accent/30 transition-colors overflow-hidden">
-          <div class="flex items-center gap-3 p-4 bg-hoi4-accent/10 border-b border-hoi4-accent/20">
+        <div v-if="projectInfo.path" class="bg-hoi4-gray/70 rounded-xl shadow-sm transition-colors overflow-hidden">
+          <div class="flex items-center gap-3 p-4 bg-hoi4-accent/10">
             <svg class="w-5 h-5 text-hoi4-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
             </svg>

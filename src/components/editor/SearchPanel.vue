@@ -214,8 +214,8 @@ setTimeout(() => {
           :class="[
             'px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 shadow-sm border-transparent',
             index === selectedIndex
-              ? 'bg-hoi4-accent/20 shadow-md'
-              : 'bg-hoi4-dark/50 hover:bg-hoi4-dark/80 hover:shadow-md'
+              ? 'bg-hoi4-accent/30 shadow-md'
+              : 'bg-hoi4-dark/70 hover:bg-hoi4-dark/90 hover:shadow-md'
           ]"
           @click="emit('jumpToResult', result)"
         >
