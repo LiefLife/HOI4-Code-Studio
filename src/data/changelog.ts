@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.17-dev',
+    description: '国策!',
+    changes: [
+      { type: 'feature', content: '国策预览升级为内置国策编辑器' }
+    ]
+  },
+  {
     version: 'v0.2.16-dev',
     description: '国策和优化',
     changes: [
