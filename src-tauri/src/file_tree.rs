@@ -272,6 +272,7 @@ fn build_tree_parallel_recursive(
 /// # 参数
 /// * `nodes` - 文件树节点
 /// * `extensions` - 允许的文件扩展名列表
+#[allow(dead_code)]
 pub fn filter_by_extensions(nodes: &mut Vec<FileNode>, extensions: &[String]) {
     nodes.retain(|node| {
         if node.is_directory {

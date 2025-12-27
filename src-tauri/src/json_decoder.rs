@@ -1,4 +1,5 @@
-#![deny(clippy::unwrap_used)]
+
+#![deny(clippy::unwrap_used)]
 // serde 序列化/反序列化
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +29,8 @@ pub struct JsonValidationResult {
 // ==================== 高性能 JSON 解析器 ====================
 
 pub struct JsonDecoder {
-    cache: HashMap<String, Value>,
+    #[allow(dead_code)]
+    cache: HashMap<String, Value>
 }
 
 impl JsonDecoder {
@@ -43,6 +45,7 @@ impl JsonDecoder {
             .map_err(|e| format!("JSON 解析错误: {}", e))
     }
 
+    #[allow(dead_code)]
     pub fn parse_with_cache(&mut self, key: String, json_str: &str) -> Result<Value, String> {
         match self.parse(json_str) {
             Ok(value) => {
@@ -53,10 +56,12 @@ impl JsonDecoder {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_cached(&self, key: &str) -> Option<&Value> {
         self.cache.get(key)
     }
 
+    #[allow(dead_code)]
     pub fn clear_cache(&mut self) {
         self.cache.clear();
     }
