@@ -21,9 +21,10 @@ export interface ChatSession {
   messages: ChatMessage[]
   projectTree?: string
   projectTreeInjected?: boolean
+  todos?: any[]
 }
 
-export type ToolName = 'list_dir' | 'read_file' | 'edit_file' | 'search_field'
+export type ToolName = 'list_dir' | 'read_file' | 'edit_file' | 'search_field' | 'update_todos'
 
 export interface ToolCallBase {
   tool: ToolName
@@ -62,4 +63,14 @@ export interface ToolCallSearchField extends ToolCallBase {
   snippet_max_len?: number
 }
 
-export type ToolCall = ToolCallListDir | ToolCallReadFile | ToolCallEditFile | ToolCallSearchField
+export interface ToolCallUpdateTodos extends ToolCallBase {
+  tool: 'update_todos'
+  todos: any[]
+}
+
+export type ToolCall =
+  | ToolCallListDir
+  | ToolCallReadFile
+  | ToolCallEditFile
+  | ToolCallSearchField
+  | ToolCallUpdateTodos

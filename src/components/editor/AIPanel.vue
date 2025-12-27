@@ -6,6 +6,7 @@ import AIPanelMessages from './ai/AIPanelMessages.vue'
 import AIPanelInput from './ai/AIPanelInput.vue'
 import AISettingsModal from './ai/AISettingsModal.vue'
 import AIHistoryModal from './ai/AIHistoryModal.vue'
+import AITodoList from './ai/AITodoList.vue'
 
 const {
   messages,
@@ -62,7 +63,11 @@ function setAgentMode(mode: 'plan' | 'code' | 'ask') {
   <div class="h-full overflow-hidden flex flex-col">
     <AIPanelHeader @open-history="openHistory" @start-new-chat="startNewChat" @open-settings="openSettings" />
 
-    <div ref="messagesEl" class="flex-1 overflow-y-auto p-3 space-y-2">
+    <div class="px-3 pb-1">
+      <AITodoList />
+    </div>
+
+    <div ref="messagesEl" class="flex-1 overflow-y-auto p-3 space-y-2 pt-0">
       <AIPanelMessages
         :messages="messages"
         :grouped-messages="groupedMessages"

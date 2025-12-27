@@ -3,10 +3,22 @@ import { useRoute } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import { loadSettings, readDirectory, readFileContent, saveSettings, writeFileContent } from '../api/tauri'
 import { logger } from '../utils/logger'
+import { useTodo } from './useTodo'
 import type { ChatMessage, ChatRole, ChatSession, ToolCall } from '../types/aiChat'
 
 export function useAiChat() {
   const MAX_CONTINUE_TURNS = 5
+
+  const { updateTodos: _updateTodos, todos } = useTodo()
+
+  function updateTodos(ts: any[]) {
+    _updateTodos(ts)
+    syncMessagesToCurrentSession()
+  }
+
+  watch(todos, () => {
+    syncMessagesToCurrentSession()
+  }, { deep: true })
 
   const messages = ref<ChatMessage[]>([])
   const input = ref('')
@@ -51,11 +63,16 @@ export function useAiChat() {
 {"tool":"search_field","query":"要搜索的字段","file_type":"*.yml,*.txt","case_insensitive":true,"regex":false,"with_snippet":true,"snippet_max_len":160}
 \`\`\`
 
+\`\`\`tool
+{"tool":"update_todos","todos":[{"id":"任务ID","content":"任务内容","status":"pending","priority":"medium"}]}
+\`\`\`
+
 【工具说明】
 (1) list_dir: 列出目录内容（支持 paths 多目录；支持 start/end 对条目分页；end=-1 表示 all）
 (2) read_file: 读取文件内容（支持 paths 多文件；start/end 按“起始行号-结束行号”裁剪；end=-1 表示 all）
 (3) edit_file: 写入文件内容（为了安全，必须带 confirm:true 才会执行）
 (4) search_field: 按字段搜索项目内所有文本文件，返回每个文件命中的行号(不是次数!)（会跳过压缩包/图片等二进制；支持 file_type 文件筛选；支持大小写不敏感与正则；可返回命中行片段）
+(5) update_todos: 更新侧边栏的 Todo 任务列表，用于在 Plan或Code 模式下记录和追踪执行计划。支持增删改查全量更新。
 
 【继续执行协议】
 当你需要基于工具结果继续自动进行下一轮推理/行动，请在回复末尾追加：<continue>，只需要一次就好，不需要多次继续
@@ -143,7 +160,8 @@ export function useAiChat() {
       ...chatSessions.value[idx],
       title,
       updatedAt: now,
-      messages: messages.value
+      messages: messages.value,
+      todos: todos.value
     }
   }
 
@@ -170,6 +188,7 @@ export function useAiChat() {
       ...m,
       showReasoning: m.showReasoning || false
     }))
+    updateTodos(s.todos || [])
   }
 
   function appendMessage(role: ChatRole, content: string, pending?: boolean) {
@@ -357,6 +376,9 @@ export function useAiChat() {
                 (typeof obj.regex === 'boolean' || typeof obj.regex === 'undefined')
               )
             }
+            if (t === 'update_todos') {
+              return Array.isArray(obj.todos)
+            }
             return false
           })()
 
@@ -440,6 +462,9 @@ export function useAiChat() {
     }
     if (tool === 'search_field') {
       return '```tool\n{"tool":"search_field","query":"要搜索的字段","file_type":"*.yml,*.txt","case_insensitive":true,"regex":false,"with_snippet":true,"snippet_max_len":160}\n```'
+    }
+    if (tool === 'update_todos') {
+      return '```tool\n{"tool":"update_todos","todos":[{"id":"任务ID","content":"任务内容","status":"pending","priority":"medium"}]}\n```'
     }
     return '```tool\n{"tool":"read_file","paths":["相对或绝对路径"],"start":1,"end":-1}\n```'
   }
@@ -935,6 +960,15 @@ export function useAiChat() {
       }
     }
 
+    if (call && (call as any).tool === 'update_todos') {
+      const ts = (call as any).todos
+      if (!Array.isArray(ts)) {
+        return { success: false, message: 'update_todos 缺少 todos 数组' }
+      }
+      updateTodos(ts)
+      return { success: true, message: 'Todo 列表已同步' }
+    }
+
     return { success: false, message: '未知工具' }
   }
 
@@ -1167,10 +1201,11 @@ D 注意事项（可选）
 【核心原则】
 0 禁止写入：禁止调用 edit_file（Plan 模式不允许写入文件）。
 1 先计划后实施：先给清晰计划，再给实施细节。
-2 小步可验证：每一步都应能通过“观察 UI / 运行 / 日志 / 单测”验证。
-3 最小必要改动：优先选择影响面小、风险低的改动；避免大范围重构，除非明确必要。
-4 明确依赖与风险：对高风险点或不确定点提前说明，并提供替代方案。
-5 结构化输出：让用户能快速扫读并知道你接下来要做什么。
+2 记录计划：在输出计划后，必须调用 update_todos 工具将计划同步到侧边栏。
+3 小步可验证：每一步都应能通过“观察 UI / 运行 / 日志 / 单测”验证。
+4 最小必要改动：优先选择影响面小、风险低的改动；避免大范围重构，除非明确必要。
+5 明确依赖与风险：对高风险点或不确定点提前说明，并提供替代方案。
+6 结构化输出：让用户能快速扫读并知道你接下来要做什么。
 
 【输出结构（严格）】
 A 目标复述
@@ -1183,11 +1218,14 @@ B 执行计划（必须）
   - 触达点（会改哪些模块/文件/组件/函数，尽量具体）
   - 验证方式（如何确认这一步成功）
 
-C 实施细节（按需）
+C 任务列表同步（必须）
+- 调用 update_todos 工具，将上述计划转换为结构化任务。
+
+D 实施细节（按需）
 - 列出关键逻辑/关键数据流/关键 UI 状态
 - 若涉及配置或持久化，说明字段名与迁移策略
 
-D 输出与回滚
+E 输出与回滚
 - 最终会得到什么效果
 - 若用户不满意，如何回滚或调整（例如开关/配置/可逆改动）
 
@@ -1210,6 +1248,12 @@ D 输出与回滚
     }
     if (agentPrompt) {
       injected.push({ role: 'system', content: agentPrompt })
+    }
+    if (todos.value.length > 0) {
+      injected.push({
+        role: 'system',
+        content: `当前任务计划状态 (Todos):\n${JSON.stringify(todos.value, null, 2)}`
+      })
     }
     if (projectTree) {
       injected.push({
@@ -1643,6 +1687,7 @@ D 输出与回滚
     chatSessions.value = [s, ...chatSessions.value]
     currentSessionId.value = s.id
     messages.value = []
+    updateTodos([])
 
     await saveAiChatSessions()
   }
