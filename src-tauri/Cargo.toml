@@ -1,6 +1,6 @@
 [package]
 name = "hoi4-code-studio"
-version = "0.2.17-dev"
+version = "0.2.18-dev"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
