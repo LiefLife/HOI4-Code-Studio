@@ -182,69 +182,72 @@ pub struct ImageReadResult {
 }
 
 #[tauri::command]
-fn get_modifier_list() -> JsonResult {
+fn get_modifier_list(app: tauri::AppHandle) -> JsonResult {
     use std::fs;
     use std::path::PathBuf;
+    use tauri::Manager;
     
-    // 尝试在当前目录或资源目录中查找 modifier.txt
-    let paths_to_try = vec![
+    // 1. 尝试寻找物理文件的路径列表
+    let mut paths_to_try = vec![
         PathBuf::from("modifier.txt"),
+        PathBuf::from("src-tauri/src/modifier.txt"),
+        PathBuf::from("src-tauri/modifier.txt"),
         PathBuf::from("../modifier.txt"),
-        #[cfg(not(debug_assertions))]
-        tauri::path::resource_dir().map(|p| p.join("modifier.txt")).unwrap_or_default(),
     ];
+
+    // 添加 Tauri 资源目录路径
+    if let Ok(res_dir) = app.path().resource_dir() {
+        paths_to_try.push(res_dir.join("modifier.txt"));
+    }
+
+    let mut file_bytes = None;
 
     for path in paths_to_try {
         if path.exists() {
-            // 读取文件字节
-            let bytes = match fs::read(&path) {
-                Ok(b) => b,
-                Err(e) => return JsonResult {
-                    success: false,
-                    message: format!("读取文件失败: {}", e),
-                    data: None,
-                },
-            };
-
-            // 使用与 read_file_content 相同的解码逻辑
-            // 1. 尝试UTF-8
-            if let Ok(content) = String::from_utf8(bytes.clone()) {
-                return JsonResult {
-                    success: true,
-                    message: "读取成功 (UTF-8)".to_string(),
-                    data: Some(serde_json::Value::String(content)),
-                };
+            if let Ok(bytes) = fs::read(&path) {
+                file_bytes = Some(bytes);
+                break;
             }
-
-            // 2. 使用 chardetng 检测编码
-            let mut detector = chardetng::EncodingDetector::new();
-            detector.feed(&bytes, true);
-            let detected_encoding = detector.guess(None, true);
-            
-            // 3. 尝试使用检测到的编码解码
-            let (decoded, _, had_errors) = detected_encoding.decode(&bytes);
-            if !had_errors {
-                return JsonResult {
-                    success: true,
-                    message: format!("读取成功 ({})", detected_encoding.name()),
-                    data: Some(serde_json::Value::String(decoded.to_string())),
-                };
-            }
-
-            // 4. 最后尝试 lossy 转换
-            let content = String::from_utf8_lossy(&bytes).to_string();
-            return JsonResult {
-                success: true,
-                message: "读取成功 (Lossy)".to_string(),
-                data: Some(serde_json::Value::String(content)),
-            };
         }
     }
 
+    // 2. 如果没找到物理文件，则使用编译时内嵌的文件内容（真正的 "在 exe 内部"）
+    let bytes = match file_bytes {
+        Some(b) => b,
+        None => include_bytes!("modifier.txt").to_vec(),
+    };
+
+    // 3. 解码逻辑
+    // 1. 尝试UTF-8
+    if let Ok(content) = String::from_utf8(bytes.clone()) {
+        return JsonResult {
+            success: true,
+            message: "读取成功 (UTF-8)".to_string(),
+            data: Some(serde_json::Value::String(content)),
+        };
+    }
+
+    // 2. 使用 chardetng 检测编码
+    let mut detector = chardetng::EncodingDetector::new();
+    detector.feed(&bytes, true);
+    let detected_encoding = detector.guess(None, true);
+    
+    // 3. 尝试使用检测到的编码解码
+    let (decoded, _, had_errors) = detected_encoding.decode(&bytes);
+    if !had_errors {
+        return JsonResult {
+            success: true,
+            message: format!("读取成功 ({})", detected_encoding.name()),
+            data: Some(serde_json::Value::String(decoded.to_string())),
+        };
+    }
+
+    // 4. 最后尝试 Lossy
+    let content = String::from_utf8_lossy(&bytes).to_string();
     JsonResult {
-        success: false,
-        message: "未找到 modifier.txt".to_string(),
-        data: None,
+        success: true,
+        message: "读取成功 (Lossy)".to_string(),
+        data: Some(serde_json::Value::String(content)),
     }
 }
 
