@@ -181,6 +181,73 @@ pub struct ImageReadResult {
     mime_type: Option<String>,
 }
 
+#[tauri::command]
+fn get_modifier_list() -> JsonResult {
+    use std::fs;
+    use std::path::PathBuf;
+    
+    // 尝试在当前目录或资源目录中查找 modifier.txt
+    let paths_to_try = vec![
+        PathBuf::from("modifier.txt"),
+        PathBuf::from("../modifier.txt"),
+        #[cfg(not(debug_assertions))]
+        tauri::path::resource_dir().map(|p| p.join("modifier.txt")).unwrap_or_default(),
+    ];
+
+    for path in paths_to_try {
+        if path.exists() {
+            // 读取文件字节
+            let bytes = match fs::read(&path) {
+                Ok(b) => b,
+                Err(e) => return JsonResult {
+                    success: false,
+                    message: format!("读取文件失败: {}", e),
+                    data: None,
+                },
+            };
+
+            // 使用与 read_file_content 相同的解码逻辑
+            // 1. 尝试UTF-8
+            if let Ok(content) = String::from_utf8(bytes.clone()) {
+                return JsonResult {
+                    success: true,
+                    message: "读取成功 (UTF-8)".to_string(),
+                    data: Some(serde_json::Value::String(content)),
+                };
+            }
+
+            // 2. 使用 chardetng 检测编码
+            let mut detector = chardetng::EncodingDetector::new();
+            detector.feed(&bytes, true);
+            let detected_encoding = detector.guess(None, true);
+            
+            // 3. 尝试使用检测到的编码解码
+            let (decoded, _, had_errors) = detected_encoding.decode(&bytes);
+            if !had_errors {
+                return JsonResult {
+                    success: true,
+                    message: format!("读取成功 ({})", detected_encoding.name()),
+                    data: Some(serde_json::Value::String(decoded.to_string())),
+                };
+            }
+
+            // 4. 最后尝试 lossy 转换
+            let content = String::from_utf8_lossy(&bytes).to_string();
+            return JsonResult {
+                success: true,
+                message: "读取成功 (Lossy)".to_string(),
+                data: Some(serde_json::Value::String(content)),
+            };
+        }
+    }
+
+    JsonResult {
+        success: false,
+        message: "未找到 modifier.txt".to_string(),
+        data: None,
+    }
+}
+
 // ==================== Tauri 命令 ====================
 
 /// 创建新项目
@@ -2535,6 +2602,7 @@ pub fn run() {
             write_icon_cache,
             clear_icon_cache,
             focus_localization::load_focus_localizations,
+            get_modifier_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -32,6 +32,11 @@ const router = createRouter({
       path: '/editor',
       name: 'editor',
       component: () => import('../views/Editor.vue')
+    },
+    {
+      path: '/modifier-sheet',
+      name: 'modifier-sheet',
+      component: () => import('../views/ModifierSheet.vue')
     }
   ]
 })

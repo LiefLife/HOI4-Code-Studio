@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { loadSettings, saveSettings, buildDirectoryTreeFast, createFile, createFolder, writeFileContent, writeJsonFile, launchGame, renamePath, deletePath, openFolder } from '../api/tauri'
 import 'highlight.js/styles/github-dark.css'
 import 'highlight.js/lib/languages/json'
@@ -960,6 +961,43 @@ function openPackageDialog() {
   packageDialogVisible.value = true
 }
 
+/**
+ * 打开 Modifier 速查表小窗口
+ */
+async function openModifierSheet() {
+  try {
+    // 检查是否已经存在该窗口
+    const existingWindow = await WebviewWindow.getByLabel('modifier-sheet')
+    if (existingWindow) {
+      await existingWindow.setFocus()
+      return
+    }
+
+    // 创建新窗口
+    const webview = new WebviewWindow('modifier-sheet', {
+      url: '/modifier-sheet',
+      title: 'Modifier 速查表',
+      width: 600,
+      height: 800,
+      resizable: true,
+      minWidth: 400,
+      minHeight: 500,
+      alwaysOnTop: true, // 速查表通常需要置顶方便查看
+    })
+
+    webview.once('tauri://created', () => {
+      console.log('Modifier 速查表窗口已创建')
+    })
+
+    webview.once('tauri://error', (e) => {
+      console.error('创建 Modifier 速查表窗口失败:', e)
+    })
+  } catch (error) {
+    logger.error('打开 Modifier 速查表失败:', error)
+    alert('无法打开 Modifier 速查表: ' + error)
+  }
+}
+
 // 处理预览事件
 async function handlePreviewEvent(paneId: string) {
   if (!editorGroupRef.value) return
@@ -1686,6 +1724,7 @@ onUnmounted(() => {
       @toggle-loading-monitor="toggleLoadingMonitor"
       @package-project="openPackageDialog"
       @toggle-auto-save="toggleAutoSave"
+      @open-modifier-sheet="openModifierSheet"
     />
 
     <!-- 主内容区域 -->

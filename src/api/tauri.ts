@@ -201,6 +201,13 @@ export async function writeFileContent(filePath: string, content: string): Promi
   return await invoke('write_file_content', { filePath, content })
 }
 
+/**
+ * 获取 Modifier 列表内容
+ */
+export async function getModifierList(): Promise<JsonResult<string>> {
+  return await invoke('get_modifier_list')
+}
+
 // ==================== 设置管理 ====================
 
 /**
