@@ -26,6 +26,7 @@ const emit = defineEmits<{
   closeFile: [paneId: string, index: number]
   contextMenu: [event: MouseEvent, paneId: string, index: number]
   contentChange: [paneId: string, content: string]
+  externalFileUpdate: [paneId: string, filePath: string, content: string]
   cursorChange: [paneId: string, line: number, column: number]
   saveFile: [paneId: string]
   activate: [paneId: string]
@@ -36,6 +37,10 @@ const emit = defineEmits<{
   previewFocus: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
 }>()
+
+function handleExternalFileUpdate(filePath: string, content: string) {
+  emit('externalFileUpdate', props.pane.id, filePath, content)
+}
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
 const fileContent = ref('')
@@ -534,12 +539,14 @@ defineExpose({
       <!-- 国策树预览 -->
       <FocusTreeViewer
         v-else-if="isCurrentFileFocusTree"
-        :content="currentFile.content"
+        :content="fileContent"
         :file-path="currentFile.node.path"
-        :game-directory="gameDirectory"
         :project-path="projectPath"
+        :game-directory="gameDirectory"
         :dependency-roots="dependencyRoots"
         @jump-to-focus="handleJumpToFocus"
+        @update-content="handleContentChange"
+        @external-file-update="handleExternalFileUpdate"
       />
       
       <!-- 代码编辑器 -->

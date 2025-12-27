@@ -162,6 +162,20 @@ function handleContentChange(paneId: string, content: string) {
     if (file.content !== content) {
       file.content = content
       file.hasUnsavedChanges = true
+
+      const path = file.node?.path
+      if (path) {
+        for (const p of panes.value) {
+          for (const openFile of p.openFiles) {
+            if (!openFile?.node?.path) continue
+            if (openFile.node.path !== path) continue
+            if (openFile === file) continue
+            if (openFile.hasUnsavedChanges) continue
+            if (openFile.isImage) continue
+            openFile.content = content
+          }
+        }
+      }
       
       // 发射内容变化事件，让父组件可以同步预览文件
       emit('contentChange', paneId, content)
@@ -207,10 +221,33 @@ async function handleSaveFile(paneId: string) {
   if (!file || !file.hasUnsavedChanges) return
   
   try {
-    const { writeFileContent } = await import('../../api/tauri')
+    const { writeFileContent, readFileContent } = await import('../../api/tauri')
     const result = await writeFileContent(file.node.path, file.content)
     if (result.success) {
       file.hasUnsavedChanges = false
+
+      try {
+        const readResult = await readFileContent(file.node.path)
+        if (readResult.success && typeof readResult.content === 'string') {
+          file.content = readResult.content
+
+          const path = file.node?.path
+          if (path) {
+            for (const p of panes.value) {
+              for (const openFile of p.openFiles) {
+                if (!openFile?.node?.path) continue
+                if (openFile.node.path !== path) continue
+                if (openFile === file) continue
+                if (openFile.hasUnsavedChanges) continue
+                if (openFile.isImage) continue
+                openFile.content = readResult.content
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('保存后重新读取文件失败:', error)
+      }
     } else {
       alert(`保存失败: ${result.message}`)
     }
@@ -258,6 +295,23 @@ function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: stri
 // 处理关闭窗格
 function handleClosePane(paneId: string) {
   closePane(paneId)
+}
+
+// 处理外部文件更新
+function handleExternalFileUpdate(_paneId: string, filePath: string, content: string) {
+  const normalizePath = (p?: string) => (p || '').replace(/\\/g, '/').replace(/\/+/g, '/').trim()
+  const target = normalizePath(filePath)
+  if (!target) return
+
+  for (const p of panes.value) {
+    for (const openFile of p.openFiles) {
+      if (!openFile?.node?.path) continue
+      if (normalizePath(openFile.node.path) !== target) continue
+      if (openFile.hasUnsavedChanges) continue
+      if (openFile.isImage) continue
+      openFile.content = content
+    }
+  }
 }
 
 // 开始调整窗格大小
@@ -443,6 +497,7 @@ defineExpose({
           @close-file="handleCloseFile"
           @context-menu="handleContextMenu"
           @content-change="handleContentChange"
+          @external-file-update="handleExternalFileUpdate"
           @cursor-change="handleCursorChange"
           @save-file="handleSaveFile"
           @activate="handleActivate"

@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { parseFocusTreeFile, searchFocuses } from '../../utils/focusTreeParser'
 import cytoscape from 'cytoscape'
 import { useImageProcessor } from '../../composables/useImageProcessor'
-import { loadFocusLocalizations } from '../../api/tauri'
+import { buildDirectoryTreeFast, loadFocusLocalizations, readFileContent, writeFileContent } from '../../api/tauri'
 
 const props = defineProps<{
   content: string
@@ -15,12 +15,803 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   jumpToFocus: [focusId: string, line: number]
+  updateContent: [content: string]
+  externalFileUpdate: [filePath: string, content: string]
 }>()
 
 const cyContainerRef = ref<HTMLDivElement | null>(null)
 let cy: cytoscape.Core | null = null
 
 const GRID_SIZE = 150 // 每个网格单位 = 150px
+
+const contextMenuVisible = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuMode = ref<'blank' | 'node'>('blank')
+const contextMenuTargetId = ref<string | null>(null)
+const contextMenuTargetLine = ref<number | null>(null)
+const contextMenuGridX = ref<number | null>(null)
+const contextMenuGridY = ref<number | null>(null)
+
+const createDialogVisible = ref(false)
+const createFormId = ref('')
+const createFormX = ref<number | null>(null)
+const createFormY = ref<number | null>(null)
+const createFormCost = ref<number | null>(null)
+const createFormExclusive = ref('')
+const createFormPrereq = ref('')
+const createFormName = ref('')
+const createFormDesc = ref('')
+const createFormLocFile = ref('')
+
+const editDialogVisible = ref(false)
+const editOriginalId = ref<string | null>(null)
+const editFormId = ref('')
+const editFormX = ref<number | null>(null)
+const editFormY = ref<number | null>(null)
+const editFormCost = ref<number | null>(null)
+const editFormExclusive = ref('')
+const editFormPrereq = ref('')
+const editFormName = ref('')
+const editFormDesc = ref('')
+const editFormLocFile = ref('')
+
+type LocYmlOption = { path: string; label: string }
+const localizationYmlOptions = ref<LocYmlOption[]>([])
+const isLoadingLocalizationYmlOptions = ref(false)
+
+function closeContextMenu() {
+  contextMenuVisible.value = false
+  contextMenuTargetId.value = null
+  contextMenuTargetLine.value = null
+  contextMenuGridX.value = null
+  contextMenuGridY.value = null
+}
+
+function normalizeFsPath(p?: string): string {
+  return (p || '').replace(/\\/g, '/').replace(/\/+/g, '/').trim()
+}
+
+function safeRelPath(full: string, root?: string): string {
+  const f = normalizeFsPath(full)
+  const r = normalizeFsPath(root)
+  if (!r) return f
+  const rLower = r.toLowerCase()
+  const fLower = f.toLowerCase()
+  if (fLower.startsWith(rLower)) {
+    const rest = f.slice(r.length)
+    return rest.replace(/^\//, '')
+  }
+  return f
+}
+
+function flattenTreeToFiles(nodes: any[] | undefined | null, out: any[] = []): any[] {
+  if (!nodes) return out
+  for (const n of nodes) {
+    if (!n) continue
+    if (n.is_directory) {
+      if (n.children) flattenTreeToFiles(n.children, out)
+    } else {
+      out.push(n)
+    }
+  }
+  return out
+}
+
+async function refreshLocalizationYmlOptions() {
+  const projectRoot = normalizeFsPath(props.projectPath)
+  if (!projectRoot) {
+    localizationYmlOptions.value = []
+    return
+  }
+
+  const locDir = `${projectRoot}/localisation/simp_chinese`
+  isLoadingLocalizationYmlOptions.value = true
+  try {
+    const res = await buildDirectoryTreeFast(locDir, 0).catch(() => null)
+    if (!res || !res.success || !res.tree) {
+      localizationYmlOptions.value = []
+      return
+    }
+
+    const files = flattenTreeToFiles(res.tree)
+      .filter((f: any) => typeof f.path === 'string' && f.path.toLowerCase().endsWith('.yml'))
+      .map((f: any) => {
+        const p = normalizeFsPath(f.path)
+        return {
+          path: p,
+          label: safeRelPath(p, projectRoot)
+        } as LocYmlOption
+      })
+      .sort((a: LocYmlOption, b: LocYmlOption) => a.label.localeCompare(b.label))
+
+    localizationYmlOptions.value = files
+
+    if (!createFormLocFile.value && files.length > 0) createFormLocFile.value = files[0].path
+    if (!editFormLocFile.value && files.length > 0) editFormLocFile.value = files[0].path
+  } finally {
+    isLoadingLocalizationYmlOptions.value = false
+  }
+}
+
+function escapeLocValue(v: string): string {
+  return (v || '').replace(/\\/g, '\\\\').replace(/\"/g, '\\"')
+}
+
+function upsertLocalizationEntry(content: string, key: string, value: string): string {
+  const safeKey = (key || '').trim()
+  if (!safeKey) return content
+  const safeValue = escapeLocValue(value || '')
+
+  const lines = (content || '').split(/\r?\n/)
+  const escapedKey = safeKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const keyRegex = new RegExp(`^\\s*${escapedKey}\\s*:(?:\\d+)?\\s*\"[^\"]*\"`)
+  let replaced = false
+
+  for (let i = 0; i < lines.length; i++) {
+    if (keyRegex.test(lines[i])) {
+      lines[i] = `  ${safeKey}: \"${safeValue}\"`
+      replaced = true
+      break
+    }
+  }
+
+  const headerRegex = /^\s*l_simp_chinese\s*:/i
+  let headerIndex = lines.findIndex(l => headerRegex.test(l))
+  if (headerIndex === -1) {
+    // 尽量保持文件可被 HOI4 识别
+    lines.unshift('l_simp_chinese:')
+    headerIndex = 0
+  }
+
+  if (!replaced) {
+    // 紧凑插入到 header 后面（尽量保持条目集中）
+    let insertAt = headerIndex + 1
+    for (let i = headerIndex + 1; i < lines.length; i++) {
+      const t = (lines[i] || '').trim()
+      if (!t) continue
+      if (/^#/.test(t)) continue
+      // 遇到下一个语言块，停止
+      if (/^l_\w+\s*:/i.test(t)) break
+      insertAt = i + 1
+    }
+    lines.splice(insertAt, 0, `  ${safeKey}: \"${safeValue}\"`)
+  }
+
+  return lines.join('\n')
+}
+
+function removeLocalizationEntry(content: string, key: string): string {
+  const safeKey = (key || '').trim()
+  if (!safeKey) return content
+  const escapedKey = safeKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const keyRegex = new RegExp(`^\\s*${escapedKey}\\s*:(?:\\d+)?\\s*\"[^\"]*\"`)
+  const lines = (content || '').split(/\r?\n/)
+  const next = lines.filter(l => !keyRegex.test(l))
+  return next.join('\n')
+}
+
+async function writeFocusLocalizationToYml(ymlPath: string, focusId: string, name: string, desc: string, oldFocusId?: string | null) {
+  const p = normalizeFsPath(ymlPath)
+  if (!p) return
+  const id = (focusId || '').trim()
+  if (!id) return
+
+  const readRes = await readFileContent(p).catch(() => null)
+  if (!readRes || !readRes.success || typeof readRes.content !== 'string') return
+
+  let next = readRes.content
+
+  if (oldFocusId && oldFocusId !== id) {
+    next = removeLocalizationEntry(next, oldFocusId)
+    next = removeLocalizationEntry(next, `${oldFocusId}_desc`)
+  }
+
+  if ((name || '').trim().length > 0) {
+    next = upsertLocalizationEntry(next, id, name)
+  }
+  if ((desc || '').trim().length > 0) {
+    next = upsertLocalizationEntry(next, `${id}_desc`, desc)
+  }
+
+  if (next !== readRes.content) {
+    const wr = await writeFileContent(p, next)
+    if ((wr as any)?.success) {
+      emit('externalFileUpdate', p, next)
+    }
+  }
+}
+
+async function deleteFocusLocalizationEverywhere(focusId: string) {
+  const id = (focusId || '').trim()
+  if (!id) return
+
+  if (localizationYmlOptions.value.length === 0) {
+    await refreshLocalizationYmlOptions()
+  }
+
+  const files = localizationYmlOptions.value.map(o => o.path).filter(Boolean)
+  for (const f of files) {
+    const readRes = await readFileContent(f).catch(() => null)
+    if (!readRes || !readRes.success || typeof readRes.content !== 'string') continue
+    let next = readRes.content
+    next = removeLocalizationEntry(next, id)
+    next = removeLocalizationEntry(next, `${id}_desc`)
+    if (next !== readRes.content) {
+      const wr = await writeFileContent(f, next).catch(() => null)
+      if ((wr as any)?.success) {
+        emit('externalFileUpdate', normalizeFsPath(f), next)
+      }
+    }
+  }
+}
+
+function renderedPointToGrid(localX: number, localY: number): { x: number; y: number } | null {
+  if (!cy) return null
+  const pan = cy.pan()
+  const zoom = cy.zoom()
+  if (!zoom || !Number.isFinite(zoom)) return null
+
+  // rendered(local) -> model(graph)
+  const modelX = (localX - pan.x) / zoom
+  const modelY = (localY - pan.y) / zoom
+
+  return {
+    x: Math.round(modelX / GRID_SIZE),
+    y: Math.round(modelY / GRID_SIZE)
+  }
+}
+
+function openContextMenuBlank(e: MouseEvent) {
+  const rect = cyContainerRef.value?.getBoundingClientRect()
+  if (!rect) return
+  if (!cy) return
+
+  closeContextMenu()
+  contextMenuMode.value = 'blank'
+  contextMenuX.value = e.clientX
+  contextMenuY.value = e.clientY
+  contextMenuVisible.value = true
+
+  const localX = e.clientX - rect.left
+  const localY = e.clientY - rect.top
+  const grid = renderedPointToGrid(localX, localY)
+  if (!grid) return
+  contextMenuGridX.value = grid.x
+  contextMenuGridY.value = grid.y
+}
+
+function openContextMenuNode(e: MouseEvent, nodeId: string, line: number | null) {
+  closeContextMenu()
+  contextMenuMode.value = 'node'
+  contextMenuX.value = e.clientX
+  contextMenuY.value = e.clientY
+  contextMenuTargetId.value = nodeId
+  contextMenuTargetLine.value = line
+  contextMenuVisible.value = true
+}
+
+function findNodeAtPoint(localX: number, localY: number): cytoscape.NodeSingular | null {
+  if (!cy) return null
+  const hits: cytoscape.NodeSingular[] = []
+  cy.nodes().forEach((n) => {
+    const bb = n.renderedBoundingBox()
+    if (localX >= bb.x1 && localX <= bb.x2 && localY >= bb.y1 && localY <= bb.y2) {
+      hits.push(n)
+    }
+  })
+  if (hits.length === 0) return null
+  return hits[hits.length - 1]
+}
+
+function handleNativeContextMenu(e: MouseEvent) {
+  if (!cy || !cyContainerRef.value) return
+  e.preventDefault()
+  e.stopPropagation()
+
+  const rect = cyContainerRef.value.getBoundingClientRect()
+  const localX = e.clientX - rect.left
+  const localY = e.clientY - rect.top
+  const node = findNodeAtPoint(localX, localY)
+  if (node) {
+    openContextMenuNode(e, node.id(), node.data('line') ?? null)
+  } else {
+    openContextMenuBlank(e)
+  }
+}
+
+function replaceTopLevelAssignment(blockText: string, key: string, newValue: string): string {
+  const openBrace = blockText.indexOf('{')
+  if (openBrace === -1) return blockText
+  const headerEnd = blockText.indexOf('\n', openBrace)
+  const insertPos = headerEnd !== -1 ? headerEnd + 1 : openBrace + 1
+
+  const lines = blockText.split('\n')
+  const keyRegex = new RegExp(`^\\s*${key}\\s*=`, 'i')
+  const idx = lines.findIndex(l => keyRegex.test(l) && !l.includes('{'))
+  const newLine = `\t\t${key} = ${newValue}`
+  if (idx !== -1) {
+    lines[idx] = newLine
+    return lines.join('\n')
+  }
+
+  const before = blockText.slice(0, insertPos)
+  const after = blockText.slice(insertPos)
+  return `${before}${newLine}\n${after}`
+}
+
+function removeTopLevelSection(blockText: string, sectionKey: string): string {
+  const openBrace = blockText.indexOf('{')
+  if (openBrace === -1) return blockText
+
+  let i = openBrace + 1
+  let depth = 1
+  let inLineComment = false
+  let inString = false
+
+  while (i < blockText.length) {
+    const ch = blockText[i]
+
+    if (!inString && ch === '#') {
+      inLineComment = true
+      i++
+      continue
+    }
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false
+      i++
+      continue
+    }
+    if (ch === '"') {
+      if (i > 0 && blockText[i - 1] !== '\\') inString = !inString
+      i++
+      continue
+    }
+    if (inString) {
+      i++
+      continue
+    }
+
+    if (ch === '{') depth++
+    else if (ch === '}') depth--
+
+    if (depth === 1) {
+      const rest = blockText.slice(i)
+      const m = rest.match(new RegExp(`^\\s*${sectionKey}\\s*=\\s*\\{`, 'i'))
+      if (m) {
+        const start = i + (m.index ?? 0)
+        const bracePos = blockText.indexOf('{', start)
+        if (bracePos === -1) return blockText
+        const end = findBlockEnd(blockText, bracePos + 1)
+        if (end === -1) return blockText
+        let removeEnd = end + 1
+        while (removeEnd < blockText.length && (blockText[removeEnd] === '\r' || blockText[removeEnd] === '\n' || blockText[removeEnd] === ' ' || blockText[removeEnd] === '\t')) {
+          if (blockText[removeEnd] === '\n') {
+            removeEnd++
+            break
+          }
+          removeEnd++
+        }
+        return blockText.slice(0, start) + blockText.slice(removeEnd)
+      }
+    }
+
+    i++
+  }
+
+  return blockText
+}
+
+function insertBeforeClosingBrace(blockText: string, insertion: string): string {
+  const lastBrace = blockText.lastIndexOf('}')
+  if (lastBrace === -1) return blockText
+  const before = blockText.slice(0, lastBrace)
+  const after = blockText.slice(lastBrace)
+  const prefix = before.endsWith('\n') ? '' : '\n'
+  const suffix = insertion.endsWith('\n') ? '' : '\n'
+  return `${before}${prefix}${insertion}${suffix}${after}`
+}
+
+function buildPrereqBlockText(prereq: string[][]): string {
+  const lines: string[] = []
+  prereq.forEach(group => {
+    if (!group || group.length === 0) return
+    lines.push('\t\tprerequisite = {')
+    group.forEach(id => {
+      lines.push(`\t\t\tfocus = ${id}`)
+    })
+    lines.push('\t\t}')
+  })
+  return lines.join('\n')
+}
+
+function buildExclusiveBlockText(exclusive: string[]): string {
+  const lines: string[] = []
+  lines.push('\t\tmutually_exclusive = {')
+  exclusive.forEach(id => {
+    lines.push(`\t\t\tfocus = ${id}`)
+  })
+  lines.push('\t\t}')
+  return lines.join('\n')
+}
+
+function updateFocusInContent(original: string, originalId: string, params: {
+  id: string
+  x: number
+  y: number
+  cost?: number
+  prerequisite?: string[][]
+  mutuallyExclusive?: string[]
+}): string {
+  const bounds = findFocusTreeBounds(original)
+  if (!bounds) return original
+
+  const treeBody = original.slice(bounds.start, bounds.end)
+  const focusRegex = /\bfocus\s*=\s*\{/g
+  let m: RegExpExecArray | null
+  while ((m = focusRegex.exec(treeBody)) !== null) {
+    const blockStart = m.index + m[0].length
+    const blockEndRel = findBlockEnd(treeBody, blockStart)
+    if (blockEndRel === -1) continue
+    const fullStartRel = m.index
+    const fullEndRel = blockEndRel + 1
+    const blockText = treeBody.slice(fullStartRel, fullEndRel)
+    const idMatch = blockText.match(/\bid\s*=\s*([A-Za-z0-9_\.\-]+)/)
+    if (idMatch && idMatch[1] === originalId) {
+      let nextBlock = blockText
+      nextBlock = replaceTopLevelAssignment(nextBlock, 'id', params.id)
+      nextBlock = replaceTopLevelAssignment(nextBlock, 'x', String(params.x))
+      nextBlock = replaceTopLevelAssignment(nextBlock, 'y', String(params.y))
+      if (typeof params.cost === 'number' && !Number.isNaN(params.cost)) {
+        nextBlock = replaceTopLevelAssignment(nextBlock, 'cost', String(params.cost))
+      }
+
+      nextBlock = removeTopLevelSection(nextBlock, 'prerequisite')
+      nextBlock = removeTopLevelSection(nextBlock, 'mutually_exclusive')
+
+      const insertParts: string[] = []
+      if (params.prerequisite && params.prerequisite.length > 0) {
+        insertParts.push(buildPrereqBlockText(params.prerequisite))
+      }
+      if (params.mutuallyExclusive && params.mutuallyExclusive.length > 0) {
+        insertParts.push(buildExclusiveBlockText(params.mutuallyExclusive))
+      }
+      if (insertParts.length > 0) {
+        nextBlock = insertBeforeClosingBrace(nextBlock, insertParts.join('\n'))
+      }
+
+      const before = original.slice(0, bounds.start + fullStartRel)
+      const after = original.slice(bounds.start + fullEndRel)
+      return `${before}${nextBlock}${after}`
+    }
+    focusRegex.lastIndex = fullEndRel
+  }
+  return original
+}
+
+function openCreateDialogAt(xGrid: number, yGrid: number) {
+  createFormId.value = ''
+  createFormX.value = xGrid
+  createFormY.value = yGrid
+  createFormCost.value = null
+  createFormExclusive.value = ''
+  createFormPrereq.value = ''
+  createFormName.value = ''
+  createFormDesc.value = ''
+  createDialogVisible.value = true
+  refreshLocalizationYmlOptions()
+}
+
+function closeCreateDialog() {
+  createDialogVisible.value = false
+  createFormId.value = ''
+  createFormX.value = null
+  createFormY.value = null
+  createFormCost.value = null
+  createFormExclusive.value = ''
+  createFormPrereq.value = ''
+  createFormName.value = ''
+  createFormDesc.value = ''
+}
+
+function closeEditDialog() {
+  editDialogVisible.value = false
+  editOriginalId.value = null
+  editFormId.value = ''
+  editFormX.value = null
+  editFormY.value = null
+  editFormCost.value = null
+  editFormExclusive.value = ''
+  editFormPrereq.value = ''
+  editFormName.value = ''
+  editFormDesc.value = ''
+}
+
+function toNullableNumber(v: string): number | null {
+  const t = v.trim()
+  if (!t) return null
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}
+
+function parseIdList(input: string): string[] {
+  return input
+    .split(/[,\s]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+}
+
+function parsePrereqText(input: string): string[][] {
+  // 每一行是一个 prerequisite 块（AND 关系），行内多个 id 为 OR 关系
+  const lines = input
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+  return lines.map(line => parseIdList(line))
+}
+
+function prereqToText(prereq: unknown): string {
+  if (!Array.isArray(prereq)) return ''
+  const groups = prereq
+    .filter(g => Array.isArray(g))
+    .map((g: any[]) => g.filter(x => typeof x === 'string' && x.trim().length > 0))
+    .filter((g: string[]) => g.length > 0)
+
+  return groups.map((g: string[]) => g.join(' ')).join('\n')
+}
+
+function exclusiveToText(exclusive: unknown): string {
+  if (!Array.isArray(exclusive)) return ''
+  const ids = exclusive.filter(x => typeof x === 'string' && x.trim().length > 0)
+  return ids.join(' ')
+}
+
+function findBlockEnd(content: string, startPos: number): number {
+  let depth = 1
+  let i = startPos
+  let inLineComment = false
+  let inString = false
+
+  while (i < content.length) {
+    const char = content[i]
+
+    if (!inString && char === '#') {
+      inLineComment = true
+      i++
+      continue
+    }
+
+    if (inLineComment) {
+      if (char === '\n') inLineComment = false
+      i++
+      continue
+    }
+
+    if (char === '"') {
+      if (i > 0 && content[i - 1] !== '\\') {
+        inString = !inString
+      }
+      i++
+      continue
+    }
+
+    if (inString) {
+      i++
+      continue
+    }
+
+    if (char === '{') depth++
+    else if (char === '}') {
+      depth--
+      if (depth === 0) return i
+    }
+
+    i++
+  }
+
+  return -1
+}
+
+function findFocusTreeBounds(content: string): { start: number; end: number } | null {
+  const regex = /focus_tree\s*=\s*\{/g
+  const match = regex.exec(content)
+  if (!match) return null
+  const start = match.index + match[0].length
+  const end = findBlockEnd(content, start)
+  if (end === -1) return null
+  return { start, end }
+}
+
+function buildFocusBlockText(params: {
+  id: string
+  x: number
+  y: number
+  cost?: number
+  prerequisite?: string[][]
+  mutuallyExclusive?: string[]
+}): string {
+  const lines: string[] = []
+  lines.push('\tfocus = {')
+  lines.push(`\t\tid = ${params.id}`)
+  lines.push(`\t\tx = ${params.x}`)
+  lines.push(`\t\ty = ${params.y}`)
+  if (typeof params.cost === 'number' && !Number.isNaN(params.cost)) {
+    lines.push(`\t\tcost = ${params.cost}`)
+  }
+
+  if (params.prerequisite && params.prerequisite.length > 0) {
+    params.prerequisite.forEach(group => {
+      if (!group || group.length === 0) return
+      lines.push('\t\tprerequisite = {')
+      group.forEach(pid => {
+        lines.push(`\t\t\tfocus = ${pid}`)
+      })
+      lines.push('\t\t}')
+    })
+  }
+
+  if (params.mutuallyExclusive && params.mutuallyExclusive.length > 0) {
+    lines.push('\t\tmutually_exclusive = {')
+    params.mutuallyExclusive.forEach(mid => {
+      lines.push(`\t\t\tfocus = ${mid}`)
+    })
+    lines.push('\t\t}')
+  }
+
+  lines.push('\t}')
+  return lines.join('\n')
+}
+
+function insertFocusIntoContent(original: string, focusBlock: string): string {
+  const bounds = findFocusTreeBounds(original)
+  if (!bounds) return original
+
+  const insertPos = bounds.end
+  const prefix = original.slice(0, insertPos)
+  const suffix = original.slice(insertPos)
+  const insertion = `\n\n${focusBlock}\n`
+  return `${prefix}${insertion}${suffix}`
+}
+
+function deleteFocusFromContent(original: string, focusId: string): string {
+  const bounds = findFocusTreeBounds(original)
+  if (!bounds) return original
+
+  const treeBody = original.slice(bounds.start, bounds.end)
+  const focusRegex = /\bfocus\s*=\s*\{/g
+  let m: RegExpExecArray | null
+  while ((m = focusRegex.exec(treeBody)) !== null) {
+    const blockStart = m.index + m[0].length
+    const blockEndRel = findBlockEnd(treeBody, blockStart)
+    if (blockEndRel === -1) continue
+    const fullStartRel = m.index
+    const fullEndRel = blockEndRel + 1
+    const blockText = treeBody.slice(fullStartRel, fullEndRel)
+    const idMatch = blockText.match(/\bid\s*=\s*([A-Za-z0-9_\.\-]+)/)
+    if (idMatch && idMatch[1] === focusId) {
+      const before = original.slice(0, bounds.start + fullStartRel)
+      const after = original.slice(bounds.start + fullEndRel, original.length)
+      return `${before}${after}`
+    }
+    focusRegex.lastIndex = fullEndRel
+  }
+
+  return original
+}
+
+function handleCreateSubmit() {
+  const id = createFormId.value.trim()
+  if (!id) return
+
+  const x = createFormX.value
+  const y = createFormY.value
+  if (typeof x !== 'number' || typeof y !== 'number') return
+
+  const cost = createFormCost.value
+  const prereq = parsePrereqText(createFormPrereq.value)
+  const exclusive = parseIdList(createFormExclusive.value)
+
+  const focusBlock = buildFocusBlockText({
+    id,
+    x,
+    y,
+    cost: typeof cost === 'number' ? cost : undefined,
+    prerequisite: prereq.length > 0 ? prereq : undefined,
+    mutuallyExclusive: exclusive.length > 0 ? exclusive : undefined
+  })
+
+  const next = insertFocusIntoContent(props.content, focusBlock)
+  emit('updateContent', next)
+
+  // 写入本地化（如果选择了 yml 且填写了内容）
+  const yml = createFormLocFile.value
+  if (yml && ((createFormName.value || '').trim() || (createFormDesc.value || '').trim())) {
+    writeFocusLocalizationToYml(yml, id, createFormName.value, createFormDesc.value, null)
+      .then(() => refreshLocalization())
+      .catch(() => null)
+  }
+
+  closeCreateDialog()
+}
+
+function handleDeleteTarget() {
+  const id = contextMenuTargetId.value
+  if (!id) return
+  const next = deleteFocusFromContent(props.content, id)
+  emit('updateContent', next)
+  cleanupCardsForRemovedFocus(id)
+
+  // 删除对应本地化（项目 simp_chinese 下所有 yml）
+  deleteFocusLocalizationEverywhere(id)
+    .then(() => refreshLocalization())
+    .catch(() => null)
+
+  closeContextMenu()
+}
+
+function handleContextMenuCreate() {
+  const gx = contextMenuGridX.value
+  const gy = contextMenuGridY.value
+  if (typeof gx !== 'number' || typeof gy !== 'number') return
+  closeContextMenu()
+  openCreateDialogAt(gx, gy)
+}
+
+function handleContextMenuEdit() {
+  const id = contextMenuTargetId.value
+  if (!id || !cy) return
+  const node = cy.getElementById(id)
+  if (!node || node.empty()) return
+
+  editOriginalId.value = id
+  editFormId.value = id
+  editFormX.value = typeof node.data('x') === 'number' ? node.data('x') : null
+  editFormY.value = typeof node.data('y') === 'number' ? node.data('y') : null
+  editFormCost.value = typeof node.data('cost') === 'number' ? node.data('cost') : null
+  editFormPrereq.value = prereqToText(node.data('prerequisite'))
+  editFormExclusive.value = exclusiveToText(node.data('mutually_exclusive'))
+  editFormName.value = localizationMap.value.get(id) || ''
+  editFormDesc.value = localizationMap.value.get(`${id}_desc`) || ''
+  refreshLocalizationYmlOptions()
+  editDialogVisible.value = true
+}
+
+function handleEditSubmit() {
+  const originalId = editOriginalId.value
+  if (!originalId) return
+
+  const id = editFormId.value.trim()
+  if (!id) return
+
+  const x = editFormX.value
+  const y = editFormY.value
+  if (typeof x !== 'number' || typeof y !== 'number') return
+
+  const cost = editFormCost.value
+  const prereq = parsePrereqText(editFormPrereq.value)
+  const exclusive = parseIdList(editFormExclusive.value)
+
+  const next = updateFocusInContent(props.content, originalId, {
+    id,
+    x,
+    y,
+    cost: typeof cost === 'number' ? cost : undefined,
+    prerequisite: prereq.length > 0 ? prereq : undefined,
+    mutuallyExclusive: exclusive.length > 0 ? exclusive : undefined
+  })
+
+  emit('updateContent', next)
+
+  // 写入本地化（如果选择了 yml 且填写了内容）
+  const yml = editFormLocFile.value
+  if (yml && ((editFormName.value || '').trim() || (editFormDesc.value || '').trim())) {
+    writeFocusLocalizationToYml(yml, id, editFormName.value, editFormDesc.value, originalId)
+      .then(() => refreshLocalization())
+      .catch(() => null)
+  }
+
+  closeEditDialog()
+}
 
 // 搜索相关
 const searchQuery = ref('')
@@ -190,6 +981,21 @@ function maybeHideTooltip() {
   if (pinTimer !== null) {
     window.clearTimeout(pinTimer)
     pinTimer = null
+  }
+}
+
+function cleanupCardsForRemovedFocus(focusId: string) {
+  pinnedCards.value = pinnedCards.value.filter(c => c.focusId !== focusId)
+
+  if (tooltipFocusId.value === focusId) {
+    tooltipVisible.value = false
+    isTooltipPinned.value = false
+    isHoveringNode.value = false
+    isHoveringTooltip.value = false
+    if (pinTimer !== null) {
+      window.clearTimeout(pinTimer)
+      pinTimer = null
+    }
   }
 }
 
@@ -830,6 +1636,20 @@ function clearSearch() {
 watch(focusTree, () => {
   // 保存当前视图状态
   saveViewState()
+
+  if (focusTree.value) {
+    const exists = (id: string) => focusTree.value?.focuses.has(id) === true
+    pinnedCards.value = pinnedCards.value.filter(c => exists(c.focusId))
+    if (tooltipVisible.value && tooltipFocusId.value && !exists(tooltipFocusId.value)) {
+      tooltipVisible.value = false
+      isTooltipPinned.value = false
+    }
+  } else {
+    pinnedCards.value = []
+    tooltipVisible.value = false
+    isTooltipPinned.value = false
+  }
+
   // 销毁当前实例
   if (cy) cy.destroy()
   // 重新初始化，会自动恢复视图状态
@@ -856,13 +1676,23 @@ watch(() => props.content, (newContent, oldContent) => {
 onMounted(() => {
   // 初始化图片处理器
   initImageProcessor()
+
+  if (cyContainerRef.value) {
+    cyContainerRef.value.addEventListener('contextmenu', handleNativeContextMenu)
+  }
   
   // 延迟初始化Cytoscape
   setTimeout(() => initCytoscape(), 100)
+
+  refreshLocalizationYmlOptions()
 })
 
 onUnmounted(() => {
   if (cy) cy.destroy()
+
+  if (cyContainerRef.value) {
+    cyContainerRef.value.removeEventListener('contextmenu', handleNativeContextMenu)
+  }
   
   // 清理图片处理器资源
   dispose()
@@ -984,6 +1814,259 @@ onUnmounted(() => {
         ref="cyContainerRef"
         class="w-full h-full"
       ></div>
+
+      <Teleport to="body">
+        <div
+          v-if="contextMenuVisible"
+          class="fixed inset-0 z-50"
+          @click="closeContextMenu"
+          @contextmenu.prevent="closeContextMenu"
+        ></div>
+
+        <div
+          v-if="contextMenuVisible"
+          class="fixed z-50 ui-island rounded-xl px-2 py-2 min-w-[180px]"
+          :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }"
+        >
+          <button
+            v-if="contextMenuMode === 'blank'"
+            class="w-full text-left px-3 py-2 text-sm text-hoi4-text hover:bg-hoi4-border/30 rounded-lg"
+            @click="handleContextMenuCreate"
+          >
+            创建国策 ({{ contextMenuGridX ?? 0 }}, {{ contextMenuGridY ?? 0 }})
+          </button>
+
+          <button
+            v-if="contextMenuMode === 'node'"
+            class="w-full text-left px-3 py-2 text-sm text-hoi4-text hover:bg-hoi4-border/30 rounded-lg"
+            @click="handleContextMenuEdit"
+          >
+            编辑国策: {{ contextMenuTargetId }}
+          </button>
+
+          <button
+            v-if="contextMenuMode === 'node'"
+            class="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-hoi4-border/30 rounded-lg"
+            @click="handleDeleteTarget"
+          >
+            删除国策: {{ contextMenuTargetId }}
+          </button>
+        </div>
+
+        <div
+          v-if="createDialogVisible"
+          class="fixed inset-0 z-50 flex items-center justify-center"
+          @click.self="closeCreateDialog"
+        >
+          <div class="ui-island rounded-2xl w-[560px] max-w-[95vw] px-5 py-4">
+            <div class="text-hoi4-text font-bold text-base">创建国策</div>
+
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">id</div>
+                <input v-model="createFormId" class="ui-input w-full px-2 py-1 text-sm" placeholder="FOCUS_ID" />
+              </div>
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">cost</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="createFormCost ?? ''"
+                  placeholder="10"
+                  @input="createFormCost = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">x</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="createFormX ?? ''"
+                  placeholder="0"
+                  @input="createFormX = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">y</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="createFormY ?? ''"
+                  placeholder="0"
+                  @input="createFormY = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">mutually_exclusive（用空格/逗号分隔多个id）</div>
+              <input v-model="createFormExclusive" class="ui-input w-full px-2 py-1 text-sm" placeholder="A B C" />
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">prerequisite（每行一个 prerequisite；行内多个 id 为 OR，多行表示 AND）</div>
+              <textarea
+                v-model="createFormPrereq"
+                class="ui-input w-full px-2 py-2 text-sm min-h-[96px]"
+                placeholder="A B\nC"
+              ></textarea>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">本地化</div>
+              <select
+                v-model="createFormLocFile"
+                class="ui-input w-full px-2 py-2 text-sm"
+                :disabled="isLoadingLocalizationYmlOptions || localizationYmlOptions.length === 0"
+              >
+                <option v-if="isLoadingLocalizationYmlOptions" value="">加载中...</option>
+                <option v-else-if="localizationYmlOptions.length === 0" value="">未找到 yml（请确认 project/localisation/simp_chinese）</option>
+                <option
+                  v-for="opt in localizationYmlOptions"
+                  :key="opt.path"
+                  :value="opt.path"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">name</div>
+              <input v-model="createFormName" class="ui-input w-full px-2 py-2 text-sm" placeholder="中文名字" />
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">desc</div>
+              <textarea
+                v-model="createFormDesc"
+                class="ui-input w-full px-2 py-2 text-sm min-h-[72px]"
+                placeholder="中文描述"
+              ></textarea>
+            </div>
+
+            <div class="mt-4 flex justify-end space-x-2">
+              <button
+                class="px-3 py-2 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-sm"
+                @click="closeCreateDialog"
+              >
+                取消
+              </button>
+              <button
+                class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white text-sm"
+                @click="handleCreateSubmit"
+              >
+                创建并写入
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="editDialogVisible"
+          class="fixed inset-0 z-50 flex items-center justify-center"
+          @click.self="closeEditDialog"
+        >
+          <div class="ui-island rounded-2xl w-[560px] max-w-[95vw] px-5 py-4">
+            <div class="text-hoi4-text font-bold text-base">编辑国策</div>
+
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">id</div>
+                <input v-model="editFormId" class="ui-input w-full px-2 py-1 text-sm" placeholder="FOCUS_ID" />
+              </div>
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">cost</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="editFormCost ?? ''"
+                  placeholder="10"
+                  @input="editFormCost = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">x</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="editFormX ?? ''"
+                  placeholder="0"
+                  @input="editFormX = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+              <div>
+                <div class="text-xs text-hoi4-text-dim mb-1">y</div>
+                <input
+                  class="ui-input w-full px-2 py-1 text-sm"
+                  :value="editFormY ?? ''"
+                  placeholder="0"
+                  @input="editFormY = toNullableNumber(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">mutually_exclusive（用空格/逗号分隔多个id）</div>
+              <input v-model="editFormExclusive" class="ui-input w-full px-2 py-1 text-sm" placeholder="A B C" />
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">prerequisite（每行一个 prerequisite；行内多个 id 为 OR，多行表示 AND）</div>
+              <textarea
+                v-model="editFormPrereq"
+                class="ui-input w-full px-2 py-2 text-sm min-h-[96px]"
+                placeholder="A B\nC"
+              ></textarea>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">本地化</div>
+              <select
+                v-model="editFormLocFile"
+                class="ui-input w-full px-2 py-2 text-sm"
+                :disabled="isLoadingLocalizationYmlOptions || localizationYmlOptions.length === 0"
+              >
+                <option v-if="isLoadingLocalizationYmlOptions" value="">加载中...</option>
+                <option v-else-if="localizationYmlOptions.length === 0" value="">未找到 yml（请确认 project/localisation/simp_chinese）</option>
+                <option
+                  v-for="opt in localizationYmlOptions"
+                  :key="opt.path"
+                  :value="opt.path"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">name</div>
+              <input v-model="editFormName" class="ui-input w-full px-2 py-2 text-sm" placeholder="中文名字" />
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-hoi4-text-dim mb-1">desc</div>
+              <textarea
+                v-model="editFormDesc"
+                class="ui-input w-full px-2 py-2 text-sm min-h-[72px]"
+                placeholder="中文描述"
+              ></textarea>
+            </div>
+
+            <div class="mt-4 flex justify-end space-x-2">
+              <button
+                class="px-3 py-2 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-sm"
+                @click="closeEditDialog"
+              >
+                取消
+              </button>
+              <button
+                class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white text-sm"
+                @click="handleEditSubmit"
+              >
+                保存并写入
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <div
         v-for="card in pinnedCards"
