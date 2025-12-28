@@ -7,7 +7,7 @@ import { useTodo } from './useTodo'
 import type { ChatMessage, ChatRole, ChatSession, ToolCall } from '../types/aiChat'
 
 export function useAiChat() {
-  const MAX_CONTINUE_TURNS = 5
+  const MAX_CONTINUE_TURNS = 200
 
   const { updateTodos: _updateTodos, todos } = useTodo()
 
@@ -37,6 +37,7 @@ export function useAiChat() {
 
 【工具调用（你可以直接调用）】
 你可以在回复中输出一个或多个工具块，前端会自动执行并把结果追加到对话上下文中。
+**绝对禁止在回复中自行输出 TOOL_RESULT 格式的内容和他后续的内容，那是系统自动生成的，你只需输出工具块即可。**
 工具块格式必须严格如下：
 列出目录:
 单文件:
@@ -73,13 +74,14 @@ export function useAiChat() {
 (2) read_file: 读取文件内容（支持 paths 多文件；start/end 按“起始行号-结束行号”裁剪；end=-1 表示 all）
 (3) edit_file: 写入文件内容（为了安全，必须带 confirm:true 才会执行）
 (4) search_field: 按字段搜索项目内所有文本文件，返回每个文件命中的行号(不是次数!)（会跳过压缩包/图片等二进制；支持 file_type 文件筛选；支持大小写不敏感与正则；可返回命中行片段）
-(5) update_todos: 更新侧边栏的 Todo 任务列表，用于在 Plan或Code 模式下记录和追踪执行计划。支持增删改查全量更新。
+(5) update_todos: 更新侧边栏的 Todo 任务列表，用于在 Plan或Code 模式下记录和追踪执行计划。支持增删改查全量更新。请在完成后立刻更新Todo状态
 
 【任务终止协议】
 如果你已经完成了用户的所有请求，且不需要再进行任何操作（如工具调用、进一步解释等），请在回复的最后一行输出：<BREAK>。
 如果你没有输出 <BREAK>，系统将认为你还需要继续执行，并会自动向你发送“请继续”的信号，直到你输出 <BREAK> 或达到最大轮数限制。
 
 【输出约束】
+- 禁止伪造工具输出：你绝对不能在回复中包含 "TOOL_RESULT" 字符串，也绝对不能编造工具的返回结果。工具结果只能由系统在执行你的工具块后自动注入。
 - 不要编造不存在的文件/函数/字段；不确定就先用 list_dir/read_file。
 - 避免一次性修改大量文件；必要时先给计划。
 - 工具块尽量放在回复末尾，便于解析。`
@@ -965,13 +967,17 @@ export function useAiChat() {
         return { success: false, message: 'update_todos 缺少 todos 数组' }
       }
       updateTodos(ts)
-      return { success: true, message: 'Todo 列表已同步' }
+      return { success: true, message: 'Todo 列表已同步', hide_result: true }
     }
 
     return { success: false, message: '未知工具' }
   }
 
   function appendToolResultMessage(call: ToolCall, result: any) {
+    if (result && typeof result === 'object' && result.hide_result === true) {
+      return
+    }
+
     const safeResult = (() => {
       try {
         return JSON.stringify(result, null, 2)
@@ -1001,7 +1007,7 @@ export function useAiChat() {
   }
 
   function isToolResultMessage(m: ChatMessage) {
-    return m.role === 'system' && typeof m.content === 'string' && m.content.startsWith('TOOL_RESULT')
+    return (m.role === 'system' || m.role === 'assistant') && typeof m.content === 'string' && m.content.startsWith('TOOL_RESULT')
   }
 
   function toolResultInfo(m: ChatMessage): { text: string; status: 'success' | 'fail' | 'unknown' } {
@@ -1482,12 +1488,14 @@ E 输出与回滚
           // content：
           // - 隐藏 <BREAK>
           // - 隐藏 <think>/<\/think>
+          // - 隐藏 TOOL_RESULT（防止模型伪造输出泄漏到 UI）
           // - 一旦进入 tool 输出段，就不再向可见内容追加（避免 UI 看到半截 tool 导致体验差）
           if (delta.content && !suppressVisibleContent) {
             const visible = delta.content
               .replace(/<BREAK>/gi, '')
               .replace(/<think>/gi, '')
               .replace(/<\/think>/gi, '')
+              .replace(/TOOL_RESULT/gi, '')
             if (visible) {
               appendToMessage(pendingId, { content: visible })
             }
