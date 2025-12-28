@@ -896,3 +896,10 @@ export async function getProvinceAtPoint(x: number, y: number): Promise<number |
 export async function getProvinceOutline(provinceId: number): Promise<[number, number][]> {
   return await invoke('get_province_outline', { provinceId })
 }
+
+/**
+ * 获取地区的轮廓点集
+ */
+export async function getStateOutline(stateId: number): Promise<[number, number][]> {
+  return await invoke('get_state_outline', { stateId })
+}

@@ -2636,6 +2636,7 @@ pub fn run() {
             map_engine::get_map_metadata,
             map_engine::get_map_preview,
             map_engine::get_province_outline,
+            map_engine::get_state_outline,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

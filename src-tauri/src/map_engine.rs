@@ -20,10 +20,13 @@ pub struct MapContext {
     pub country_colors: HashMap<String, RGBColor>,
     #[allow(dead_code)]
     pub state_owners: HashMap<u32, String>, // province_id -> owner_tag
+    pub province_to_state: HashMap<u32, u32>, // province_id -> state_id
+    pub state_to_provinces: HashMap<u32, Vec<u32>>, // state_id -> province_ids
     
     // 渲染查找表 (LUT) - 索引为 Province ID
     // 使用 Vec<[u8; 3]> 替代 HashMap 以获得 O(1) 访问速度
     pub province_color_lut: Vec<[u8; 3]>,
+    pub state_color_lut: Vec<[u8; 3]>,
     pub country_color_lut: Vec<[u8; 3]>,
     pub terrain_color_lut: Vec<[u8; 3]>,
 
@@ -516,7 +519,7 @@ pub fn get_province_owner_color_map(
     country_colors: HashMap<String, RGBColor>,
 ) -> HashMap<u32, RGBColor> {
     let mut province_color_map = HashMap::new();
-    for state in states {
+    for state in &states {
         if let Some(color) = country_colors.get(&state.owner) {
             for &province_id in &state.provinces {
                 province_color_map.insert(province_id, *color);
@@ -640,10 +643,14 @@ pub fn initialize_map_context(
     // 4. Load States & Owners
     let states = load_all_states(states_path);
     let mut state_owners = HashMap::new();
+    let mut province_to_state = HashMap::new();
+    let mut state_to_provinces = HashMap::new();
     
-    for state in states {
+    for state in &states {
+        state_to_provinces.insert(state.id, state.provinces.clone());
         for &p_id in &state.provinces {
             state_owners.insert(p_id, state.owner.clone());
+            province_to_state.insert(p_id, state.id);
         }
     }
 
@@ -652,8 +659,27 @@ pub fn initialize_map_context(
     let lut_size = (max_id + 1) as usize;
     
     let mut province_color_lut = vec![[0, 0, 0]; lut_size];
+    let mut state_color_lut = vec![[60, 60, 60]; lut_size]; // Default gray for provinces not in states
     let mut country_color_lut = vec![[40, 40, 40]; lut_size]; // Default dark gray for no owner
     let mut terrain_color_lut = vec![[100, 100, 100]; lut_size]; // Default gray
+
+    // Map province to state color
+    let mut province_to_state_color = HashMap::new();
+    for state in &states {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        use std::hash::{Hash, Hasher};
+        state.id.hash(&mut hasher);
+        let hash = hasher.finish();
+        
+        // 生成鲜艳且稳定的颜色
+        let r = ((hash & 0xFF) as u8 % 180) + 40;
+        let g = (((hash >> 8) & 0xFF) as u8 % 180) + 40;
+        let b = (((hash >> 16) & 0xFF) as u8 % 180) + 40;
+        
+        for &p_id in &state.provinces {
+            province_to_state_color.insert(p_id, [r, g, b]);
+        }
+    }
 
     for def in definitions.values() {
         let id = def.id as usize;
@@ -661,6 +687,11 @@ pub fn initialize_map_context(
         
         // Province Mode Color
         province_color_lut[id] = [def.r, def.g, def.b];
+        
+        // State Mode Color
+        if let Some(color) = province_to_state_color.get(&(def.id)) {
+            state_color_lut[id] = *color;
+        }
         
         // Country Mode Color
         if let Some(owner) = state_owners.get(&def.id) {
@@ -713,7 +744,10 @@ pub fn initialize_map_context(
         definitions,
         country_colors,
         state_owners,
+        province_to_state,
+        state_to_provinces,
         province_color_lut,
+        state_color_lut,
         country_color_lut,
         terrain_color_lut,
         province_bounds,
@@ -778,6 +812,76 @@ pub fn get_province_outline(
     Ok(edge_pixels)
 }
 
+#[tauri::command]
+pub fn get_state_outline(
+    state: tauri::State<MapState>,
+    state_id: u32,
+) -> Result<Vec<(u32, u32)>, String> {
+    let context_guard = state.0.lock().map_err(|_| "Failed to lock map state")?;
+    let context = context_guard.as_ref().ok_or("Map context not initialized")?;
+
+    let province_ids = context.state_to_provinces.get(&state_id).ok_or("State not found")?;
+    
+    // Combine bounding boxes of all provinces in the state
+    let mut min_x = u32::MAX;
+    let mut min_y = u32::MAX;
+    let mut max_x = 0;
+    let mut max_y = 0;
+    
+    let mut state_provinces_set = std::collections::HashSet::new();
+    for &pid in province_ids {
+        state_provinces_set.insert(pid);
+        if let Some(bounds) = context.province_bounds.get(&pid) {
+            min_x = min_x.min(bounds.min_x);
+            min_y = min_y.min(bounds.min_y);
+            max_x = max_x.max(bounds.max_x);
+            max_y = max_y.max(bounds.max_y);
+        }
+    }
+
+    if min_x == u32::MAX { return Ok(Vec::new()); }
+
+    let width = context.width;
+    let height = context.height;
+    let mut edge_pixels = Vec::new();
+
+    // Scan the combined bounding box
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let idx = (y * width + x) as usize;
+            if idx >= context.province_ids.len() { continue; }
+            
+            let current_pid = context.province_ids[idx];
+            if state_provinces_set.contains(&current_pid) {
+                let mut is_edge = false;
+                
+                // Top
+                if y == 0 || !state_provinces_set.contains(&context.province_ids[((y - 1) * width + x) as usize]) {
+                    is_edge = true;
+                }
+                // Bottom
+                else if y == height - 1 || !state_provinces_set.contains(&context.province_ids[((y + 1) * width + x) as usize]) {
+                    is_edge = true;
+                }
+                // Left
+                else if x == 0 || !state_provinces_set.contains(&context.province_ids[(y * width + x - 1) as usize]) {
+                    is_edge = true;
+                }
+                // Right
+                else if x == width - 1 || !state_provinces_set.contains(&context.province_ids[(y * width + x + 1) as usize]) {
+                    is_edge = true;
+                }
+
+                if is_edge {
+                    edge_pixels.push((x, y));
+                }
+            }
+        }
+    }
+
+    Ok(edge_pixels)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapMetadata {
     pub width: u32,
@@ -818,6 +922,7 @@ pub fn get_map_preview(
     // Select LUT based on mode
     let lut = match mode.as_str() {
         "province" => &ctx.province_color_lut,
+        "state" => &ctx.state_color_lut,
         "country" => &ctx.country_color_lut,
         "terrain" => &ctx.terrain_color_lut,
         _ => &ctx.province_color_lut, // Default fallback
@@ -900,6 +1005,7 @@ pub fn get_map_tile_direct(
     // Select LUT based on mode
     let lut = match mode.as_str() {
         "province" => &ctx.province_color_lut,
+        "state" => &ctx.state_color_lut,
         "country" => &ctx.country_color_lut,
         "terrain" => &ctx.terrain_color_lut,
         _ => &ctx.province_color_lut, // Default fallback

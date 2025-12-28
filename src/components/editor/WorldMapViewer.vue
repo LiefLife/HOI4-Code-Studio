@@ -30,6 +30,34 @@
       <div class="flex items-center gap-2">
         <span v-if="error" class="text-red-400 text-xs px-2">{{ error }}</span>
         
+        <!-- 高亮模式切换 -->
+        <div v-if="isHighlightEnabled" class="flex items-center bg-hoi4-gray rounded px-1 py-1">
+          <button 
+            class="px-2 py-0.5 text-[10px] rounded transition-colors"
+            :class="highlightMode === 'tile' ? 'bg-hoi4-accent text-white' : 'text-hoi4-text hover:bg-hoi4-border/80'"
+            @click="highlightMode = 'tile'"
+          >
+            地块
+          </button>
+          <button 
+            class="px-2 py-0.5 text-[10px] rounded transition-colors"
+            :class="highlightMode === 'province' ? 'bg-hoi4-accent text-white' : 'text-hoi4-text hover:bg-hoi4-border/80'"
+            @click="highlightMode = 'province'"
+          >
+            省份
+          </button>
+        </div>
+
+        <!-- 高亮切换 -->
+        <label class="flex items-center gap-2 px-2 py-1 bg-hoi4-gray rounded cursor-pointer hover:bg-hoi4-border transition-colors">
+          <input 
+            type="checkbox" 
+            v-model="isHighlightEnabled" 
+            class="w-3 h-3 accent-hoi4-accent"
+          >
+          <span class="text-hoi4-text text-xs">高亮</span>
+        </label>
+
         <!-- 性能模式切换 -->
         <label class="flex items-center gap-2 px-2 py-1 bg-hoi4-gray rounded cursor-pointer hover:bg-hoi4-border transition-colors">
           <input 
@@ -71,24 +99,60 @@
       <!-- 悬停信息 Tooltip -->
       <div 
         v-if="hoverInfo"
-        class="absolute pointer-events-none bg-hoi4-gray/90 border border-hoi4-border p-2 rounded shadow-lg text-xs z-20"
+        class="absolute pointer-events-none ui-island rounded-2xl backdrop-blur-sm px-4 py-3 min-w-[180px] max-w-[320px] shadow-2xl z-30 transition-all duration-75 border border-hoi4-border/40"
         :style="tooltipStyle"
       >
-        <div class="font-bold text-hoi4-accent border-b border-hoi4-border mb-1 pb-1">
-          省份 #{{ hoverInfo.id }}
-        </div>
-        <div class="grid grid-cols-2 gap-x-3 gap-y-1">
-          <span class="text-hoi4-comment">类型:</span>
-          <span class="text-hoi4-text">{{ hoverInfo.type }}</span>
-          <span class="text-hoi4-comment">地形:</span>
-          <span class="text-hoi4-text">{{ hoverInfo.terrain }}</span>
-          <span class="text-hoi4-comment">沿海:</span>
-          <span class="text-hoi4-text">{{ hoverInfo.coastal ? '是' : '否' }}</span>
-          <span v-if="hoverInfo.stateName" class="text-hoi4-comment">所属州:</span>
-          <span v-if="hoverInfo.stateName" class="text-hoi4-text">{{ hoverInfo.stateName }}</span>
-          <span v-if="hoverInfo.owner" class="text-hoi4-comment">所有者:</span>
-          <span v-if="hoverInfo.owner" class="text-hoi4-accent font-bold">{{ hoverInfo.owner }}</span>
-        </div>
+        <!-- 州视图 (省份视图) -->
+        <template v-if="hoverInfo.isState">
+          <div class="text-hoi4-text font-bold text-sm tracking-wide mb-2 flex items-center justify-between">
+            <span>{{ hoverInfo.name || '未命名州' }}</span>
+            <span class="text-[10px] bg-hoi4-accent/20 text-hoi4-accent px-1.5 py-0.5 rounded uppercase tracking-tighter">STATE</span>
+          </div>
+          <div class="h-px bg-hoi4-border/30 mb-3"></div>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-hoi4-text-dim">ID:</span>
+              <span class="text-hoi4-text font-mono">{{ hoverInfo.id }}</span>
+            </div>
+            <div v-if="hoverInfo.owner" class="flex justify-between items-center text-xs">
+              <span class="text-hoi4-text-dim">所有者:</span>
+              <span class="text-hoi4-accent font-bold">{{ hoverInfo.owner }}</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- 地块视图 -->
+        <template v-else-if="!hoverInfo.isState">
+          <div class="text-hoi4-text font-bold text-sm tracking-wide mb-2 flex items-center justify-between">
+            <span>地块 #{{ hoverInfo.id }}</span>
+            <span class="text-[10px] bg-hoi4-comment/20 text-hoi4-comment px-1.5 py-0.5 rounded uppercase tracking-tighter">PROVINCE</span>
+          </div>
+          <div class="h-px bg-hoi4-border/30 mb-3"></div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div class="flex flex-col">
+              <span class="text-hoi4-text-dim text-[10px] uppercase">类型</span>
+              <span class="text-hoi4-text">{{ hoverInfo.type }}</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-hoi4-text-dim text-[10px] uppercase">地形</span>
+              <span class="text-hoi4-text">{{ hoverInfo.terrain }}</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-hoi4-text-dim text-[10px] uppercase">沿海</span>
+              <span class="text-hoi4-text">{{ hoverInfo.coastal ? '是' : '否' }}</span>
+            </div>
+            <div v-if="hoverInfo.owner" class="flex flex-col">
+              <span class="text-hoi4-text-dim text-[10px] uppercase">所有者</span>
+              <span class="text-hoi4-accent font-bold">{{ hoverInfo.owner }}</span>
+            </div>
+          </div>
+          <div v-if="hoverInfo.stateName" class="mt-3 pt-2 border-t border-hoi4-border/20">
+            <div class="flex flex-col">
+              <span class="text-hoi4-text-dim text-[10px] uppercase">所属州</span>
+              <span class="text-hoi4-text">{{ hoverInfo.stateName }}</span>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- 加载遮罩 -->
@@ -154,9 +218,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useMapEngine } from '../../composables/useMapEngine'
-import { loadSettings } from '../../api/tauri'
+import { loadSettings, type ProvinceDefinition } from '../../api/tauri'
 
 const props = defineProps<{
   projectPath: string
@@ -183,12 +247,13 @@ const downsampleFactor = computed(() => {
 })
 
 // 计算路径
-const mapDirPath = computed(() => `${props.projectPath}/map`)
-const statesDirPath = computed(() => `${props.projectPath}/history/states`)
-const countryColorsPath = computed(() => `${props.projectPath}/common/countries/colors.txt`)
+// const mapDirPath = computed(() => `${props.projectPath}/map`)
+// const statesDirPath = computed(() => `${props.projectPath}/history/states`)
+// const countryColorsPath = computed(() => `${props.projectPath}/common/countries/colors.txt`)
 
 const modes = [
-  { id: 'province', name: '省份视图' },
+  { id: 'province', name: '地块视图' },
+  { id: 'state', name: '省份视图' },
   { id: 'country', name: '国家视图' },
   { id: 'terrain', name: '地形视图' }
 ] as const
@@ -201,6 +266,7 @@ const {
   getPreview,
   getProvinceId,
   getOutline,
+  getStateOutline,
   isLoading, 
   error, 
   mapData,
@@ -215,6 +281,8 @@ const minimapCanvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 const currentMode = ref<MapMode>('province')
 const isPerformanceMode = ref(true) // 默认开启性能模式
+const isHighlightEnabled = ref(true) // 默认开启高亮
+const highlightMode = ref<'tile' | 'province'>('tile') // 高亮模式：地块或省份
 const hoverProvinceId = ref<number | null>(null)
 const hoverOutline = ref<[number, number][] | null>(null)
 
@@ -287,7 +355,22 @@ const mapWrapperStyle = computed(() => {
   }
 })
 
-const hoverInfo = computed(() => {
+interface StateHoverInfo {
+  id: number
+  name: string
+  owner: string
+  isState: true
+}
+
+interface ProvinceHoverInfo extends ProvinceDefinition {
+  stateName?: string
+  owner?: string
+  isState: false
+}
+
+type HoverInfo = StateHoverInfo | ProvinceHoverInfo
+
+const hoverInfo = computed<HoverInfo | null>(() => {
   if (!hoverProvinceId.value || !definitions.value) return null
   
   const def = definitions.value.find(d => d.id === hoverProvinceId.value)
@@ -295,17 +378,49 @@ const hoverInfo = computed(() => {
 
   const state = states.value.find(s => s.provinces.includes(def.id))
 
+  // 根据高亮模式（highlightMode）而非视图模式（currentMode）来决定预览框内容
+  if (highlightMode.value === 'province') {
+    if (!state) return null
+    return {
+      id: state.id,
+      name: state.name,
+      owner: state.owner,
+      isState: true
+    }
+  }
+
   return {
     ...def,
     stateName: state?.name,
-    owner: state?.owner
+    owner: state?.owner,
+    isState: false
   }
 })
 
-const tooltipStyle = computed(() => ({
-  left: `${mousePos.value.x + 15}px`,
-  top: `${mousePos.value.y + 15}px`
-}))
+const tooltipStyle = computed(() => {
+  // 确保预览框不会超出容器边界
+  const rect = containerRef.value?.getBoundingClientRect()
+  if (!rect) return { left: '0px', top: '0px' }
+
+  let left = mousePos.value.x + 15
+  let top = mousePos.value.y + 15
+
+  // 预估宽度和高度（或在 DOM 更新后动态计算，这里先给一个安全边距）
+  const estimatedWidth = 200
+  const estimatedHeight = 150
+
+  if (left + estimatedWidth > rect.width) {
+    left = mousePos.value.x - estimatedWidth - 10
+  }
+  if (top + estimatedHeight > rect.height) {
+    top = mousePos.value.y - estimatedHeight - 10
+  }
+
+  return {
+    left: `${left}px`,
+    top: `${top}px`
+  }
+})
 
 // 初始化地图
 onMounted(async () => {
@@ -333,14 +448,22 @@ onUnmounted(() => {
 })
 
 watch(hoverProvinceId, async (newId) => {
-  if (newId) {
+  if (newId && isHighlightEnabled.value) {
     try {
-      // console.log('Fetching outline for:', newId)
-      const points = await getOutline(newId)
-      // console.log('Outline points:', points?.length)
+      let points: [number, number][] | undefined;
+      if (highlightMode.value === 'tile') {
+        points = await getOutline(newId)
+      } else {
+        // 查找所属的州
+        const state = states.value.find(s => s.provinces.includes(newId))
+        if (state) {
+          points = await getStateOutline(state.id)
+        }
+      }
+      
       // 防止竞态条件
       if (hoverProvinceId.value === newId) {
-        hoverOutline.value = points
+        hoverOutline.value = points ?? null
         requestRender()
       }
     } catch (e) {
@@ -350,6 +473,25 @@ watch(hoverProvinceId, async (newId) => {
     hoverOutline.value = null
     requestRender()
   }
+})
+
+watch(highlightMode, () => {
+  // 模式切换时清除当前高亮并重新触发
+  hoverOutline.value = null
+  if (hoverProvinceId.value) {
+    const id = hoverProvinceId.value
+    hoverProvinceId.value = null
+    nextTick(() => {
+      hoverProvinceId.value = id
+    })
+  }
+})
+
+watch(isHighlightEnabled, (enabled) => {
+  if (!enabled) {
+    hoverOutline.value = null
+  }
+  requestRender()
 })
 
 function handleResize() {
@@ -467,6 +609,8 @@ function drawOverlay() {
   if (!ctx) return
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  if (!isHighlightEnabled.value) return
 
   if (hoverOutline.value && hoverOutline.value.length > 0) {
     const s = scale.value

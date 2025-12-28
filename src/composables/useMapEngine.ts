@@ -13,6 +13,7 @@ import {
   getMapPreview,
   getProvinceAtPoint,
   getProvinceOutline,
+  getStateOutline,
   type MapMetadata
 } from '../api/tauri'
 
@@ -134,6 +135,13 @@ export function useMapEngine() {
     return await getProvinceOutline(provinceId)
   }
 
+  /**
+   * 获取州边缘轮廓
+   */
+  async function getStateOutlineWrapper(stateId: number): Promise<[number, number][]> {
+    return await getStateOutline(stateId)
+  }
+
   return {
     definitions,
     defaultMap,
@@ -146,6 +154,7 @@ export function useMapEngine() {
     renderTile,
     getPreview,
     getProvinceId,
-    getOutline
+    getOutline,
+    getStateOutline: getStateOutlineWrapper
   }
 }

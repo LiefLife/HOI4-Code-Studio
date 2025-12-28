@@ -190,7 +190,7 @@ describe('设置菜单数据模块测试', () => {
 
     it('getAllMenuItems 应该返回所有菜单项的扁平化列表', () => {
       const allItems = getAllMenuItems()
-      expect(allItems).toHaveLength(10) // 根据实际数据结构
+      expect(allItems).toHaveLength(11) // 根据实际数据结构
       
       allItems.forEach(item => {
         expect(item).toHaveProperty('id')
