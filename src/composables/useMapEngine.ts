@@ -1,9 +1,6 @@
 import { ref } from 'vue'
 import {
   loadDefaultMap,
-  loadMapDefinitions,
-  loadAllStates,
-  loadCountryColors,
   type ProvinceDefinition,
   type DefaultMap,
   type StateDefinition,
@@ -58,20 +55,6 @@ export function useMapEngine() {
       // 3. 获取基础元数据 (轻量级)
       const metadata = await getMapMetadata()
       mapData.value = metadata
-
-      // 4. 加载省份定义和州数据 (用于前端 UI 交互)
-      const defRes = await loadMapDefinitions(`${baseMapPath}/${defaultMap.value.definitions}`)
-      if (defRes.success && defRes.data) {
-        definitions.value = defRes.data
-      }
-
-      if (statesDirPath) {
-        states.value = await loadAllStates(normalize(statesDirPath))
-      }
-
-      if (countryColorsPath) {
-        countryColors.value = await loadCountryColors(normalize(countryColorsPath))
-      }
       
     } catch (e: any) {
       error.value = e.message

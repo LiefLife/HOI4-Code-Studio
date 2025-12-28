@@ -113,7 +113,7 @@
 
       <!-- 导航器 (Minimap) -->
       <div 
-        v-show="mapData"
+        v-if="mapData"
         class="absolute bottom-4 right-4 ui-island rounded-2xl backdrop-blur-sm p-1.5 border border-hoi4-border/40 shadow-2xl z-20 overflow-hidden group select-none transition-all duration-300 hover:scale-[1.02]"
         :style="{ width: MINIMAP_SIZE + 12 + 'px' }"
       >
@@ -154,7 +154,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useMapEngine } from '../../composables/useMapEngine'
 import { loadSettings } from '../../api/tauri'
 
@@ -395,10 +395,6 @@ async function refreshMap() {
 
   try {
     await initMap(mapDirPath.value, statesDirPath.value, countryColorsPath.value)
-    
-    // 等待 DOM 更新以确保 Canvas ref 可用
-    await nextTick()
-    
     updateProgress('准备渲染', '初始化切片缓存...', 60)
     await resetMapCache()
     updateProgress('构建导航器', '生成缩略图...', 90)
@@ -422,9 +418,6 @@ async function setMode(mode: MapMode) {
   isLoading.value = true
   loadingProgress.value = 0
   currentMode.value = mode
-  
-  await nextTick()
-  
   updateProgress('切换视图', '清理缓存...', 50)
   await resetMapCache()
   await drawMinimap()
@@ -476,27 +469,19 @@ function drawOverlay() {
     const s = scale.value
     const tx = translateX.value
     const ty = translateY.value
+    const pixelSize = Math.max(1, Math.ceil(s))
     
-    // 基础像素大小，随缩放微调
-    // 缩放小时加粗边缘，使其可见
-    const pixelSize = Math.max(1.5, s)
-    
-    ctx.save()
-    // 增加外发光效果
-    ctx.shadowBlur = 5
-    ctx.shadowColor = 'rgba(255, 255, 0, 0.8)'
-    ctx.fillStyle = 'rgba(255, 255, 0, 1.0)' // 纯黄色
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.6)'
     
     for (const [x, y] of hoverOutline.value) {
+      // 简单剔除
       const sx = x * s + tx
       const sy = y * s + ty
       
-      // 视口剔除
       if (sx < -pixelSize || sy < -pixelSize || sx > canvas.width || sy > canvas.height) continue
       
       ctx.fillRect(sx, sy, pixelSize, pixelSize)
     }
-    ctx.restore()
   }
 }
 
