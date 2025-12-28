@@ -60,47 +60,56 @@ fn get_recent_project_stats(paths: Vec<String>) -> RecentProjectStatsResult {
     use std::fs;
     use std::path::Path;
     use walkdir::WalkDir;
+    use rayon::prelude::*;
 
-    let mut stats = Vec::with_capacity(paths.len());
+    // 使用 rayon 并行处理多个项目的路径扫描
+    let stats: Vec<ProjectStats> = paths
+        .into_par_iter()
+        .map(|path| {
+            let project_path = Path::new(&path);
 
-    for path in paths {
-        let project_path = Path::new(&path);
+            let mut file_count: u64 = 0;
+            let mut total_size: u64 = 0;
 
-        let mut file_count: u64 = 0;
-        let mut total_size: u64 = 0;
+            if project_path.exists() && project_path.is_dir() {
+                // 虽然 walkdir 本身是单线程的，但 rayon 使得多个项目可以同时被扫描
+                for entry in WalkDir::new(project_path).follow_links(false).into_iter() {
+                    let entry = match entry {
+                        Ok(e) => e,
+                        Err(_) => continue,
+                    };
 
-        if project_path.exists() && project_path.is_dir() {
-            for entry in WalkDir::new(project_path).follow_links(false).into_iter() {
-                let entry = match entry {
-                    Ok(e) => e,
-                    Err(_) => continue,
-                };
+                    if !entry.file_type().is_file() {
+                        continue;
+                    }
 
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-
-                file_count = file_count.saturating_add(1);
-                if let Ok(meta) = entry.metadata() {
-                    total_size = total_size.saturating_add(meta.len());
+                    file_count = file_count.saturating_add(1);
+                    if let Ok(meta) = entry.metadata() {
+                        total_size = total_size.saturating_add(meta.len());
+                    }
                 }
             }
-        }
 
-        let version = project_path
-            .join("project.json")
-            .to_str()
-            .and_then(|p| fs::read_to_string(p).ok())
-            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
-            .and_then(|v| v.get("version").and_then(|vv| vv.as_str()).map(|s| s.to_string()));
+            // 获取项目版本号（如果有 project.json）
+            let version = project_path
+                .join("project.json")
+                .to_str()
+                .and_then(|p| fs::read_to_string(p).ok())
+                .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+                .and_then(|v| {
+                    v.get("version")
+                        .and_then(|vv| vv.as_str())
+                        .map(|s| s.to_string())
+                });
 
-        stats.push(ProjectStats {
-            path,
-            file_count,
-            total_size,
-            version,
-        });
-    }
+            ProjectStats {
+                path,
+                file_count,
+                total_size,
+                version,
+            }
+        })
+        .collect();
 
     RecentProjectStatsResult {
         success: true,

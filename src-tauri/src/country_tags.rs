@@ -235,28 +235,45 @@ fn is_cache_valid(entry: &TagCacheEntry, files: &[TagFileInfo]) -> bool {
     true
 }
 
-/// 解析所有文件内容并返回去重后的标签列表。
+/// 解析所有文件内容并返回去重后的标签列表。使用并行读取以提升效率。
 fn parse_tags(files: &[TagFileInfo]) -> io::Result<Vec<TagEntry>> {
-    let mut grouped: HashMap<String, TagEntry> = HashMap::new();
+    use rayon::prelude::*;
 
-    let mut ordered_files: Vec<&TagFileInfo> = files.iter().collect();
-    ordered_files.sort_by_key(|info| match info.source {
-        TagSource::Game => 0,
-        TagSource::Dependency => 1,
-        TagSource::Project => 2,
-    });
+    // 并行解析所有文件的内容
+    let parsed_results: Result<Vec<Vec<TagEntry>>, io::Error> = files
+        .par_iter()
+        .map(|info| {
+            let content = fs::read_to_string(&info.path)?;
+            Ok(extract_tags(&content, info.source))
+        })
+        .collect();
 
-    for info in ordered_files {
-        let content = match fs::read_to_string(&info.path) {
-            Ok(text) => text,
-            Err(err) => return Err(err),
-        };
-        for entry in extract_tags(&content, info.source) {
-            grouped.insert(entry.code.clone(), entry);
+    let all_tags_lists = parsed_results?;
+    
+    // 合并结果，按来源优先级去重 (Project > Dependency > Game)
+    let mut grouped: HashMap<String, (TagEntry, u8)> = HashMap::new();
+    
+    for list in all_tags_lists {
+        for entry in list {
+            let priority = match entry.source {
+                TagSource::Game => 0u8,
+                TagSource::Dependency => 1u8,
+                TagSource::Project => 2u8,
+            };
+            
+            grouped.entry(entry.code.clone())
+                .and_modify(|(existing_entry, existing_priority)| {
+                    if priority >= *existing_priority {
+                        *existing_entry = entry.clone();
+                        *existing_priority = priority;
+                    }
+                })
+                .or_insert((entry, priority));
         }
     }
 
-    let mut tags: Vec<TagEntry> = grouped.into_values().collect();
+    let mut tags: Vec<TagEntry> = grouped.into_values().map(|(entry, _)| entry).collect();
+    // 按代码字母顺序排序
     tags.sort_by(|a, b| a.code.cmp(&b.code));
     Ok(tags)
 }
