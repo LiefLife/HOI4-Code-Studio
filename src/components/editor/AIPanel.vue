@@ -12,6 +12,7 @@ const {
   messages,
   input,
   isSending,
+  isOptimizing,
   settingsOpen,
   historyOpen,
   openaiApiKey,
@@ -37,6 +38,7 @@ const {
   selectChatSession,
   deleteChatSessions,
   handleSend,
+  optimizePrompt,
   handleInputKeydown,
   toggleReasoning,
   isToolResultMessage,
@@ -83,9 +85,11 @@ function setAgentMode(mode: 'plan' | 'code' | 'ask') {
       v-model="input"
       :can-send="canSend"
       :is-sending="isSending"
+      :is-optimizing="isOptimizing"
       :ai-agent-mode="aiAgentMode"
       :agent-mode-menu-open="agentModeMenuOpen"
       @send="handleSend"
+      @optimize="optimizePrompt"
       @keydown="handleInputKeydown"
       @toggle-agent-menu="toggleAgentMenu"
       @set-agent-mode="setAgentMode"

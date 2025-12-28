@@ -23,6 +23,7 @@ export function useAiChat() {
   const messages = ref<ChatMessage[]>([])
   const input = ref('')
   const isSending = ref(false)
+  const isOptimizing = ref(false)
 
   const settingsOpen = ref(false)
   const historyOpen = ref(false)
@@ -74,9 +75,9 @@ export function useAiChat() {
 (4) search_field: 按字段搜索项目内所有文本文件，返回每个文件命中的行号(不是次数!)（会跳过压缩包/图片等二进制；支持 file_type 文件筛选；支持大小写不敏感与正则；可返回命中行片段）
 (5) update_todos: 更新侧边栏的 Todo 任务列表，用于在 Plan或Code 模式下记录和追踪执行计划。支持增删改查全量更新。
 
-【继续执行协议】
-当你需要基于工具结果继续自动进行下一轮推理/行动，请在回复末尾追加：<continue>，只需要一次就好，不需要多次继续
-（兼容拼写 <contiune>）
+【任务终止协议】
+如果你已经完成了用户的所有请求，且不需要再进行任何操作（如工具调用、进一步解释等），请在回复的最后一行输出：<BREAK>。
+如果你没有输出 <BREAK>，系统将认为你还需要继续执行，并会自动向你发送“请继续”的信号，直到你输出 <BREAK> 或达到最大轮数限制。
 
 【输出约束】
 - 不要编造不存在的文件/函数/字段；不确定就先用 list_dir/read_file。
@@ -253,19 +254,18 @@ export function useAiChat() {
     syncMessagesToCurrentSession()
   }
 
-  function stripContinueToken(text: string) {
+  function checkBreakToken(text: string) {
     const trimmed = (text || '').trimEnd()
-    const has = trimmed.endsWith('<continue>') || trimmed.endsWith('<contiune>')
-    if (!has) return { text, continue: false }
-    const cleaned = trimmed
-      .replace(/<continue>\s*$/i, '')
-      .replace(/<contiune>\s*$/i, '')
-      .trimEnd()
-    return { text: cleaned, continue: true }
+    const has = trimmed.endsWith('<BREAK>')
+    if (has) {
+      const cleaned = trimmed.replace(/<BREAK>\s*$/i, '').trimEnd()
+      return { text: cleaned, break: true }
+    }
+    return { text, break: false }
   }
 
-  function removeContinueTokens(text: string) {
-    return (text || '').replace(/<continue>/gi, '').replace(/<contiune>/gi, '')
+  function removeBreakTokens(text: string) {
+    return (text || '').replace(/<BREAK>/gi, '')
   }
 
   function extractThinkFromText(text: string) {
@@ -710,7 +710,6 @@ export function useAiChat() {
   async function ensureProjectTreeForCurrentSession() {
     const s = getCurrentSession()
     if (!s) return
-    if (s.projectTreeInjected) return
     if (!projectRootPath.value) {
       setCurrentSession({ projectTreeInjected: true, projectTree: '' })
       return
@@ -1240,7 +1239,7 @@ E 输出与回滚
     const agentPrompt = getAgentPrompt(aiAgentMode.value).trim()
 
     const session = getCurrentSession()
-    const projectTree = (session?.projectTreeInjected ? (session?.projectTree || '') : '').trim()
+    const projectTree = (session?.projectTree || '').trim()
 
     const injected: Array<{ role: ChatRole; content: string }> = [{ role: 'system', content: SYSTEM_PROMPT }]
     if (rule) {
@@ -1258,7 +1257,7 @@ E 输出与回滚
     if (projectTree) {
       injected.push({
         role: 'system',
-        content: `项目目录结构（仅本会话首次聊天注入）：\n\n${projectTree}`
+        content: `当前项目目录结构：\n\n${projectTree}`
       })
     }
 
@@ -1481,13 +1480,12 @@ E 输出与回滚
           }
 
           // content：
-          // - 隐藏 <continue>/<contiune>
+          // - 隐藏 <BREAK>
           // - 隐藏 <think>/<\/think>
           // - 一旦进入 tool 输出段，就不再向可见内容追加（避免 UI 看到半截 tool 导致体验差）
           if (delta.content && !suppressVisibleContent) {
             const visible = delta.content
-              .replace(/<continue>/gi, '')
-              .replace(/<contiune>/gi, '')
+              .replace(/<BREAK>/gi, '')
               .replace(/<think>/gi, '')
               .replace(/<\/think>/gi, '')
             if (visible) {
@@ -1498,13 +1496,13 @@ E 输出与回滚
 
         markMessageDone(pendingId)
         const finalFull = fullAssistantText
-        const { text: noContinueText0, continue: shouldContinue } = stripContinueToken(finalFull)
-        const { cleaned: noContinueText, reasoning: thinkReasoning } = extractThinkFromText(noContinueText0)
+        const { text: noBreakText0, break: isFinished } = checkBreakToken(finalFull)
+        const { cleaned: noBreakText, reasoning: thinkReasoning } = extractThinkFromText(noBreakText0)
         if (thinkReasoning) {
           appendToMessage(pendingId, { reasoning: thinkReasoning })
         }
-        const invalidToolCalls = extractInvalidToolCalls(noContinueText)
-        const { calls, cleaned } = extractToolCalls(noContinueText)
+        const invalidToolCalls = extractInvalidToolCalls(noBreakText)
+        const { calls, cleaned } = extractToolCalls(noBreakText)
 
         if (invalidToolCalls.length > 0) {
           for (const inv of invalidToolCalls.slice(0, 3)) {
@@ -1512,10 +1510,10 @@ E 输出与回滚
           }
         }
 
-        // 用“清洗后的文本”覆盖展示内容（移除 tool 块与 continue）
+        // 用“清洗后的文本”覆盖展示内容（移除 tool 块与 BREAK）
         const currentVisible = messages.value.find(m => m.id === pendingId)?.content || ''
         const { cleaned: cleanedNoThink } = extractThinkFromText(cleaned)
-        const displayText = removeContinueTokens(cleanedNoThink).trimEnd()
+        const displayText = removeBreakTokens(cleanedNoThink).trimEnd()
         if (displayText !== currentVisible) {
           setMessageContent(pendingId, displayText || '（无内容返回）')
         } else if (!displayText.trim()) {
@@ -1534,8 +1532,7 @@ E 输出与回滚
 
         clearToolCallingBubble()
 
-        const forceContinue = calls.length > 0 || invalidToolCalls.length > 0
-        if (shouldContinue || forceContinue) {
+        if (!isFinished) {
           const invalidHint = invalidToolCalls.length > 0
             ? `\n\n你调用的 ${invalidToolCalls.map(x => `"${x.tool}"`).join('、')} 工具格式不对，应该严格使用如下格式之一：\n\n${invalidToolCalls
               .slice(0, 2)
@@ -1547,11 +1544,7 @@ E 输出与回滚
             ? `\n\n额外提醒：不要把 JSON 再包成字符串（例如 "{...}"），tool 块里应该直接是对象 JSON。`
             : ''
 
-          const missingContinueHint = calls.length > 0 && !shouldContinue
-            ? `\n\n提示：你刚才调用了工具，但没有在回复末尾追加 <continue>。如果你还需要继续自动推进（例如基于工具输出再调用下一次工具），请在本轮回复末尾追加 <continue>。`
-            : ''
-
-          nextUserContent = `你已经进行了以下操作：\n\n${cleaned || '（上次输出为空）'}\n\n现在你需要继续下一步。${invalidHint}${invalidExtra}${missingContinueHint}`
+          nextUserContent = `你已经进行了以下操作：\n\n${cleaned || '（上次输出为空）'}\n\n现在你需要继续下一步。${invalidHint}${invalidExtra}\n若已完成，请在回复末尾输出 <BREAK>。`
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -1562,6 +1555,92 @@ E 输出与回滚
       } finally {
         isSending.value = false
       }
+    }
+  }
+
+  /**
+   * 提示词优化
+   * 收集当前上下文、智能体模式、项目目录和待办事项，请求 AI 优化用户输入的提示词
+   */
+  async function optimizePrompt() {
+    if (isOptimizing.value || !input.value.trim()) return
+
+    const apiKey = openaiApiKey.value.trim()
+    if (!apiKey) {
+      logger.error('未配置 OpenAI API Key')
+      return
+    }
+
+    isOptimizing.value = true
+    try {
+      await ensureProjectTreeForCurrentSession()
+      const session = getCurrentSession()
+      const projectTree = (session?.projectTree || '').trim()
+      
+      const contextMessages = messages.value
+        .filter(m => !m.pending)
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({ role: m.role, content: m.content }))
+
+      const optimizationSystemPrompt = `你是一个专业的提示词优化专家。你的任务是将用户输入的原始提示词优化为结构化、模块化且高质量的提示词。
+
+【优化标准】
+1. 结构化：使用清晰的标题、列表和分段。
+2. 明确性：消除歧义，明确任务目标、约束条件和输出格式。
+3. 模块化：将不同类型的信息（背景、任务、要求、示例等）分开。
+4. 针对性：结合当前的项目上下文、待办事项和智能体模式进行优化。
+
+【输入数据】
+- 原始提示词：${input.value}
+- 当前智能体模式：${aiAgentMode.value}
+- 项目目录结构：${projectTree || '暂无'}
+- 待办事项：${JSON.stringify(todos.value, null, 2)}
+- 历史对话上下文：${JSON.stringify(contextMessages)}
+
+【输出要求】
+- 只输出优化后的提示词内容，不要包含任何解释、开场白或结束语。
+- 优化后的内容应直接可用于 AI 聊天。
+- 保持原始意图，但提升表达的专业性和准确性。`
+
+      const url = getChatRequestUrl()
+      const payload = {
+        model: openaiModel.value.trim() || 'gpt-4o-mini',
+        stream: false,
+        messages: [
+          { role: 'system', content: optimizationSystemPrompt },
+          { role: 'user', content: `请优化以下提示词：\n\n${input.value}` }
+        ]
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!res.ok) {
+        let detail = ''
+        try {
+          const errJson = await res.json()
+          detail = (errJson?.error?.message as string) || JSON.stringify(errJson)
+        } catch {
+          detail = await res.text()
+        }
+        throw new Error(`请求失败 (${res.status}): ${detail}`)
+      }
+
+      const data = await res.json()
+      const optimizedContent = data?.choices?.[0]?.message?.content || ''
+      if (optimizedContent) {
+        input.value = optimizedContent.trim()
+      }
+    } catch (err) {
+      logger.error('提示词优化失败:', err)
+    } finally {
+      isOptimizing.value = false
     }
   }
 
@@ -1749,6 +1828,7 @@ E 输出与回滚
     messages,
     input,
     isSending,
+    isOptimizing,
     settingsOpen,
     historyOpen,
     openaiApiKey,
@@ -1774,6 +1854,7 @@ E 输出与回滚
     selectChatSession,
     deleteChatSessions,
     handleSend,
+    optimizePrompt,
     handleInputKeydown,
     toggleReasoning,
     isToolResultMessage,
