@@ -46,6 +46,10 @@ const autoSave = ref(true)
 const disableErrorHandling = ref(false)
 const enableRGBColorDisplay = ref(true)
 
+// 地图预览设置
+const mapPerformanceMode = ref(true)
+const mapSamplingRate = ref(50)
+
 // AI 设置
 const openaiApiKey = ref('')
 const openaiBaseUrl = ref('https://api.openai.com')
@@ -130,6 +134,10 @@ async function loadUserSettings() {
     disableErrorHandling.value = data.disableErrorHandling || false
     enableRGBColorDisplay.value = data.enableRGBColorDisplay !== false
 
+    // 加载地图设置
+    mapPerformanceMode.value = data.mapPerformanceMode !== false
+    mapSamplingRate.value = data.mapSamplingRate || (data.mapDownsample ? Math.round(100 / data.mapDownsample) : 50)
+
     // 加载 AI 设置
     openaiApiKey.value = data.openaiApiKey || ''
     openaiBaseUrl.value = data.openaiBaseUrl || 'https://api.openai.com'
@@ -188,7 +196,11 @@ async function handleSave() {
     aiRenderMarkdown: aiRenderMarkdown.value,
     aiRequestReasoning: aiRequestReasoning.value,
     aiRule: aiRule.value,
-    aiAgentMode: aiAgentMode.value
+    aiAgentMode: aiAgentMode.value,
+
+    // 地图设置
+    mapPerformanceMode: mapPerformanceMode.value,
+    mapSamplingRate: mapSamplingRate.value
   }
   
   const result = await saveSettings(settings)
@@ -385,6 +397,52 @@ onMounted(async () => {
               @update:aiAgentMode="aiAgentMode = $event"
               @save="handleSave"
             />
+          </SettingsCard>
+
+          <!-- 地图设置 -->
+          <SettingsCard 
+            v-if="activeMenuItem === 'map-settings'"
+            title="地图预览设置"
+            description="配置地图渲染性能和缩放比例"
+          >
+            <div class="space-y-6">
+              <!-- 性能模式 -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-sm font-medium text-hoi4-text">性能模式</h4>
+                  <p class="text-xs text-hoi4-text/50">开启后将以较低分辨率渲染地图，显著提升加载速度和交互流畅度。</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" v-model="mapPerformanceMode" @change="handleSave" class="sr-only peer">
+                  <div class="w-11 h-6 bg-hoi4-gray rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-hoi4-accent"></div>
+                </label>
+              </div>
+
+              <!-- 缩放比例 -->
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="text-sm font-medium text-hoi4-text">性能模式采样率</h4>
+                  <span class="text-xs font-mono text-hoi4-accent">{{ mapSamplingRate }}%</span>
+                </div>
+                <input 
+                  type="range" 
+                  v-model.number="mapSamplingRate" 
+                  @change="handleSave"
+                  min="10" 
+                  max="100" 
+                  step="5"
+                  class="w-full h-1.5 bg-hoi4-gray rounded-lg appearance-none cursor-pointer accent-hoi4-accent"
+                >
+                <div class="flex justify-between mt-1 px-1 text-[10px] text-hoi4-text/30">
+                  <span>10%</span>
+                  <span>25%</span>
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>100%</span>
+                </div>
+                <p class="text-xs text-hoi4-text/50 mt-2">调整性能模式下的采样率。采样率越低，地图加载和操作越流畅，但图像细节越模糊。</p>
+              </div>
+            </div>
           </SettingsCard>
 
           <!-- 保存设置 -->

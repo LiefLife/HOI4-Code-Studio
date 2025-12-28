@@ -6,6 +6,7 @@ import ContextMenu from './ContextMenu.vue'
 import EventGraphViewer from './EventGraphViewer.vue'
 import FocusTreeViewer from './FocusTreeViewer.vue'
 import ImagePreviewer from './ImagePreviewer.vue'
+import WorldMapViewer from './WorldMapViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
+  previewMap: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
 }>()
 
@@ -96,6 +98,22 @@ const isFocusFile = computed(() => {
          !isCurrentFileImage.value && 
          !isCurrentFileEventGraph.value &&
          !isCurrentFileFocusTree.value
+})
+
+// 当前文件是否为地图预览
+const isCurrentFileWorldMap = computed(() => {
+  return currentFile.value?.isWorldMap === true
+})
+
+// 当前文件是否为地图定义文件 (map/default.map)
+const isMapFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const normalizedPath = currentFile.value.node.path.replace(/\\/g, '/')
+  return normalizedPath.endsWith('/map/default.map') && 
+         !isCurrentFileImage.value && 
+         !isCurrentFileEventGraph.value &&
+         !isCurrentFileFocusTree.value &&
+         !isCurrentFileWorldMap.value
 })
 
 // 图片 URL (使用 base64 数据)
@@ -262,6 +280,10 @@ function handlePreviewEvent() {
 
 function handlePreviewFocus() {
   emit('previewFocus', props.pane.id)
+}
+
+function handlePreviewMap() {
+  emit('previewMap', props.pane.id)
 }
 
 function handleJumpToEvent(eventId: string, line: number) {
@@ -507,6 +529,18 @@ defineExpose({
             </svg>
             <span>预览</span>
           </button>
+
+          <button
+            v-if="isMapFile"
+            @click="handlePreviewMap"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览地图"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+            </svg>
+            <span>预览</span>
+          </button>
         </div>
         
         <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
@@ -547,6 +581,12 @@ defineExpose({
         @jump-to-focus="handleJumpToFocus"
         @update-content="handleContentChange"
         @external-file-update="handleExternalFileUpdate"
+      />
+
+      <!-- 世界地图预览 -->
+      <WorldMapViewer
+        v-else-if="isCurrentFileWorldMap"
+        :project-path="projectPath"
       />
       
       <!-- 代码编辑器 -->

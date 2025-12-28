@@ -72,6 +72,13 @@ export const settingsMenuData: SettingsMenuCategory[] = [
         icon: 'save',
         description: '自动保存和错误处理',
         category: 'editor'
+      },
+      {
+        id: 'map-settings',
+        title: '地图预览',
+        icon: 'map',
+        description: '配置地图渲染性能',
+        category: 'editor'
       }
     ]
   },

@@ -20,6 +20,7 @@ const emit = defineEmits<{
   editorContextMenuAction: [action: string, paneId: string]
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
+  previewMap: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
   contentChange: [paneId: string, content: string]
 }>()
@@ -287,6 +288,11 @@ function handlePreviewFocus(paneId: string) {
   emit('previewFocus', paneId)
 }
 
+// 处理预览地图
+function handlePreviewMap(paneId: string) {
+  emit('previewMap', paneId)
+}
+
 // 处理跳转到焦点
 function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, focusId: string, line: number) {
   emit('jumpToFocusFromPreview', sourcePaneId, sourceFilePath, focusId, line)
@@ -506,6 +512,7 @@ defineExpose({
           @editor-context-menu-action="handleEditorContextMenuAction"
           @preview-event="handlePreviewEvent"
           @preview-focus="handlePreviewFocus"
+          @preview-map="handlePreviewMap"
           @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         />
       </div>

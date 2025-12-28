@@ -1013,7 +1013,7 @@ async function handlePreviewEvent(paneId: string) {
   // 如果已有两个或更多窗格，查找包含预览的窗格
   if (editorGroupRef.value.panes.length >= 2) {
     targetPane = editorGroupRef.value.panes.find(p => 
-      p.openFiles.some(f => f.isEventGraph || f.isFocusTree)
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap)
     )
   }
   
@@ -1077,7 +1077,7 @@ async function handlePreviewFocus(paneId: string) {
   // 如果已有两个或更多窗格，查找包含预览的窗格
   if (editorGroupRef.value.panes.length >= 2) {
     targetPane = editorGroupRef.value.panes.find(p => 
-      p.openFiles.some(f => f.isEventGraph || f.isFocusTree)
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap)
     )
   }
   
@@ -1119,6 +1119,70 @@ async function handlePreviewFocus(paneId: string) {
     cursorLine: 1,
     cursorColumn: 1,
     isFocusTree: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
+  newPane.activeFileIndex = 0
+}
+
+// 处理预览地图
+async function handlePreviewMap(paneId: string) {
+  if (!editorGroupRef.value) return
+  
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+  
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+  
+  let targetPane = null
+  
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p => 
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap)
+    )
+  }
+  
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    const previewFile: OpenFile = {
+      node: {
+        ...currentFile.node,
+        name: `🗺️ ${currentFile.node.name} - 世界地图`
+      },
+      content: '', // 地图预览不需要 content，它会根据项目路径加载
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isWorldMap: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+  
+  // 否则，分割窗格创建新预览
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+  
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+  
+  const previewFile: OpenFile = {
+    node: {
+      ...currentFile.node,
+      name: `🗺️ ${currentFile.node.name} - 世界地图`
+    },
+    content: '',
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isWorldMap: true,
     isPreview: true,
     sourceFilePath: currentFile.node.path
   }
@@ -1813,8 +1877,9 @@ onUnmounted(() => {
         @errors-change="handleErrorsChange"
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
-        @preview-focus="handlePreviewFocus"
-        @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
+  @preview-focus="handlePreviewFocus"
+  @preview-map="handlePreviewMap"
+  @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         @content-change="handleContentChange"
       />
 

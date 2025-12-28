@@ -710,3 +710,189 @@ export async function clearIconCache(): Promise<ImageReadResult> {
   const resp = await invoke('clear_icon_cache')
   return normalizeImageReadResult(resp)
 }
+
+// ==================== 地图引擎 ====================
+
+export interface RGBColor {
+  r: number
+  g: number
+  b: number
+  a: number
+}
+
+export interface ProvinceDefinition {
+  id: number
+  r: number
+  g: number
+  b: number
+  type: string
+  coastal: boolean
+  terrain: string
+  continent: number
+}
+
+export interface DefaultMap {
+  definitions: string
+  provinces: string
+  adjacencies: string
+  continent: string
+  rivers: string
+  terrain_definition?: string
+}
+
+export interface StateDefinition {
+  id: number
+  name: string
+  provinces: number[]
+  owner: string
+}
+
+export interface ProvinceEdge {
+  from_id: number
+  to_id: number
+  points: [number, number][]
+}
+
+export interface ProvinceInstance {
+  definition: ProvinceDefinition
+  bounding_box?: {
+    min_x: number
+    min_y: number
+    max_x: number
+    max_y: number
+  }
+  pixels_count: number
+}
+
+export interface ProvinceMapData {
+  width: number
+  height: number
+  province_ids: number[]
+  instances: ProvinceInstance[]
+  edges: ProvinceEdge[]
+}
+
+export interface MapLoadResult<T> {
+  success: boolean
+  message: string
+  data?: T
+}
+
+export async function loadMapDefinitions(path: string): Promise<MapLoadResult<ProvinceDefinition[]>> {
+  return await invoke('load_map_definitions', { path })
+}
+
+export async function loadDefaultMap(path: string): Promise<MapLoadResult<DefaultMap>> {
+  return await invoke('load_default_map', { path })
+}
+
+export async function loadProvincesBmp(
+  path: string,
+  definitions: ProvinceDefinition[]
+): Promise<MapLoadResult<ProvinceMapData>> {
+  return await invoke('load_provinces_bmp', { path, definitions })
+}
+
+export async function getProvinceMapBinary(
+  path: string,
+  definitions: ProvinceDefinition[]
+): Promise<Uint8Array> {
+  const res = await invoke<number[]>('get_province_map_binary', { path, definitions })
+  return new Uint8Array(res)
+}
+
+export async function generateColoredMap(
+  provinceIds: number[] | Uint32Array,
+  colorMap: Record<number, RGBColor>,
+  defaultColor: RGBColor,
+  width: number,
+  height: number,
+  downsample?: number
+): Promise<Uint8Array> {
+  // 注意：Tauri invoke 自动序列化，大数组建议分块或使用二进制
+  const res = await invoke<number[]>('generate_colored_map', {
+    provinceIds: Array.from(provinceIds),
+    colorMap,
+    defaultColor,
+    width,
+    height,
+    downsample
+  })
+  return new Uint8Array(res)
+}
+
+export async function getDefinitionColorMap(
+  definitions: ProvinceDefinition[]
+): Promise<Record<number, RGBColor>> {
+  return await invoke('get_definition_color_map', { definitions })
+}
+
+export async function loadAllStates(statesDir: string): Promise<StateDefinition[]> {
+  return await invoke('load_all_states', { statesDir })
+}
+
+export async function loadCountryColors(path: string): Promise<Record<string, RGBColor>> {
+  return await invoke('load_country_colors', { path })
+}
+
+export async function getProvinceOwnerColorMap(
+  states: StateDefinition[],
+  countryColors: Record<string, RGBColor>
+): Promise<Record<number, RGBColor>> {
+  return await invoke('get_province_owner_color_map', { states, countryColors })
+}
+
+export async function initializeMapContext(
+  mapPath: string,
+  definitionsPath: string,
+  statesPath: string,
+  countryColorsPath: string
+): Promise<string> {
+  return await invoke('initialize_map_context', {
+    mapPath,
+    definitionsPath,
+    statesPath,
+    countryColorsPath
+  })
+}
+
+export async function getMapTileDirect(
+  x: number,
+  y: number,
+  zoom: number,
+  mode: string
+): Promise<Uint8Array> {
+  const res = await invoke<number[]>('get_map_tile_direct', { x, y, zoom, mode })
+  return new Uint8Array(res)
+}
+
+export interface MapMetadata {
+  width: number
+  height: number
+  province_count: number
+}
+
+export async function getMapMetadata(): Promise<MapMetadata> {
+  return await invoke('get_map_metadata')
+}
+
+export async function getMapPreview(
+  targetWidth: number,
+  targetHeight: number,
+  mode: string
+): Promise<Uint8Array> {
+  const res = await invoke<number[]>('get_map_preview', {
+    targetWidth,
+    targetHeight,
+    mode
+  })
+  return new Uint8Array(res)
+}
+
+export async function getProvinceAtPoint(x: number, y: number): Promise<number | null> {
+  return await invoke('get_province_at_point', { x, y })
+}
+
+export async function getProvinceOutline(provinceId: number): Promise<[number, number][]> {
+  return await invoke('get_province_outline', { provinceId })
+}

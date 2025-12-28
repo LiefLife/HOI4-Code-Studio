@@ -18,6 +18,7 @@ mod idea_registry;
 mod tag_validator;
 mod dependency;
 mod focus_localization;
+mod map_engine;
 
 use json_decoder::{
     get_json_path,
@@ -2564,6 +2565,11 @@ fn read_image_as_base64(file_path: String) -> ImageReadResult {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            use tauri::Manager;
+            app.manage(map_engine::MapState::default());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             create_new_project,
             initialize_project,
@@ -2615,6 +2621,20 @@ pub fn run() {
             clear_icon_cache,
             focus_localization::load_focus_localizations,
             get_modifier_list,
+            map_engine::load_map_definitions,
+            map_engine::load_default_map,
+            map_engine::load_provinces_bmp,
+            map_engine::get_province_map_binary,
+            map_engine::generate_colored_map,
+            map_engine::get_definition_color_map,
+            map_engine::load_all_states,
+            map_engine::load_country_colors,
+            map_engine::get_province_owner_color_map,
+            map_engine::initialize_map_context,
+            map_engine::get_map_tile_direct,
+            map_engine::get_province_at_point,
+            map_engine::get_map_metadata,
+            map_engine::get_map_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
