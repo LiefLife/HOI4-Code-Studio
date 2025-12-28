@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useTodo, type TodoItem } from '../../../composables/useTodo'
 
-const { todos, addTodo, removeTodo, updateTodoStatus, updateTodos } = useTodo()
+const { todos, addTodo, removeTodo, updateTodoStatus } = useTodo()
 
 const completedCount = computed(() => todos.value.filter(t => t.status === 'completed').length)
 
@@ -26,14 +26,6 @@ function getPriorityClass(priority: TodoItem['priority']) {
     case 'medium': return 'text-orange-400 bg-orange-400/10'
     case 'low': return 'text-blue-400 bg-blue-400/10'
     default: return 'text-gray-400 bg-gray-400/10'
-  }
-}
-
-function getStatusIcon(status: TodoItem['status']) {
-  switch (status) {
-    case 'completed': return 'check_circle'
-    case 'in_progress': return 'pending'
-    default: return 'radio_button_unchecked'
   }
 }
 

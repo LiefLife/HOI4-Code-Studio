@@ -18,9 +18,12 @@ export interface VersionLog {
 export const changelog: VersionLog[] = [
   {
     version: 'v0.2.18-dev',
-    description: 'Modifier更新',
+    description: 'Modifier、AI更新',
     changes: [
-      { type: 'feature', content: '支持Modifier速查表功能' }
+      { type: 'feature', content: '支持Modifier速查表功能' },
+      { type: 'feature', content: 'AI支持Todo功能' },
+      { type: 'improvement', content: '优化AI运行' },
+      { type: 'feature', content: '增加AI提示词优化功能' },
     ]
   },
   {
