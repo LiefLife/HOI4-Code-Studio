@@ -1,6 +1,8 @@
 import { ref } from 'vue'
 import {
   loadDefaultMap,
+  loadMapDefinitions,
+  loadAllStates,
   type ProvinceDefinition,
   type DefaultMap,
   type StateDefinition,
@@ -29,32 +31,72 @@ export function useMapEngine() {
 
   /**
    * 初始化地图数据 (后端托管模式)
+   * @param projectPath 项目根目录
    */
-  async function initMap(mapDirPath: string, statesDirPath?: string, countryColorsPath?: string) {
+  async function initMap(projectPath: string) {
+    if (!projectPath) {
+      error.value = '未指定项目路径'
+      return
+    }
     isLoading.value = true
     error.value = null
     
     const normalize = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
-    const baseMapPath = normalize(mapDirPath)
+    const rootPath = normalize(projectPath)
     
     try {
       // 1. 加载 default.map
-      const dmRes = await loadDefaultMap(`${baseMapPath}/default.map`)
+      // 通常位于 map/default.map
+      const dmRes = await loadDefaultMap(`${rootPath}/map/default.map`)
       if (!dmRes.success || !dmRes.data) throw new Error(dmRes.message)
       defaultMap.value = dmRes.data
+
+      // 解析 default.map 中的路径
+      // HOI4 的 default.map 中的路径通常是相对于 map 目录的，或者是相对于根目录的
+      const resolvePath = (relPath: string) => {
+        const cleanRel = relPath.replace(/^[/\\]/, '')
+        // 如果路径中不包含 / 或 \，说明它很可能就在 map 目录下
+        if (!cleanRel.includes('/') && !cleanRel.includes('\\')) {
+          return `${rootPath}/map/${cleanRel}`
+        }
+        // 否则认为是相对于根目录的
+        return `${rootPath}/${cleanRel}`
+      }
+
+      const provincesPath = resolvePath(defaultMap.value.provinces)
+      const definitionsPath = resolvePath(defaultMap.value.definitions)
+      const statesPath = `${rootPath}/history/states`
+      const countryColorsPath = `${rootPath}/common/countries/colors.txt`
+
+      console.log('Initializing map with paths:', {
+        provincesPath,
+        definitionsPath,
+        statesPath,
+        countryColorsPath
+      })
 
       // 2. 初始化 Rust 后端上下文
       // 这将把大地图数据加载到 Rust 内存中，而不是 JS 堆中
       await initializeMapContext(
-        `${baseMapPath}/${defaultMap.value.provinces}`,
-        `${baseMapPath}/${defaultMap.value.definitions}`,
-        statesDirPath ? normalize(statesDirPath) : '',
-        countryColorsPath ? normalize(countryColorsPath) : ''
+        provincesPath,
+        definitionsPath,
+        statesPath,
+        countryColorsPath
       )
 
       // 3. 获取基础元数据 (轻量级)
       const metadata = await getMapMetadata()
       mapData.value = metadata
+      
+      // 4. 加载前端需要的辅助数据 (Definitions, States)
+      // Tooltip 和交互需要这些数据
+      const defRes = await loadMapDefinitions(definitionsPath)
+      if (defRes.success && defRes.data) {
+        definitions.value = defRes.data
+      }
+
+      const loadedStates = await loadAllStates(statesPath)
+      states.value = loadedStates
       
     } catch (e: any) {
       error.value = e.message

@@ -246,7 +246,8 @@ const mouseMapPos = ref({ x: 0, y: 0 })
 const MINIMAP_SIZE = 200
 const minimapScale = computed(() => {
   if (!mapData.value) return 1
-  return MINIMAP_SIZE / Math.max(mapData.value.width, mapData.value.height)
+  // 缩略图固定宽度为 MINIMAP_SIZE，所以缩放比例应基于宽度计算
+  return MINIMAP_SIZE / mapData.value.width
 })
 
 const viewportRect = computed(() => {
@@ -334,7 +335,9 @@ onUnmounted(() => {
 watch(hoverProvinceId, async (newId) => {
   if (newId) {
     try {
+      // console.log('Fetching outline for:', newId)
       const points = await getOutline(newId)
+      // console.log('Outline points:', points?.length)
       // 防止竞态条件
       if (hoverProvinceId.value === newId) {
         hoverOutline.value = points
@@ -394,7 +397,7 @@ async function refreshMap() {
   loadingTimer.value = progressTimer as any
 
   try {
-    await initMap(mapDirPath.value, statesDirPath.value, countryColorsPath.value)
+    await initMap(props.projectPath)
     updateProgress('准备渲染', '初始化切片缓存...', 60)
     await resetMapCache()
     updateProgress('构建导航器', '生成缩略图...', 90)

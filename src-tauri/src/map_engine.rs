@@ -607,14 +607,16 @@ pub fn initialize_map_context(
     country_colors_path: String,
 ) -> Result<String, String> {
     // 1. Load Definitions
-    let definitions_vec = parse_definition_csv(Path::new(&definitions_path))?;
+    let definitions_vec = parse_definition_csv(Path::new(&definitions_path))
+        .map_err(|e| format!("无法加载省份定义文件 ({}): {}", definitions_path, e))?;
     let mut definitions = HashMap::new();
     for def in definitions_vec {
         definitions.insert(def.id, def);
     }
 
     // 2. Load Provinces BMP
-    let img = image::open(Path::new(&map_path)).map_err(|e| e.to_string())?;
+    let img = image::open(Path::new(&map_path))
+        .map_err(|e| format!("无法打开地图位图 ({}): {}", map_path, e))?;
     let (width, height) = img.dimensions();
     let rgb = img.to_rgb8();
     
