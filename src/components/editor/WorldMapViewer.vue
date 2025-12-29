@@ -317,7 +317,7 @@ const isPerformanceMode = ref(true) // 默认开启性能模式
 const isHighlightEnabled = ref(true) // 默认开启高亮
 const highlightMode = ref<'tile' | 'province'>('tile') // 高亮模式：地块或省份
 const hoverProvinceId = ref<number | null>(null)
-const hoverOutline = ref<[number, number][] | null>(null)
+const hoverOutline = ref<Uint32Array | null>(null)
 
 // 渲染缓存与分块 (LOD & LRU)
 const TILE_SIZE = 512
@@ -502,7 +502,7 @@ onUnmounted(() => {
 watch(hoverProvinceId, async (newId) => {
   if (newId && isHighlightEnabled.value) {
     try {
-      let points: [number, number][] | undefined;
+      let points: Uint32Array | undefined;
       if (highlightMode.value === 'tile') {
         points = await getOutline(newId)
       } else {
@@ -672,15 +672,24 @@ function drawOverlay() {
     
     ctx.fillStyle = 'rgba(255, 255, 0, 0.6)'
     
-    for (const [x, y] of hoverOutline.value) {
-      // 简单剔除
+    // 使用 Path2D 批量绘制以提升性能，避免成千上万次的 fillRect 调用
+    const path = new Path2D()
+    const points = hoverOutline.value
+    
+    for (let i = 0; i < points.length; i++) {
+      const val = points[i]
+      const x = val & 0xFFFF
+      const y = val >> 16
+      
       const sx = x * s + tx
       const sy = y * s + ty
       
+      // 视口剔除
       if (sx < -pixelSize || sy < -pixelSize || sx > canvas.width || sy > canvas.height) continue
       
-      ctx.fillRect(sx, sy, pixelSize, pixelSize)
+      path.rect(sx, sy, pixelSize, pixelSize)
     }
+    ctx.fill(path)
   }
 }
 

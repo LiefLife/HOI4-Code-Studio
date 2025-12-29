@@ -895,13 +895,15 @@ export async function getProvinceAtPoint(x: number, y: number): Promise<number |
   return await invoke('get_province_at_point', { x, y })
 }
 
-export async function getProvinceOutline(provinceId: number): Promise<[number, number][]> {
-  return await invoke('get_province_outline', { provinceId })
+export async function getProvinceOutline(provinceId: number): Promise<Uint32Array> {
+  const res = await invoke<number[]>('get_province_outline', { provinceId })
+  return new Uint32Array(new Uint8Array(res).buffer)
 }
 
 /**
  * 获取地区的轮廓点集
  */
-export async function getStateOutline(stateId: number): Promise<[number, number][]> {
-  return await invoke('get_state_outline', { stateId })
+export async function getStateOutline(stateId: number): Promise<Uint32Array> {
+  const res = await invoke<number[]>('get_state_outline', { stateId })
+  return new Uint32Array(new Uint8Array(res).buffer)
 }

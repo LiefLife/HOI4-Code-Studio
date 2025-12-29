@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use rayon::prelude::*;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use memmap2::Mmap;
 
 static RE_STATE_ID: Lazy<Regex> = Lazy::new(|| Regex::new(r"id\s*=\s*(\d+)").unwrap());
 static RE_STATE_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r#"name\s*=\s*"([^"]*)""#).unwrap());
@@ -37,6 +38,10 @@ pub struct MapContext {
 
     // 缓存每个省份的包围盒，用于快速提取轮廓
     pub province_bounds: HashMap<u32, BoundingBox>,
+
+    // 预计算的省份和州轮廓 (packed x | y << 16)
+    pub province_outlines: HashMap<u32, Vec<u32>>,
+    pub state_outlines: HashMap<u32, Vec<u32>>,
 }
 
 pub struct MapState(pub Mutex<Option<MapContext>>);
@@ -87,12 +92,12 @@ pub struct ProvinceInstance {
     pub pixels_count: u32,
 }
 
-/// 边缘点集合
+/// 边缘点集合 (优化：使用 packed u32 存储以减少内存占用)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProvinceEdge {
     pub from_id: u32,
     pub to_id: u32,
-    pub points: Vec<(u32, u32)>,
+    pub points: Vec<u32>,
 }
 
 /// 地图位图数据
@@ -116,28 +121,27 @@ pub struct DefaultMap {
     pub terrain_definition: Option<String>,
 }
 
-/// 带有编码检测的文件读取
+/// 带有编码检测的文件读取 (优化版本: 优先尝试 UTF-8)
 fn read_file_with_encoding(path: &Path) -> Result<String, String> {
     let bytes = fs::read(path).map_err(|e| e.to_string())?;
     
-    // 使用 chardetng 检测编码
-    let mut detector = chardetng::EncodingDetector::new();
-    detector.feed(&bytes, true);
-    let detected_encoding = detector.guess(None, true);
-    
-    let (decoded, _, had_errors) = detected_encoding.decode(&bytes);
-    if !had_errors {
-        return Ok(decoded.to_string());
+    // 优先尝试 UTF-8 (现代 MOD 常用)
+    if let Ok(utf8_str) = String::from_utf8(bytes.clone()) {
+        return Ok(utf8_str);
     }
-
-    // 如果检测失败，尝试 Windows-1252 (HOI4 常用)
+    
+    // 失败后尝试 Windows-1252 (HOI4 原版常用)
     let (decoded, _, had_errors) = encoding_rs::WINDOWS_1252.decode(&bytes);
     if !had_errors {
         return Ok(decoded.to_string());
     }
 
-    // 最后回退到 UTF-8 Lossy
-    Ok(String::from_utf8_lossy(&bytes).to_string())
+    // 最后才使用昂贵的检测器
+    let mut detector = chardetng::EncodingDetector::new();
+    detector.feed(&bytes, true);
+    let detected_encoding = detector.guess(None, true);
+    let (decoded, _, _) = detected_encoding.decode(&bytes);
+    Ok(decoded.to_string())
 }
 
 /// 解析 definition.csv
@@ -240,39 +244,37 @@ pub fn load_map_definitions(path: String) -> MapLoadResult<Vec<ProvinceDefinitio
     }
 }
 
-/// 计算省份边界
+/// 边缘检测算法 (极致优化版)
 pub fn detect_edges(
     width: u32,
     height: u32,
     province_ids: &[u32],
 ) -> Vec<ProvinceEdge> {
-    // 并行计算每行的边缘关系
-    let edge_map: HashMap<(u32, u32), HashSet<u32>> = (0..height)
+    // 并行计算每行的边缘关系，使用 Vec 暂存点以提高写入性能
+    let edge_map: HashMap<(u32, u32), Vec<u32>> = (0..height)
         .into_par_iter()
-        .fold(HashMap::new, |mut acc: HashMap<(u32, u32), HashSet<u32>>, y| {
+        .fold(HashMap::new, |mut acc: HashMap<(u32, u32), Vec<u32>>, y| {
             for x in 0..width {
                 let idx = (y * width + x) as usize;
                 let current_id = province_ids[idx];
 
-                // 检查右侧
                 if x + 1 < width {
                     let right_id = province_ids[idx + 1];
                     if current_id != right_id {
                         let key = if current_id < right_id { (current_id, right_id) } else { (right_id, current_id) };
                         let points = acc.entry(key).or_default();
-                        points.insert(x | (y << 16));
-                        points.insert((x + 1) | (y << 16));
+                        points.push(x | (y << 16));
+                        points.push((x + 1) | (y << 16));
                     }
                 }
 
-                // 检查下方
                 if y + 1 < height {
                     let down_id = province_ids[idx + (width as usize)];
                     if current_id != down_id {
                         let key = if current_id < down_id { (current_id, down_id) } else { (down_id, current_id) };
                         let points = acc.entry(key).or_default();
-                        points.insert(x | (y << 16));
-                        points.insert(x | ((y + 1) << 16));
+                        points.push(x | (y << 16));
+                        points.push(x | ((y + 1) << 16));
                     }
                 }
             }
@@ -285,16 +287,17 @@ pub fn detect_edges(
             a
         });
 
-    // 转换为输出格式
+    // 并行对每个边缘的点集进行去重
     edge_map
-        .into_iter()
-        .map(|((from_id, to_id), point_set)| ProvinceEdge {
-            from_id,
-            to_id,
-            points: point_set
-                .into_iter()
-                .map(|p| (p & 0xFFFF, p >> 16))
-                .collect(),
+        .into_par_iter()
+        .map(|((from_id, to_id), mut points)| {
+            points.sort_unstable();
+            points.dedup();
+            ProvinceEdge {
+                from_id,
+                to_id,
+                points,
+            }
         })
         .collect()
 }
@@ -436,21 +439,48 @@ pub fn load_provinces_bmp(
     }
 }
 
-/// 获取地图原始 ID 数据的二进制流 (更高效)
 #[tauri::command]
 pub fn get_province_map_binary(
     path: String,
     definitions: Vec<ProvinceDefinition>,
 ) -> Result<Vec<u8>, String> {
-    let data = parse_provinces_bmp(Path::new(&path), &definitions)?;
+    // 1. 加载位图 (优化版: 使用 Mmap)
+    let file = fs::File::open(Path::new(&path)).map_err(|e| e.to_string())?;
+    let mmap = unsafe { Mmap::map(&file).map_err(|e| e.to_string())? };
     
-    // 将 Vec<u32> 转换为 Vec<u8> (小端字节序)
-    let mut binary_data = Vec::with_capacity(data.province_ids.len() * 4);
-    for id in data.province_ids {
-        binary_data.extend_from_slice(&id.to_le_bytes());
+    if mmap.len() < 54 || &mmap[0..2] != b"BM" {
+        return Err("无效的 BMP 文件".to_string());
     }
     
-    Ok(binary_data)
+    let pixel_offset = u32::from_le_bytes(mmap[10..14].try_into().unwrap_or([0; 4])) as usize;
+    let width = i32::from_le_bytes(mmap[18..22].try_into().unwrap_or([0; 4])) as u32;
+    let height = i32::from_le_bytes(mmap[22..26].try_into().unwrap_or([0; 4])) as u32;
+    let row_size = ((width * 3 + 3) & !3) as usize;
+
+    // 2. 颜色查找表 (LUT)
+    let mut color_lut = vec![0u32; 1 << 24];
+    for def in definitions {
+        let idx = ((def.r as usize) << 16) | ((def.g as usize) << 8) | (def.b as usize);
+        color_lut[idx] = def.id;
+    }
+
+    // 3. 并行转换
+    let mut province_ids = vec![0u32; (width * height) as usize];
+    province_ids.par_chunks_mut(width as usize).enumerate().for_each(|(y_inv, row)| {
+        let y = height - 1 - y_inv as u32;
+        let row_start = pixel_offset + y as usize * row_size;
+        let row_data = &mmap[row_start..row_start + (width * 3) as usize];
+        for (x, chunk) in row_data.chunks_exact(3).enumerate() {
+            let color_idx = ((chunk[2] as usize) << 16) | ((chunk[1] as usize) << 8) | (chunk[0] as usize);
+            row[x] = color_lut[color_idx];
+        }
+    });
+    
+    // 4. 直接返回字节数据 (零拷贝级转换)
+    let byte_ptr = province_ids.as_ptr() as *const u8;
+    let byte_len = province_ids.len() * 4;
+    let bytes = unsafe { std::slice::from_raw_parts(byte_ptr, byte_len) };
+    Ok(bytes.to_vec())
 }
 
 /// 根据提供的颜色映射生成着色地图数据 (RGBA)，支持下采样 (性能模式)
@@ -653,33 +683,25 @@ pub fn initialize_map_context(
         definitions.insert(def.id, def);
     }
 
-    // 2. Load Provinces BMP (Ultra-Fast Native BMP Parsing)
-    let mut map_file = fs::File::open(Path::new(&map_path))
+    // 2. Load Provinces BMP (Ultra-Fast Native BMP Parsing with Mmap)
+    let map_file = fs::File::open(Path::new(&map_path))
         .map_err(|e| format!("无法打开地图位图 ({}): {}", map_path, e))?;
+    let mmap = unsafe { Mmap::map(&map_file).map_err(|e| format!("内存映射失败: {}", e))? };
     
-    // 手动解析 BMP 头部以获取尺寸和像素偏移
-    use std::io::{Read, Seek, SeekFrom};
-    let mut header = [0u8; 54];
-    map_file.read_exact(&mut header).map_err(|e| format!("读取 BMP 头部失败: {}", e))?;
-    
-    if &header[0..2] != b"BM" {
+    if mmap.len() < 54 || &mmap[0..2] != b"BM" {
         return Err("不是有效的 BMP 文件".to_string());
     }
     
-    let pixel_offset = u32::from_le_bytes(header[10..14].try_into().unwrap_or([0; 4])) as u64;
-    let width = i32::from_le_bytes(header[18..22].try_into().unwrap_or([0; 4])) as u32;
-    let height = i32::from_le_bytes(header[22..26].try_into().unwrap_or([0; 4])) as u32;
-    let bpp = u16::from_le_bytes(header[28..30].try_into().unwrap_or([0; 2]));
+    let pixel_offset = u32::from_le_bytes(mmap[10..14].try_into().unwrap_or([0; 4])) as usize;
+    let width = i32::from_le_bytes(mmap[18..22].try_into().unwrap_or([0; 4])) as u32;
+    let height = i32::from_le_bytes(mmap[22..26].try_into().unwrap_or([0; 4])) as u32;
+    let bpp = u16::from_le_bytes(mmap[28..30].try_into().unwrap_or([0; 2]));
     
     if bpp != 24 {
         return Err(format!("仅支持 24-bit BMP，当前为 {}-bit", bpp));
     }
 
-    // 直接读取像素数据，跳过 image 库的解码过程
     let row_size = ((width * 3 + 3) & !3) as usize; // BMP 行对齐
-    let mut raw_pixels = vec![0u8; row_size * height as usize];
-    map_file.seek(SeekFrom::Start(pixel_offset)).map_err(|e| format!("Seek 失败: {}", e))?;
-    map_file.read_exact(&mut raw_pixels).map_err(|e| format!("读取像素数据失败: {}", e))?;
 
     // 创建颜色到 ID 的映射表 (LUT 优化: 24-bit RGB -> ID)
     let mut color_lut = vec![0u32; 1 << 24];
@@ -692,8 +714,8 @@ pub fn initialize_map_context(
     let mut province_ids = vec![0u32; (width * height) as usize];
     province_ids.par_chunks_mut(width as usize).enumerate().for_each(|(y_inv, row)| {
         let y = height - 1 - y_inv as u32;
-        let row_start = y as usize * row_size;
-        let row_data = &raw_pixels[row_start..row_start + (width * 3) as usize];
+        let row_start = pixel_offset + y as usize * row_size;
+        let row_data = &mmap[row_start..row_start + (width * 3) as usize];
         for (x, chunk) in row_data.chunks_exact(3).enumerate() {
             let color_idx = ((chunk[2] as usize) << 16) | ((chunk[1] as usize) << 8) | (chunk[0] as usize);
             row[x] = color_lut[color_idx];
@@ -709,6 +731,18 @@ pub fn initialize_map_context(
     let mut province_to_state = HashMap::with_capacity(definitions.len());
     let mut state_to_provinces = HashMap::with_capacity(states.len());
     
+    // 并行生成州颜色 (优化)
+    let province_to_state_color: HashMap<u32, [u8; 3]> = states.par_iter().flat_map(|state| {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        use std::hash::{Hash, Hasher};
+        state.id.hash(&mut hasher);
+        let hash = hasher.finish();
+        let r = ((hash & 0xFF) as u8 % 180) + 40;
+        let g = (((hash >> 8) & 0xFF) as u8 % 180) + 40;
+        let b = (((hash >> 16) & 0xFF) as u8 % 180) + 40;
+        state.provinces.iter().map(move |&p_id| (p_id, [r, g, b])).collect::<Vec<_>>()
+    }).collect();
+
     for state in &states {
         state_to_provinces.insert(state.id, state.provinces.clone());
         for &p_id in &state.provinces {
@@ -721,65 +755,65 @@ pub fn initialize_map_context(
     let max_id = definitions.keys().max().copied().unwrap_or(0);
     let lut_size = (max_id + 1) as usize;
     
-    let mut province_color_lut = vec![[0, 0, 0]; lut_size];
-    let mut state_color_lut = vec![[60, 60, 60]; lut_size]; // Default gray for provinces not in states
-    let mut country_color_lut = vec![[40, 40, 40]; lut_size]; // Default dark gray for no owner
-    let mut terrain_color_lut = vec![[100, 100, 100]; lut_size]; // Default gray
-
-    // Map province to state color
-    let mut province_to_state_color = HashMap::with_capacity(definitions.len());
-    for state in &states {
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        use std::hash::{Hash, Hasher};
-        state.id.hash(&mut hasher);
-        let hash = hasher.finish();
-        
-        // 生成鲜艳且稳定的颜色
-        let r = ((hash & 0xFF) as u8 % 180) + 40;
-        let g = (((hash >> 8) & 0xFF) as u8 % 180) + 40;
-        let b = (((hash >> 16) & 0xFF) as u8 % 180) + 40;
-        
-        for &p_id in &state.provinces {
-            province_to_state_color.insert(p_id, [r, g, b]);
-        }
-    }
-
-    for def in definitions.values() {
-        let id = def.id as usize;
-        if id >= lut_size { continue; }
-        
-        // Province Mode Color
-        province_color_lut[id] = [def.r, def.g, def.b];
-        
-        // State Mode Color
-        if let Some(color) = province_to_state_color.get(&(def.id)) {
-            state_color_lut[id] = *color;
-        }
-        
-        // Country Mode Color
-        if let Some(owner) = state_owners.get(&def.id) {
-            if let Some(c) = country_colors.get(owner) {
-                country_color_lut[id] = [c.r, c.g, c.b];
-            } else {
-                country_color_lut[id] = [128, 128, 128]; // Unknown country color
+    // 并行生成各种渲染 LUT
+    let (province_color_lut, (state_color_lut, (country_color_lut, terrain_color_lut))) = rayon::join(
+        || {
+            let mut lut = vec![[0, 0, 0]; lut_size];
+            for def in definitions.values() {
+                if def.id < lut_size as u32 {
+                    lut[def.id as usize] = [def.r, def.g, def.b];
+                }
             }
-        }
-        
-        // Terrain Mode Color
-        terrain_color_lut[id] = match def.terrain.as_str() {
-             "plains" => [247, 166, 86],
-             "forest" => [85, 139, 47],
-             "hills" => [255, 215, 0],
-             "mountain" => [139, 69, 19],
-             "urban" => [128, 128, 128],
-             "jungle" => [34, 139, 34],
-             "marsh" => [47, 79, 79],
-             "desert" => [244, 164, 96],
-             "water" | "ocean" => [65, 105, 225],
-             "lakes" => [65, 155, 225], // Slightly different for lakes
-             _ => [200, 200, 200]
-        };
-    }
+            lut
+        },
+        || rayon::join(
+            || {
+                let mut lut = vec![[60, 60, 60]; lut_size];
+                for (&p_id, &color) in &province_to_state_color {
+                    if p_id < lut_size as u32 {
+                        lut[p_id as usize] = color;
+                    }
+                }
+                lut
+            },
+            || rayon::join(
+                || {
+                    let mut lut = vec![[40, 40, 40]; lut_size];
+                    for (&p_id, owner) in &state_owners {
+                        if p_id < lut_size as u32 {
+                            if let Some(c) = country_colors.get(owner) {
+                                lut[p_id as usize] = [c.r, c.g, c.b];
+                            } else {
+                                lut[p_id as usize] = [128, 128, 128];
+                            }
+                        }
+                    }
+                    lut
+                },
+                || {
+                    let mut lut = vec![[100, 100, 100]; lut_size];
+                    for def in definitions.values() {
+                        if def.id < lut_size as u32 {
+                            lut[def.id as usize] = match def.terrain.as_str() {
+                                "plains" => [247, 166, 86],
+                                "forest" => [85, 139, 47],
+                                "hills" => [255, 215, 0],
+                                "mountain" => [139, 69, 19],
+                                "urban" => [128, 128, 128],
+                                "jungle" => [34, 139, 34],
+                                "marsh" => [47, 79, 79],
+                                "desert" => [244, 164, 96],
+                                "water" | "ocean" => [65, 105, 225],
+                                "lakes" => [65, 155, 225],
+                                _ => [200, 200, 200]
+                            };
+                        }
+                    }
+                    lut
+                }
+            )
+        )
+    );
 
     // Calculate province bounds (Parallel optimization using Vec instead of HashMap)
     let stats = province_ids.par_iter().enumerate().fold(
@@ -825,7 +859,46 @@ pub fn initialize_map_context(
         }
     }
 
-    // 6. Store in State
+    // 6. 预计算省份和州轮廓 (极致性能优化)
+    let all_edges = detect_edges(width, height, &province_ids);
+    let mut province_outlines: HashMap<u32, Vec<u32>> = HashMap::with_capacity(lut_size);
+    let mut state_outlines: HashMap<u32, Vec<u32>> = HashMap::with_capacity(states.len());
+
+    for edge in all_edges {
+        let packed_points = edge.points;
+        
+        if edge.from_id != 0 {
+            province_outlines.entry(edge.from_id).or_default().extend(&packed_points);
+        }
+        if edge.to_id != 0 {
+            province_outlines.entry(edge.to_id).or_default().extend(&packed_points);
+        }
+
+        // 处理州轮廓：如果边缘连接两个不同的州，则它是州界
+        let from_state = province_to_state.get(&edge.from_id).copied();
+        let to_state = province_to_state.get(&edge.to_id).copied();
+        
+        if from_state != to_state {
+            if let Some(fs) = from_state {
+                state_outlines.entry(fs).or_default().extend(&packed_points);
+            }
+            if let Some(ts) = to_state {
+                state_outlines.entry(ts).or_default().extend(&packed_points);
+            }
+        }
+    }
+
+    // 并行去重轮廓点
+    province_outlines.par_iter_mut().for_each(|(_, points)| {
+        points.sort_unstable();
+        points.dedup();
+    });
+    state_outlines.par_iter_mut().for_each(|(_, points)| {
+        points.sort_unstable();
+        points.dedup();
+    });
+
+    // 7. Store in State
     let mut lock = state.0.lock().map_err(|_| "Failed to lock state")?;
     *lock = Some(MapContext {
         width,
@@ -841,6 +914,8 @@ pub fn initialize_map_context(
         country_color_lut,
         terrain_color_lut,
         province_bounds,
+        province_outlines,
+        state_outlines,
     });
 
     Ok(format!("Map initialized: {}x{}", width, height))
@@ -850,126 +925,37 @@ pub fn initialize_map_context(
 pub fn get_province_outline(
     state: tauri::State<MapState>,
     province_id: u32,
-) -> Result<Vec<(u32, u32)>, String> {
+) -> Result<Vec<u8>, String> {
     let context_guard = state.0.lock().map_err(|_| "Failed to lock map state")?;
     let context = context_guard.as_ref().ok_or("Map context not initialized")?;
 
-    let bounds = context.province_bounds.get(&province_id).ok_or("Province bounds not found")?;
-
-    let min_x = bounds.min_x;
-    let min_y = bounds.min_y;
-    let max_x = bounds.max_x;
-    let max_y = bounds.max_y;
-    let width = context.width;
-    let height = context.height;
-    
-    let mut edge_pixels = Vec::new();
-
-    // Scan only the bounding box
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            let idx = (y * width + x) as usize;
-            if idx >= context.province_ids.len() { continue; }
-            
-            if context.province_ids[idx] == province_id {
-                // Check 4 neighbors
-                let mut is_edge = false;
-                
-                // Top
-                if y == 0 || context.province_ids[((y - 1) * width + x) as usize] != province_id {
-                    is_edge = true;
-                }
-                // Bottom
-                else if y == height - 1 || context.province_ids[((y + 1) * width + x) as usize] != province_id {
-                    is_edge = true;
-                }
-                // Left
-                else if x == 0 || context.province_ids[(y * width + x - 1) as usize] != province_id {
-                    is_edge = true;
-                }
-                // Right
-                else if x == width - 1 || context.province_ids[(y * width + x + 1) as usize] != province_id {
-                    is_edge = true;
-                }
-
-                if is_edge {
-                    edge_pixels.push((x, y));
-                }
-            }
-        }
+    if let Some(points) = context.province_outlines.get(&province_id) {
+        // 直接返回原始内存字节数据，前端将其视为 Uint32Array
+        let byte_ptr = points.as_ptr() as *const u8;
+        let byte_len = points.len() * 4;
+        let bytes = unsafe { std::slice::from_raw_parts(byte_ptr, byte_len) };
+        Ok(bytes.to_vec())
+    } else {
+        Ok(Vec::new())
     }
-
-    Ok(edge_pixels)
 }
 
 #[tauri::command]
 pub fn get_state_outline(
     state: tauri::State<MapState>,
     state_id: u32,
-) -> Result<Vec<(u32, u32)>, String> {
+) -> Result<Vec<u8>, String> {
     let context_guard = state.0.lock().map_err(|_| "Failed to lock map state")?;
     let context = context_guard.as_ref().ok_or("Map context not initialized")?;
 
-    let province_ids = context.state_to_provinces.get(&state_id).ok_or("State not found")?;
-    
-    // Combine bounding boxes of all provinces in the state
-    let mut min_x = u32::MAX;
-    let mut min_y = u32::MAX;
-    let mut max_x = 0;
-    let mut max_y = 0;
-    
-    let mut state_provinces_set = std::collections::HashSet::new();
-    for &pid in province_ids {
-        state_provinces_set.insert(pid);
-        if let Some(bounds) = context.province_bounds.get(&pid) {
-            min_x = min_x.min(bounds.min_x);
-            min_y = min_y.min(bounds.min_y);
-            max_x = max_x.max(bounds.max_x);
-            max_y = max_y.max(bounds.max_y);
-        }
+    if let Some(points) = context.state_outlines.get(&state_id) {
+        let byte_ptr = points.as_ptr() as *const u8;
+        let byte_len = points.len() * 4;
+        let bytes = unsafe { std::slice::from_raw_parts(byte_ptr, byte_len) };
+        Ok(bytes.to_vec())
+    } else {
+        Ok(Vec::new())
     }
-
-    if min_x == u32::MAX { return Ok(Vec::new()); }
-
-    let width = context.width;
-    let height = context.height;
-    let mut edge_pixels = Vec::new();
-
-    // Scan the combined bounding box
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            let idx = (y * width + x) as usize;
-            if idx >= context.province_ids.len() { continue; }
-            
-            let current_pid = context.province_ids[idx];
-            if state_provinces_set.contains(&current_pid) {
-                let mut is_edge = false;
-                
-                // Top
-                if y == 0 || !state_provinces_set.contains(&context.province_ids[((y - 1) * width + x) as usize]) {
-                    is_edge = true;
-                }
-                // Bottom
-                else if y == height - 1 || !state_provinces_set.contains(&context.province_ids[((y + 1) * width + x) as usize]) {
-                    is_edge = true;
-                }
-                // Left
-                else if x == 0 || !state_provinces_set.contains(&context.province_ids[(y * width + x - 1) as usize]) {
-                    is_edge = true;
-                }
-                // Right
-                else if x == width - 1 || !state_provinces_set.contains(&context.province_ids[(y * width + x + 1) as usize]) {
-                    is_edge = true;
-                }
-
-                if is_edge {
-                    edge_pixels.push((x, y));
-                }
-            }
-        }
-    }
-
-    Ok(edge_pixels)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
