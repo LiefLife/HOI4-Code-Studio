@@ -105,6 +105,12 @@ const isCurrentFileWorldMap = computed(() => {
   return currentFile.value?.isWorldMap === true
 })
 
+// 追踪地图是否曾被加载过，用于延迟加载并保持状态
+const hasMapLoaded = ref(false)
+watch(isCurrentFileWorldMap, (val) => {
+  if (val) hasMapLoaded.value = true
+}, { immediate: true })
+
 // 当前文件是否为地图定义文件 (map/default.map)
 const isMapFile = computed(() => {
   if (!currentFile.value?.node.path) return false
@@ -553,57 +559,61 @@ defineExpose({
     </div>
 
     <!-- 编辑器 / 图片预览 / 事件关系图预览 -->
-    <div v-if="currentFile" class="flex-1 overflow-hidden relative">
-      <!-- 图片预览 -->
-      <ImagePreviewer
-        v-if="isCurrentFileImage"
-        :image-url="imageUrl"
-        :file-name="currentFile.node.name"
-        :file-path="currentFile.node.path"
-      />
-      
-      <!-- 事件关系图预览 -->
-      <EventGraphViewer
-        v-else-if="isCurrentFileEventGraph"
-        :content="currentFile.content"
-        :file-path="currentFile.node.path"
-        @jump-to-event="handleJumpToEvent"
-      />
-      
-      <!-- 国策树预览 -->
-      <FocusTreeViewer
-        v-else-if="isCurrentFileFocusTree"
-        :content="fileContent"
-        :file-path="currentFile.node.path"
+    <div v-if="currentFile" class="flex-1 overflow-hidden relative bg-hoi4-dark">
+      <!-- 世界地图预览 (使用 v-if 进行首次初始化，v-show 保持状态并避免重新加载) -->
+      <WorldMapViewer
+        v-if="hasMapLoaded"
+        v-show="isCurrentFileWorldMap"
         :project-path="projectPath"
-        :game-directory="gameDirectory"
-        :dependency-roots="dependencyRoots"
-        @jump-to-focus="handleJumpToFocus"
-        @update-content="handleContentChange"
-        @external-file-update="handleExternalFileUpdate"
       />
 
-      <!-- 世界地图预览 -->
-      <WorldMapViewer
-        v-else-if="isCurrentFileWorldMap"
-        :project-path="projectPath"
-      />
-      
-      <!-- 代码编辑器 -->
-      <CodeMirrorEditor
-        v-else
-        ref="editorRef"
-        :content="fileContent"
-        :is-read-only="isReadOnly"
-        :file-name="currentFile.node.name"
-        :file-path="currentFile.node.path"
-        :project-root="projectPath"
-        :game-directory="gameDirectory"
-        :disable-error-handling="disableErrorHandling"
-        @update:content="handleContentChange"
-        @cursor-change="handleCursorChange"
-        @contextmenu="handleEditorContextMenu"
-      />
+      <!-- 其他预览器 (使用 v-if 以节省资源) -->
+      <template v-if="!isCurrentFileWorldMap">
+        <!-- 图片预览 -->
+        <ImagePreviewer
+          v-if="isCurrentFileImage"
+          :image-url="imageUrl"
+          :file-name="currentFile.node.name"
+          :file-path="currentFile.node.path"
+        />
+        
+        <!-- 事件关系图预览 -->
+        <EventGraphViewer
+          v-else-if="isCurrentFileEventGraph"
+          :content="currentFile.content"
+          :file-path="currentFile.node.path"
+          @jump-to-event="handleJumpToEvent"
+        />
+        
+        <!-- 国策树预览 -->
+        <FocusTreeViewer
+          v-else-if="isCurrentFileFocusTree"
+          :content="fileContent"
+          :file-path="currentFile.node.path"
+          :project-path="projectPath"
+          :game-directory="gameDirectory"
+          :dependency-roots="dependencyRoots"
+          @jump-to-focus="handleJumpToFocus"
+          @update-content="handleContentChange"
+          @external-file-update="handleExternalFileUpdate"
+        />
+        
+        <!-- 代码编辑器 -->
+        <CodeMirrorEditor
+          v-else
+          ref="editorRef"
+          :content="fileContent"
+          :is-read-only="isReadOnly"
+          :file-name="currentFile.node.name"
+          :file-path="currentFile.node.path"
+          :project-root="projectPath"
+          :game-directory="gameDirectory"
+          :disable-error-handling="disableErrorHandling"
+          @update:content="handleContentChange"
+          @cursor-change="handleCursorChange"
+          @contextmenu="handleEditorContextMenu"
+        />
+      </template>
     </div>
 
     <!-- 空状态 -->

@@ -745,6 +745,8 @@ export interface StateDefinition {
   name: string
   provinces: number[]
   owner: string
+  cores: string[]
+  claims: string[]
 }
 
 export interface ProvinceEdge {

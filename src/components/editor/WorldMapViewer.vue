@@ -109,14 +109,47 @@
             <span class="text-[10px] bg-hoi4-accent/20 text-hoi4-accent px-1.5 py-0.5 rounded uppercase tracking-tighter">STATE</span>
           </div>
           <div class="h-px bg-hoi4-border/30 mb-3"></div>
-          <div class="space-y-2">
+          <div class="space-y-3">
             <div class="flex justify-between items-center text-xs">
               <span class="text-hoi4-text-dim">ID:</span>
               <span class="text-hoi4-text font-mono">{{ hoverInfo.id }}</span>
             </div>
-            <div v-if="hoverInfo.owner" class="flex justify-between items-center text-xs">
-              <span class="text-hoi4-text-dim">所有者:</span>
-              <span class="text-hoi4-accent font-bold">{{ hoverInfo.owner }}</span>
+            
+            <div class="flex justify-between items-start text-xs">
+              <span class="text-hoi4-text-dim mt-0.5">拥有者:</span>
+              <span class="text-hoi4-accent font-bold bg-hoi4-accent/10 px-1.5 py-0.5 rounded">{{ hoverInfo.owner || '无' }}</span>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-hoi4-text-dim text-[10px] uppercase tracking-wider">核心国家 (Cores):</span>
+              <div class="flex flex-wrap gap-1">
+                <template v-if="hoverInfo.cores.length">
+                  <span 
+                    v-for="core in hoverInfo.cores" 
+                    :key="core"
+                    class="text-[10px] bg-hoi4-border/60 text-hoi4-text px-1.5 py-0.5 rounded font-mono border border-hoi4-border/40"
+                  >
+                    {{ core }}
+                  </span>
+                </template>
+                <span v-else class="text-hoi4-comment text-[10px] italic">无</span>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <span class="text-hoi4-text-dim text-[10px] uppercase tracking-wider">宣称国家 (Claims):</span>
+              <div class="flex flex-wrap gap-1">
+                <template v-if="hoverInfo.claims.length">
+                  <span 
+                    v-for="claim in hoverInfo.claims" 
+                    :key="claim"
+                    class="text-[10px] bg-hoi4-border/40 text-hoi4-text-dim px-1.5 py-0.5 rounded font-mono"
+                  >
+                    {{ claim }}
+                  </span>
+                </template>
+                <span v-else class="text-hoi4-comment text-[10px] italic">无</span>
+              </div>
             </div>
           </div>
         </template>
@@ -294,6 +327,7 @@ const tileUsage = new Map<string, number>() // LRU 追踪
 let isRendering = false
 let isUnmounted = false
 let renderRafId: number | null = null
+let resizeObserver: ResizeObserver | null = null
 
 // 加载状态
 const loadingStatus = ref('初始化中...')
@@ -359,6 +393,8 @@ interface StateHoverInfo {
   id: number
   name: string
   owner: string
+  cores: string[]
+  claims: string[]
   isState: true
 }
 
@@ -385,6 +421,8 @@ const hoverInfo = computed<HoverInfo | null>(() => {
       id: state.id,
       name: state.name,
       owner: state.owner,
+      cores: state.cores || [],
+      claims: state.claims || [],
       isState: true
     }
   }
@@ -425,12 +463,26 @@ const tooltipStyle = computed(() => {
 // 初始化地图
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
+  
+  // 使用 ResizeObserver 监听容器大小变化，确保在 v-show 切换时能正确重绘
+  if (containerRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize()
+    })
+    resizeObserver.observe(containerRef.value)
+  }
+
   await refreshMap()
 })
 
 onUnmounted(() => {
   isUnmounted = true
   window.removeEventListener('resize', handleResize)
+  
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   
   if (renderRafId !== null) {
     cancelAnimationFrame(renderRafId)

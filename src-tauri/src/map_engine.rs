@@ -4,21 +4,26 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path};
 
-use std::collections::HashMap;
-use image::GenericImageView;
+use std::collections::{HashMap, HashSet};
 use rayon::prelude::*;
 use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static RE_STATE_ID: Lazy<Regex> = Lazy::new(|| Regex::new(r"id\s*=\s*(\d+)").unwrap());
+static RE_STATE_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r#"name\s*=\s*"([^"]*)""#).unwrap());
+static RE_STATE_OWNER: Lazy<Regex> = Lazy::new(|| Regex::new(r"owner\s*=\s*([A-Z0-9]{3})").unwrap());
+static RE_STATE_CORE: Lazy<Regex> = Lazy::new(|| Regex::new(r"add_core_of\s*=\s*([A-Z0-9]{3})").unwrap());
+static RE_STATE_CLAIM: Lazy<Regex> = Lazy::new(|| Regex::new(r"add_claim_by\s*=\s*([A-Z0-9]{3})").unwrap());
+static RE_COUNTRY_COLOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?m)^([A-Z0-9]{3})\s*=\s*\{\s*color\s*=\s*(?:rgb)?\s*\{\s*(\d+)\s+(\d+)\s+(\d+)\s*\}").unwrap());
 
 /// 地图上下文状态 (常驻内存)
+#[allow(dead_code)]
 pub struct MapContext {
     pub width: u32,
     pub height: u32,
     pub province_ids: Vec<u32>,
-    #[allow(dead_code)]
     pub definitions: HashMap<u32, ProvinceDefinition>,
-    #[allow(dead_code)]
     pub country_colors: HashMap<String, RGBColor>,
-    #[allow(dead_code)]
     pub state_owners: HashMap<u32, String>, // province_id -> owner_tag
     pub province_to_state: HashMap<u32, u32>, // province_id -> state_id
     pub state_to_provinces: HashMap<u32, Vec<u32>>, // state_id -> province_ids
@@ -241,59 +246,57 @@ pub fn detect_edges(
     height: u32,
     province_ids: &[u32],
 ) -> Vec<ProvinceEdge> {
-    use std::collections::HashSet;
-    use std::sync::Mutex;
+    // 并行计算每行的边缘关系
+    let edge_map: HashMap<(u32, u32), HashSet<u32>> = (0..height)
+        .into_par_iter()
+        .fold(HashMap::new, |mut acc: HashMap<(u32, u32), HashSet<u32>>, y| {
+            for x in 0..width {
+                let idx = (y * width + x) as usize;
+                let current_id = province_ids[idx];
 
-    // 使用分块并行处理来加速边缘检测
-    // 每一个 (id1, id2) 关系映射到一个点集
-    let edge_results = Mutex::new(HashMap::<(u32, u32), HashSet<(u32, u32)>>::new());
+                // 检查右侧
+                if x + 1 < width {
+                    let right_id = province_ids[idx + 1];
+                    if current_id != right_id {
+                        let key = if current_id < right_id { (current_id, right_id) } else { (right_id, current_id) };
+                        let points = acc.entry(key).or_default();
+                        points.insert(x | (y << 16));
+                        points.insert((x + 1) | (y << 16));
+                    }
+                }
 
-    // 按行并行处理
-    (0..height).into_par_iter().for_each(|y| {
-        let mut local_edges = HashMap::<(u32, u32), HashSet<(u32, u32)>>::new();
-        
-        for x in 0..width {
-            let idx = (y * width + x) as usize;
-            let current_id = province_ids[idx];
-
-            // 检查右侧
-            if x + 1 < width {
-                let right_id = province_ids[idx + 1];
-                if current_id != right_id {
-                    let key = if current_id < right_id { (current_id, right_id) } else { (right_id, current_id) };
-                    let points = local_edges.entry(key).or_insert_with(HashSet::new);
-                    points.insert((x, y));
-                    points.insert((x + 1, y));
+                // 检查下方
+                if y + 1 < height {
+                    let down_id = province_ids[idx + (width as usize)];
+                    if current_id != down_id {
+                        let key = if current_id < down_id { (current_id, down_id) } else { (down_id, current_id) };
+                        let points = acc.entry(key).or_default();
+                        points.insert(x | (y << 16));
+                        points.insert(x | ((y + 1) << 16));
+                    }
                 }
             }
-
-            // 检查下方
-            if y + 1 < height {
-                let down_id = province_ids[idx + (width as usize)];
-                if current_id != down_id {
-                    let key = if current_id < down_id { (current_id, down_id) } else { (down_id, current_id) };
-                    let points = local_edges.entry(key).or_insert_with(HashSet::new);
-                    points.insert((x, y));
-                    points.insert((x, y + 1));
-                }
+            acc
+        })
+        .reduce(HashMap::new, |mut a, b| {
+            for (key, points) in b {
+                a.entry(key).or_default().extend(points);
             }
-        }
+            a
+        });
 
-        // 合并到全局结果
-        let mut global_edges = edge_results.lock().expect("Failed to lock edge_results");
-        for (key, points) in local_edges {
-            global_edges.entry(key).or_insert_with(HashSet::new).extend(points);
-        }
-    });
-
-    // 将结果转换为 ProvinceEdge 列表
-    edge_results.into_inner().expect("Failed to get inner edge_results").into_iter().map(|((from_id, to_id), point_set)| {
-        ProvinceEdge {
+    // 转换为输出格式
+    edge_map
+        .into_iter()
+        .map(|((from_id, to_id), point_set)| ProvinceEdge {
             from_id,
             to_id,
-            points: point_set.into_iter().collect(),
-        }
-    }).collect()
+            points: point_set
+                .into_iter()
+                .map(|p| (p & 0xFFFF, p >> 16))
+                .collect(),
+        })
+        .collect()
 }
 
 /// 解析 provinces.bmp 并映射到省份 ID
@@ -301,54 +304,82 @@ pub fn parse_provinces_bmp(
     path: &Path,
     definitions: &[ProvinceDefinition],
 ) -> Result<ProvinceMapData, String> {
-    // 1. 加载图片
-    let img = image::open(path).map_err(|e| format!("无法打开位图文件: {}", e))?;
-    let (width, height) = img.dimensions();
+    // 2. Load Provinces BMP (Ultra-Fast Native BMP Parsing)
+    let mut map_file = fs::File::open(path)
+        .map_err(|e| format!("无法打开位图文件: {}", e))?;
+    
+    use std::io::{Read, Seek, SeekFrom};
+    let mut header = [0u8; 54];
+    map_file.read_exact(&mut header).map_err(|e| format!("读取 BMP 头部失败: {}", e))?;
+    
+    let pixel_offset = u32::from_le_bytes(header[10..14].try_into().unwrap_or([0; 4])) as u64;
+    let width = i32::from_le_bytes(header[18..22].try_into().unwrap_or([0; 4])) as u32;
+    let height = i32::from_le_bytes(header[22..26].try_into().unwrap_or([0; 4])) as u32;
+    
+    let row_size = ((width * 3 + 3) & !3) as usize;
+    let mut raw_pixels = vec![0u8; row_size * height as usize];
+    map_file.seek(SeekFrom::Start(pixel_offset)).map_err(|e| format!("Seek 失败: {}", e))?;
+    map_file.read_exact(&mut raw_pixels).map_err(|e| format!("读取像素数据失败: {}", e))?;
 
-    // 2. 创建颜色到 ID 的映射表
-    let mut color_to_id = HashMap::with_capacity(definitions.len());
+    // 2. 创建颜色到 ID 的映射表 (LUT 优化: 24-bit RGB -> ID)
+    // 使用 16M 的 Vec 作为查找表，实现 O(1) 查找。约占用 64MB 内存。
+    let mut color_lut = vec![0u32; 1 << 24];
     for def in definitions {
-        color_to_id.insert((def.r, def.g, def.b), def.id);
+        let color_idx = ((def.r as usize) << 16) | ((def.g as usize) << 8) | (def.b as usize);
+        color_lut[color_idx] = def.id;
     }
 
-    // 3. 获取像素数据并转换为 ID
-    let rgb_data = img.to_rgb8();
-    let pixels = rgb_data.as_raw();
+    // 3. 并行转换像素到 ID (优化：避免 flat_map 和临时向量)
+    let mut province_ids = vec![0u32; (width * height) as usize];
+    province_ids.par_chunks_mut(width as usize).enumerate().for_each(|(y_inv, row)| {
+        let y = height - 1 - y_inv as u32;
+        let row_start = y as usize * row_size;
+        let row_data = &raw_pixels[row_start..row_start + (width * 3) as usize];
+        for (x, chunk) in row_data.chunks_exact(3).enumerate() {
+            let color_idx = ((chunk[2] as usize) << 16) | ((chunk[1] as usize) << 8) | (chunk[0] as usize);
+            row[x] = color_lut[color_idx];
+        }
+    });
 
-    let province_ids: Vec<u32> = pixels
-        .par_chunks_exact(3)
-        .map(|chunk| {
-            let r = chunk[0];
-            let g = chunk[1];
-            let b = chunk[2];
-            *color_to_id.get(&(r, g, b)).unwrap_or(&0)
-        })
-        .collect();
-
-    // 4. 计算每个省份的包围盒和像素计数
-    // 使用 HashMap 存储中间状态：(min_x, min_y, max_x, max_y, count)
-    let mut stats: HashMap<u32, (u32, u32, u32, u32, u32)> = HashMap::with_capacity(definitions.len());
-
-    for (idx, &id) in province_ids.iter().enumerate() {
-        if id == 0 { continue; }
-        
-        let x = (idx as u32) % width;
-        let y = (idx as u32) / width;
-
-        let entry = stats.entry(id).or_insert((x, y, x, y, 0));
-        entry.0 = entry.0.min(x);
-        entry.1 = entry.1.min(y);
-        entry.2 = entry.2.max(x);
-        entry.3 = entry.3.max(y);
-        entry.4 += 1;
-    }
+    // 4. 计算每个省份的包围盒和像素计数 (优化：使用 Vec 替代 HashMap 减少开销)
+    let max_id = definitions.iter().map(|d| d.id).max().unwrap_or(0);
+    let stats = province_ids.par_iter().enumerate().fold(
+        || vec![(u32::MAX, u32::MAX, 0u32, 0u32, 0u32); (max_id + 1) as usize],
+        |mut local_stats, (idx, &id)| {
+            if id > 0 && id <= max_id {
+                let x = (idx as u32) % width;
+                let y = (idx as u32) / width;
+                let s = &mut local_stats[id as usize];
+                s.0 = s.0.min(x);
+                s.1 = s.1.min(y);
+                s.2 = s.2.max(x);
+                s.3 = s.3.max(y);
+                s.4 += 1;
+            }
+            local_stats
+        }
+    ).reduce(
+        || vec![(u32::MAX, u32::MAX, 0u32, 0u32, 0u32); (max_id + 1) as usize],
+        |mut a, b| {
+            for i in 0..a.len() {
+                if b[i].4 > 0 {
+                    a[i].0 = a[i].0.min(b[i].0);
+                    a[i].1 = a[i].1.min(b[i].1);
+                    a[i].2 = a[i].2.max(b[i].2);
+                    a[i].3 = a[i].3.max(b[i].3);
+                    a[i].4 += b[i].4;
+                }
+            }
+            a
+        }
+    );
 
     // 5. 组装 ProvinceInstance
     let instances = definitions.iter().map(|def| {
-        let stat = stats.get(&def.id);
+        let stat = if def.id <= max_id { Some(&stats[def.id as usize]) } else { None };
         ProvinceInstance {
             definition: def.clone(),
-            bounding_box: stat.map(|s| BoundingBox {
+            bounding_box: stat.filter(|s| s.4 > 0).map(|s| BoundingBox {
                 min_x: s.0,
                 min_y: s.1,
                 max_x: s.2,
@@ -496,17 +527,13 @@ pub fn load_country_colors(path: String) -> HashMap<String, RGBColor> {
     let p = Path::new(&path);
     let content = read_file_with_encoding(p).unwrap_or_default();
     
-    // 使用简单的正则匹配 TAG = { color = { r g b } }
-    // 兼容多种空格和换行
-    let re = Regex::new(r"(?m)^([A-Z0-9]{3})\s*=\s*\{\s*color\s*=\s*(?:rgb)?\s*\{\s*(\d+)\s+(\d+)\s+(\d+)\s*\}").ok();
-    if let Some(re) = re {
-        for cap in re.captures_iter(&content) {
-            let tag = cap[1].to_string();
-            let r = cap[2].parse().unwrap_or(0);
-            let g = cap[3].parse().unwrap_or(0);
-            let b = cap[4].parse().unwrap_or(0);
-            colors.insert(tag, RGBColor { r, g, b, a: 255 });
-        }
+    // 使用预编译的正则匹配 TAG = { color = { r g b } }
+    for cap in RE_COUNTRY_COLOR.captures_iter(&content) {
+        let tag = cap[1].to_string();
+        let r = cap[2].parse().unwrap_or(0);
+        let g = cap[3].parse().unwrap_or(0);
+        let b = cap[4].parse().unwrap_or(0);
+        colors.insert(tag, RGBColor { r, g, b, a: 255 });
     }
     
     colors
@@ -536,6 +563,8 @@ pub struct StateDefinition {
     pub name: String,
     pub provinces: Vec<u32>,
     pub owner: String,
+    pub cores: Vec<String>,
+    pub claims: Vec<String>,
 }
 
 /// 解析州文件 (history/states/*.txt)
@@ -546,25 +575,31 @@ pub fn parse_state_file(path: &Path) -> Result<StateDefinition, String> {
     let mut name = String::new();
     let mut provinces = Vec::new();
     let mut owner = String::new();
+    let mut cores = Vec::new();
+    let mut claims = Vec::new();
     
-    // 使用简单的文本解析 (实际应使用 HOI4 脚本解析器)
-    // 查找 id = XXX
-    if let Some(caps) = Regex::new(r"id\s*=\s*(\d+)").ok().and_then(|re| re.captures(&content)) {
+    // 使用预编译的正则解析 (提升大量小文件解析速度)
+    if let Some(caps) = RE_STATE_ID.captures(&content) {
         id = caps[1].parse().unwrap_or(0);
     }
     
-    // 查找 name = "XXX"
-    if let Some(caps) = Regex::new(r#"name\s*=\s*"([^"]*)""#).ok().and_then(|re| re.captures(&content)) {
+    if let Some(caps) = RE_STATE_NAME.captures(&content) {
         name = caps[1].to_string();
     }
     
-    // 查找 owner = TAG
-    if let Some(caps) = Regex::new(r"owner\s*=\s*([A-Z0-9]{3})").ok().and_then(|re| re.captures(&content)) {
+    if let Some(caps) = RE_STATE_OWNER.captures(&content) {
         owner = caps[1].to_string();
+    }
+
+    for cap in RE_STATE_CORE.captures_iter(&content) {
+        cores.push(cap[1].to_string());
+    }
+
+    for cap in RE_STATE_CLAIM.captures_iter(&content) {
+        claims.push(cap[1].to_string());
     }
     
     // 查找 provinces = { 1 2 3 }
-    // 注意：provinces 可能跨多行
     if let Some(start_idx) = content.find("provinces") {
         if let Some(open_brace) = content[start_idx..].find('{') {
             if let Some(close_brace) = content[start_idx + open_brace..].find('}') {
@@ -578,27 +613,26 @@ pub fn parse_state_file(path: &Path) -> Result<StateDefinition, String> {
         }
     }
     
-    Ok(StateDefinition { id, name, provinces, owner })
+    Ok(StateDefinition { id, name, provinces, owner, cores, claims })
 }
 
-/// 批量解析州目录
+/// 批量解析州目录 (并行版)
 #[tauri::command]
 pub fn load_all_states(states_dir: String) -> Vec<StateDefinition> {
-    let mut states = Vec::new();
     let path = Path::new(&states_dir);
-    if path.exists() && path.is_dir() {
-        if let Ok(entries) = fs::read_dir(path) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_file() && p.extension().map_or(false, |ext| ext == "txt") {
-                    if let Ok(state) = parse_state_file(&p) {
-                        states.push(state);
-                    }
-                }
-            }
-        }
+    if !path.exists() || !path.is_dir() {
+        return Vec::new();
     }
-    states
+
+    let entries: Vec<_> = fs::read_dir(path)
+        .map(|rd| rd.flatten().map(|e| e.path()).collect())
+        .unwrap_or_else(|_| Vec::new());
+
+    entries
+        .par_iter()
+        .filter(|p| p.is_file() && p.extension().map_or(false, |ext| ext == "txt"))
+        .filter_map(|p| parse_state_file(p).ok())
+        .collect()
 }
 
 #[tauri::command]
@@ -612,39 +646,68 @@ pub fn initialize_map_context(
     // 1. Load Definitions
     let definitions_vec = parse_definition_csv(Path::new(&definitions_path))
         .map_err(|e| format!("无法加载省份定义文件 ({}): {}", definitions_path, e))?;
-    let mut definitions = HashMap::new();
+    let mut definitions = HashMap::with_capacity(definitions_vec.len());
+    let mut color_to_id = HashMap::with_capacity(definitions_vec.len());
     for def in definitions_vec {
+        color_to_id.insert((def.r, def.g, def.b), def.id);
         definitions.insert(def.id, def);
     }
 
-    // 2. Load Provinces BMP
-    let img = image::open(Path::new(&map_path))
+    // 2. Load Provinces BMP (Ultra-Fast Native BMP Parsing)
+    let mut map_file = fs::File::open(Path::new(&map_path))
         .map_err(|e| format!("无法打开地图位图 ({}): {}", map_path, e))?;
-    let (width, height) = img.dimensions();
-    let rgb = img.to_rgb8();
     
-    // Fast color lookup
-    let mut color_to_id = HashMap::with_capacity(definitions.len());
-    for def in definitions.values() {
-        color_to_id.insert((def.r, def.g, def.b), def.id);
+    // 手动解析 BMP 头部以获取尺寸和像素偏移
+    use std::io::{Read, Seek, SeekFrom};
+    let mut header = [0u8; 54];
+    map_file.read_exact(&mut header).map_err(|e| format!("读取 BMP 头部失败: {}", e))?;
+    
+    if &header[0..2] != b"BM" {
+        return Err("不是有效的 BMP 文件".to_string());
     }
     
-    // Parse IDs (Parallel)
-    let province_ids: Vec<u32> = rgb.as_raw()
-        .par_chunks_exact(3)
-        .map(|chunk| {
-            *color_to_id.get(&(chunk[0], chunk[1], chunk[2])).unwrap_or(&0)
-        })
-        .collect();
+    let pixel_offset = u32::from_le_bytes(header[10..14].try_into().unwrap_or([0; 4])) as u64;
+    let width = i32::from_le_bytes(header[18..22].try_into().unwrap_or([0; 4])) as u32;
+    let height = i32::from_le_bytes(header[22..26].try_into().unwrap_or([0; 4])) as u32;
+    let bpp = u16::from_le_bytes(header[28..30].try_into().unwrap_or([0; 2]));
+    
+    if bpp != 24 {
+        return Err(format!("仅支持 24-bit BMP，当前为 {}-bit", bpp));
+    }
+
+    // 直接读取像素数据，跳过 image 库的解码过程
+    let row_size = ((width * 3 + 3) & !3) as usize; // BMP 行对齐
+    let mut raw_pixels = vec![0u8; row_size * height as usize];
+    map_file.seek(SeekFrom::Start(pixel_offset)).map_err(|e| format!("Seek 失败: {}", e))?;
+    map_file.read_exact(&mut raw_pixels).map_err(|e| format!("读取像素数据失败: {}", e))?;
+
+    // 创建颜色到 ID 的映射表 (LUT 优化: 24-bit RGB -> ID)
+    let mut color_lut = vec![0u32; 1 << 24];
+    for def in definitions.values() {
+        let color_idx = ((def.r as usize) << 16) | ((def.g as usize) << 8) | (def.b as usize);
+        color_lut[color_idx] = def.id;
+    }
+
+    // 并行转换像素到 ID，同时处理行倒序和对齐
+    let mut province_ids = vec![0u32; (width * height) as usize];
+    province_ids.par_chunks_mut(width as usize).enumerate().for_each(|(y_inv, row)| {
+        let y = height - 1 - y_inv as u32;
+        let row_start = y as usize * row_size;
+        let row_data = &raw_pixels[row_start..row_start + (width * 3) as usize];
+        for (x, chunk) in row_data.chunks_exact(3).enumerate() {
+            let color_idx = ((chunk[2] as usize) << 16) | ((chunk[1] as usize) << 8) | (chunk[0] as usize);
+            row[x] = color_lut[color_idx];
+        }
+    });
 
     // 3. Load Country Colors
     let country_colors: HashMap<String, RGBColor> = load_country_colors(country_colors_path).into_iter().collect();
 
     // 4. Load States & Owners
     let states = load_all_states(states_path);
-    let mut state_owners = HashMap::new();
-    let mut province_to_state = HashMap::new();
-    let mut state_to_provinces = HashMap::new();
+    let mut state_owners = HashMap::with_capacity(definitions.len());
+    let mut province_to_state = HashMap::with_capacity(definitions.len());
+    let mut state_to_provinces = HashMap::with_capacity(states.len());
     
     for state in &states {
         state_to_provinces.insert(state.id, state.provinces.clone());
@@ -664,7 +727,7 @@ pub fn initialize_map_context(
     let mut terrain_color_lut = vec![[100, 100, 100]; lut_size]; // Default gray
 
     // Map province to state color
-    let mut province_to_state_color = HashMap::new();
+    let mut province_to_state_color = HashMap::with_capacity(definitions.len());
     for state in &states {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         use std::hash::{Hash, Hasher};
@@ -718,21 +781,48 @@ pub fn initialize_map_context(
         };
     }
 
-    // Calculate province bounds
-    let mut province_bounds = HashMap::new();
-    for (idx, &id) in province_ids.iter().enumerate() {
-        if id == 0 { continue; }
-        let x = (idx as u32) % width;
-        let y = (idx as u32) / width;
-        
-        province_bounds.entry(id)
-            .and_modify(|b: &mut BoundingBox| {
-                b.min_x = b.min_x.min(x);
-                b.min_y = b.min_y.min(y);
-                b.max_x = b.max_x.max(x);
-                b.max_y = b.max_y.max(y);
-            })
-            .or_insert(BoundingBox { min_x: x, min_y: y, max_x: x, max_y: y });
+    // Calculate province bounds (Parallel optimization using Vec instead of HashMap)
+    let stats = province_ids.par_iter().enumerate().fold(
+        || vec![(u32::MAX, u32::MAX, 0u32, 0u32, 0u32); lut_size],
+        |mut local_stats, (idx, &id)| {
+            if id > 0 && id <= max_id {
+                let x = (idx as u32) % width;
+                let y = (idx as u32) / width;
+                let s = &mut local_stats[id as usize];
+                s.0 = s.0.min(x);
+                s.1 = s.1.min(y);
+                s.2 = s.2.max(x);
+                s.3 = s.3.max(y);
+                s.4 += 1;
+            }
+            local_stats
+        }
+    ).reduce(
+        || vec![(u32::MAX, u32::MAX, 0u32, 0u32, 0u32); lut_size],
+        |mut a, b| {
+            for i in 0..a.len() {
+                if b[i].4 > 0 {
+                    a[i].0 = a[i].0.min(b[i].0);
+                    a[i].1 = a[i].1.min(b[i].1);
+                    a[i].2 = a[i].2.max(b[i].2);
+                    a[i].3 = a[i].3.max(b[i].3);
+                    a[i].4 += b[i].4;
+                }
+            }
+            a
+        }
+    );
+
+    let mut province_bounds = HashMap::with_capacity(lut_size);
+    for (id, s) in stats.into_iter().enumerate() {
+        if s.4 > 0 {
+            province_bounds.insert(id as u32, BoundingBox {
+                min_x: s.0,
+                min_y: s.1,
+                max_x: s.2,
+                max_y: s.3,
+            });
+        }
     }
 
     // 6. Store in State

@@ -47,7 +47,8 @@ body {
   background-color: var(--theme-bg);
   color: var(--theme-fg);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  /* 移除全局背景色过渡，避免在布局剧烈变动时（如全屏、打开重型文件）产生闪屏 */
+  transition: none;
 }
 
 .ai-solid-dropdown {
@@ -205,7 +206,7 @@ body {
 /* 侧边栏子界面切换过渡动画 */
 .sidebar-fade-slide-enter-active,
 .sidebar-fade-slide-leave-active {
-  transition: all 0.4s ease;
+  transition: all 0.2s ease;
 }
 
 .sidebar-fade-slide-enter-from {
