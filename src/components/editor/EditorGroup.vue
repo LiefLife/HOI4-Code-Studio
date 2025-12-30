@@ -21,6 +21,7 @@ const emit = defineEmits<{
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
   previewMap: [paneId: string]
+  previewGui: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
   contentChange: [paneId: string, content: string]
 }>()
@@ -293,6 +294,11 @@ function handlePreviewMap(paneId: string) {
   emit('previewMap', paneId)
 }
 
+// 处理预览 GUI
+function handlePreviewGui(paneId: string) {
+  emit('previewGui', paneId)
+}
+
 // 处理跳转到焦点
 function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, focusId: string, line: number) {
   emit('jumpToFocusFromPreview', sourcePaneId, sourceFilePath, focusId, line)
@@ -513,6 +519,7 @@ defineExpose({
           @preview-event="handlePreviewEvent"
           @preview-focus="handlePreviewFocus"
           @preview-map="handlePreviewMap"
+          @preview-gui="handlePreviewGui"
           @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         />
       </div>

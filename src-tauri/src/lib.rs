@@ -19,6 +19,7 @@ mod tag_validator;
 mod dependency;
 mod focus_localization;
 mod map_engine;
+mod gui_engine;
 
 use json_decoder::{
     get_json_path,
@@ -2637,6 +2638,10 @@ pub fn run() {
             map_engine::get_map_preview,
             map_engine::get_province_outline,
             map_engine::get_state_outline,
+            gui_engine::parse_gui_file,
+            gui_engine::parse_gui_content,
+            gui_engine::parse_gfx_file,
+            gui_engine::resolve_gui_resource,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

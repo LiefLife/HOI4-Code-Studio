@@ -669,6 +669,77 @@ export async function readImageAsBase64(filePath: string): Promise<ImageReadResu
   return normalizeImageReadResult(resp)
 }
 
+// ==================== GUI 引擎 ====================
+
+export interface GuiNode {
+  node_type: 'container_window' | 'icon' | 'button' | 'instant_text_box' | 'grid_box' | 'window' | 'window_type'
+  properties: {
+    name?: string
+    position?: { x: number; y: number }
+    size?: { width: number; height: number }
+    orientation?: string
+    origo?: string
+    sprite_type?: string
+    quad_texture_sprite?: string
+    background?: string
+    font?: string
+    text?: string
+    format?: string
+    max_width?: number
+    max_height?: number
+    scale?: number
+    frame?: number
+  }
+  children: GuiNode[]
+}
+
+export interface GuiParseResult {
+  success: boolean
+  path: string
+  windows: GuiNode[]
+}
+
+export interface GfxParseResult {
+  success: boolean
+  sprites: Record<string, {
+    texturefile: string
+    noOfFrames: number
+  }>
+}
+
+/**
+ * 解析 GUI 文件
+ */
+export async function parseGuiFile(path: string): Promise<GuiParseResult> {
+  return await invoke('parse_gui_file', { path })
+}
+
+/**
+ * 解析 GUI 内容
+ */
+export async function parseGuiContent(content: string): Promise<GuiParseResult> {
+  return await invoke('parse_gui_content', { content })
+}
+
+/**
+ * 解析 GFX 文件
+ */
+export async function parseGfxFile(path: string): Promise<GfxParseResult> {
+  return await invoke('parse_gfx_file', { path })
+}
+
+/**
+ * 解析 GUI 资源
+ */
+export async function resolveGuiResource(
+  name: string,
+  projectPath: string,
+  gameDirectory: string,
+  dependencyRoots: string[]
+): Promise<any> {
+  return await invoke('resolve_gui_resource', { name, projectPath, gameDirectory, dependencyRoots })
+}
+
 /**
  * 根据国策 icon 名称加载图标（会在项目、依赖和游戏目录中查找 gfx/interface/goals/*.gfx）
  */

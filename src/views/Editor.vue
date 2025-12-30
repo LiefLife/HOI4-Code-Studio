@@ -1141,7 +1141,7 @@ async function handlePreviewMap(paneId: string) {
   // 如果已有两个或更多窗格，查找包含预览的窗格
   if (editorGroupRef.value.panes.length >= 2) {
     targetPane = editorGroupRef.value.panes.find(p => 
-      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap)
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap || f.isGuiPreview)
     )
   }
   
@@ -1183,6 +1183,70 @@ async function handlePreviewMap(paneId: string) {
     cursorLine: 1,
     cursorColumn: 1,
     isWorldMap: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
+  newPane.activeFileIndex = 0
+}
+
+// 处理预览 GUI
+async function handlePreviewGui(paneId: string) {
+  if (!editorGroupRef.value) return
+  
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+  
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+  
+  let targetPane = null
+  
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p => 
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap || f.isGuiPreview)
+    )
+  }
+  
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    const previewFile: OpenFile = {
+      node: {
+        ...currentFile.node,
+        name: `🖼️ ${currentFile.node.name} - GUI 预览`
+      },
+      content: currentFile.content,
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isGuiPreview: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+  
+  // 否则，分割窗格创建新预览
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+  
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+  
+  const previewFile: OpenFile = {
+    node: {
+      ...currentFile.node,
+      name: `🖼️ ${currentFile.node.name} - GUI 预览`
+    },
+    content: currentFile.content,
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isGuiPreview: true,
     isPreview: true,
     sourceFilePath: currentFile.node.path
   }
@@ -1877,9 +1941,10 @@ onUnmounted(() => {
         @errors-change="handleErrorsChange"
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
-  @preview-focus="handlePreviewFocus"
-  @preview-map="handlePreviewMap"
-  @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
+      @preview-focus="handlePreviewFocus"
+      @preview-map="handlePreviewMap"
+      @preview-gui="handlePreviewGui"
+      @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
         @content-change="handleContentChange"
       />
 

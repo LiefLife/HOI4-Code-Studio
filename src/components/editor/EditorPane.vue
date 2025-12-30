@@ -7,6 +7,7 @@ import EventGraphViewer from './EventGraphViewer.vue'
 import FocusTreeViewer from './FocusTreeViewer.vue'
 import ImagePreviewer from './ImagePreviewer.vue'
 import WorldMapViewer from './WorldMapViewer.vue'
+import GuiViewer from './GuiViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -37,6 +38,7 @@ const emit = defineEmits<{
   previewEvent: [paneId: string]
   previewFocus: [paneId: string]
   previewMap: [paneId: string]
+  previewGui: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
 }>()
 
@@ -120,6 +122,21 @@ const isMapFile = computed(() => {
          !isCurrentFileEventGraph.value &&
          !isCurrentFileFocusTree.value &&
          !isCurrentFileWorldMap.value
+})
+
+// 当前文件是否为 GUI 预览
+const isCurrentFileGui = computed(() => {
+  return currentFile.value?.isGuiPreview === true
+})
+
+// 当前文件是否为 GUI 文件
+const isGuiFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const name = currentFile.value.node.name.toLowerCase()
+  // 支持 .gui 文件，排除预览窗口本身
+  return (name.endsWith('.gui') || currentFile.value.node.path.toLowerCase().endsWith('.gui')) && 
+         !isCurrentFileImage.value && 
+         !isCurrentFileGui.value
 })
 
 // 图片 URL (使用 base64 数据)
@@ -290,6 +307,10 @@ function handlePreviewFocus() {
 
 function handlePreviewMap() {
   emit('previewMap', props.pane.id)
+}
+
+function handlePreviewGui() {
+  emit('previewGui', props.pane.id)
 }
 
 function handleJumpToEvent(eventId: string, line: number) {
@@ -540,12 +561,24 @@ defineExpose({
             v-if="isMapFile"
             @click="handlePreviewMap"
             class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
-            title="预览地图"
+            title="预览世界地图"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
             </svg>
-            <span>预览</span>
+            <span>预览地图</span>
+          </button>
+
+          <button
+            v-if="isGuiFile"
+            @click="handlePreviewGui"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览 GUI 界面"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13h16M10 4v9"></path>
+            </svg>
+            <span>预览 GUI</span>
           </button>
         </div>
         
@@ -596,6 +629,15 @@ defineExpose({
           @jump-to-focus="handleJumpToFocus"
           @update-content="handleContentChange"
           @external-file-update="handleExternalFileUpdate"
+        />
+        
+        <!-- GUI 预览 -->
+        <GuiViewer
+          v-else-if="isCurrentFileGui"
+          :content="fileContent"
+          :file-path="currentFile.node.path"
+          :project-path="projectPath"
+          :game-directory="gameDirectory"
         />
         
         <!-- 代码编辑器 -->

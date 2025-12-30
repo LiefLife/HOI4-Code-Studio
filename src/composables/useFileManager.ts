@@ -27,6 +27,7 @@ export interface OpenFile {
   isEventGraph?: boolean  // 是否为事件关系图预览
   isFocusTree?: boolean   // 是否为国策树预览
   isWorldMap?: boolean    // 是否为世界地图预览
+  isGuiPreview?: boolean  // 是否为 GUI 预览
   isPreview?: boolean   // 是否为预览文件
   sourceFilePath?: string // 源文件路径（用于预览文件）
 }
