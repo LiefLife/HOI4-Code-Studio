@@ -1,20 +1,20 @@
 <template>
-  <div class="gui-viewer w-full h-full bg-[#1a1a1a] flex flex-col overflow-hidden relative">
+  <div class="gui-viewer w-full h-full bg-[var(--theme-bg)] flex flex-col overflow-hidden relative text-[var(--theme-fg)]">
     <!-- 工具栏 -->
-    <div class="flex items-center justify-between px-4 py-2 bg-[#2d2d2d] border-b border-[#3d3d3d] shrink-0">
+    <div class="flex items-center justify-between px-4 py-2 bg-[var(--theme-bg-secondary)] border-b border-[var(--theme-border)] shrink-0">
       <div class="flex items-center gap-4">
-        <h2 class="text-sm font-bold text-gray-200 flex items-center gap-2">
-          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <h2 class="text-sm font-bold text-[var(--theme-fg)] flex items-center gap-2">
+          <svg class="w-4 h-4 text-[var(--theme-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
           </svg>
           GUI 预览器
         </h2>
-        <div class="h-4 w-[1px] bg-gray-600"></div>
+        <div class="h-4 w-[1px] bg-[var(--theme-border)]"></div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-400">当前窗口:</span>
+          <span class="text-xs text-[var(--theme-comment)]">当前窗口:</span>
           <select 
             v-model="activeWindowIndex" 
-            class="bg-[#3d3d3d] text-xs text-gray-200 border border-[#4d4d4d] rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+            class="bg-[var(--theme-bg)] text-xs text-[var(--theme-fg)] border border-[var(--theme-border)] rounded px-2 py-1 focus:outline-none focus:border-[var(--theme-accent)]"
           >
             <option v-for="(win, idx) in guiData?.windows" :key="idx" :value="idx">
               {{ win.properties.name || `Window ${idx + 1}` }}
@@ -24,22 +24,22 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <div class="flex bg-[#3d3d3d] rounded p-1">
+        <div class="flex bg-[var(--theme-bg)] rounded p-1 border border-[var(--theme-border)]">
           <button 
             @click="zoom -= 0.1" 
-            class="p-1 hover:bg-[#4d4d4d] rounded text-gray-400 hover:text-gray-200 transition-colors"
+            class="p-1 hover:bg-[var(--theme-selection)] rounded text-[var(--theme-fg)] transition-colors"
             title="缩小"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
             </svg>
           </button>
-          <span class="px-2 text-xs font-mono text-gray-300 flex items-center min-w-[3rem] justify-center">
+          <span class="px-2 text-xs font-mono text-[var(--theme-fg)] flex items-center min-w-[3rem] justify-center">
             {{ Math.round(zoom * 100) }}%
           </span>
           <button 
             @click="zoom += 0.1" 
-            class="p-1 hover:bg-[#4d4d4d] rounded text-gray-400 hover:text-gray-200 transition-colors"
+            class="p-1 hover:bg-[var(--theme-selection)] rounded text-[var(--theme-fg)] transition-colors"
             title="放大"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,12 +49,13 @@
         </div>
         <button 
           @click="resetView" 
-          class="p-2 hover:bg-[#3d3d3d] rounded text-gray-400 hover:text-gray-200 transition-colors"
-          title="重置视图"
+          class="flex items-center gap-1 px-2 py-1 bg-[var(--theme-bg-secondary)] hover:bg-[var(--theme-selection)] border border-[var(--theme-border)] rounded text-xs text-[var(--theme-fg)] transition-colors"
+          title="重置缩放和位置"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
+          重置
         </button>
       </div>
     </div>
@@ -96,18 +97,19 @@
     </div>
 
     <!-- 状态栏 -->
-    <div class="px-4 py-1 bg-[#2d2d2d] border-t border-[#3d3d3d] flex justify-between items-center shrink-0">
-      <div class="flex items-center gap-4 text-[10px] text-gray-500">
+    <div class="px-4 py-1 bg-[var(--theme-bg-secondary)] border-t border-[var(--theme-border)] flex justify-between items-center shrink-0">
+      <div class="flex items-center gap-4 text-[10px] text-[var(--theme-comment)]">
         <span class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          后端解析就绪
+          <span class="w-2 h-2 rounded-full bg-[var(--theme-success)]"></span>
+          渲染引擎: 精准模式
         </span>
-        <span v-if="guiData" class="flex items-center gap-1">
-          窗口数: {{ guiData.windows.length }}
+        <span v-if="guiData">窗口数: {{ guiData.windows.length }}</span>
+        <span v-if="activeWindow">
+          尺寸: {{ activeWindow.properties.size?.width || '?' }} x {{ activeWindow.properties.size?.height || '?' }}
         </span>
       </div>
-      <div class="text-[10px] text-gray-500 font-mono">
-        {{ filePath }}
+      <div class="text-[10px] text-[var(--theme-comment)]">
+        按住 Space + 鼠标拖动平移
       </div>
     </div>
   </div>

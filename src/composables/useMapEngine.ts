@@ -131,14 +131,14 @@ export function useMapEngine() {
   /**
    * 获取省份边缘轮廓
    */
-  async function getOutline(provinceId: number): Promise<[number, number][]> {
+  async function getOutline(provinceId: number): Promise<Uint32Array> {
     return await getProvinceOutline(provinceId)
   }
 
   /**
    * 获取州边缘轮廓
    */
-  async function getStateOutlineWrapper(stateId: number): Promise<[number, number][]> {
+  async function getStateOutlineWrapper(stateId: number): Promise<Uint32Array> {
     return await getStateOutline(stateId)
   }
 

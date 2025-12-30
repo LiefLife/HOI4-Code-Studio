@@ -208,47 +208,33 @@ fn find_matching_bracket(content: &str, start_pos: usize) -> Option<usize> {
 
 /// 辅助函数：解析单个 GUI 节点
 fn parse_node(content: &str) -> Option<GuiNode> {
-    let content_lower = content.to_lowercase();
-    let node_type = if content_lower.contains("containerwindowtype") {
-        GuiNodeType::ContainerWindow
-    } else if content_lower.contains("windowtype") {
-        GuiNodeType::WindowType
-    } else if content_lower.contains("icontype") {
-        GuiNodeType::Icon
-    } else if content_lower.contains("buttontype") {
-        GuiNodeType::Button
-    } else if content_lower.contains("instanttextboxtype") {
-        GuiNodeType::InstantTextBox
-    } else if content_lower.contains("gridboxtype") {
-        GuiNodeType::GridBox
-    } else {
-        GuiNodeType::Window
-    };
-
-    let properties = GuiProperties {
-        name: extract_value(content, "name"),
-        position: extract_position(content),
-        size: extract_size(content),
-        orientation: extract_value(content, "orientation"),
-        origo: extract_value(content, "origo"),
-        sprite_type: extract_value(content, "spriteType").or_else(|| extract_value(content, "sprite_type")),
-        quad_texture_sprite: extract_value(content, "quadTextureSprite"),
-        background: extract_background_sprite(content),
-        font: extract_value(content, "font"),
-        text: extract_value(content, "text"),
-        format: extract_value(content, "format"),
-        max_width: extract_value(content, "maxWidth").and_then(|v| v.parse().ok()),
-        max_height: extract_value(content, "maxHeight").and_then(|v| v.parse().ok()),
-        scale: extract_value(content, "scale").and_then(|v| v.parse().ok()),
-        frame: extract_value(content, "frame").and_then(|v| v.parse().ok()),
-    };
+    let node_type = Regex::new(
+        r"(?i)^\s*(containerWindowType|windowType|iconType|buttonType|instantTextBoxType|gridBoxType)\s*=",
+    )
+    .unwrap()
+    .captures(content)
+    .and_then(|cap| cap.get(1).map(|m| m.as_str().to_ascii_lowercase()))
+    .map(|t| match t.as_str() {
+        "containerwindowtype" => GuiNodeType::ContainerWindow,
+        "windowtype" => GuiNodeType::WindowType,
+        "icontype" => GuiNodeType::Icon,
+        "buttontype" => GuiNodeType::Button,
+        "instanttextboxtype" => GuiNodeType::InstantTextBox,
+        "gridboxtype" => GuiNodeType::GridBox,
+        _ => GuiNodeType::Window,
+    })
+    .unwrap_or(GuiNodeType::Window);
 
     let mut children = Vec::new();
-    
-    // 递归解析子节点
+    let mut child_spans: Vec<(usize, usize)> = Vec::new();
+
+    let re_child = Regex::new(
+        r"(?i)(containerWindowType|windowType|iconType|buttonType|instantTextBoxType|gridBoxType)\s*=\s*\{",
+    )
+    .unwrap();
+
     let mut current_pos = 0;
-    while let Some(mat) = Regex::new(r"(?i)(containerWindowType|windowType|iconType|buttonType|instantTextBoxType|gridBoxType)\s*=\s*\{").unwrap().find_at(content, current_pos) {
-        // 确保这不是当前节点自己
+    while let Some(mat) = re_child.find_at(content, current_pos) {
         if mat.start() == 0 && current_pos == 0 {
             current_pos = mat.end();
             continue;
@@ -259,11 +245,37 @@ fn parse_node(content: &str) -> Option<GuiNode> {
             if let Some(child) = parse_node(block) {
                 children.push(child);
             }
+            child_spans.push((mat.start(), end));
             current_pos = end;
         } else {
             current_pos = mat.end();
         }
     }
+
+    let mut stripped = content.to_string();
+    child_spans.sort_by(|a, b| b.0.cmp(&a.0));
+    for (start, end) in child_spans {
+        let len = end.saturating_sub(start);
+        stripped.replace_range(start..end, &" ".repeat(len));
+    }
+
+    let properties = GuiProperties {
+        name: extract_value(&stripped, "name"),
+        position: extract_position(&stripped),
+        size: extract_size(&stripped),
+        orientation: extract_value(&stripped, "orientation"),
+        origo: extract_value(&stripped, "origo"),
+        sprite_type: extract_value(&stripped, "spriteType").or_else(|| extract_value(&stripped, "sprite_type")),
+        quad_texture_sprite: extract_value(&stripped, "quadTextureSprite"),
+        background: extract_background_sprite(&stripped),
+        font: extract_value(&stripped, "font"),
+        text: extract_value(&stripped, "text"),
+        format: extract_value(&stripped, "format"),
+        max_width: extract_value(&stripped, "maxWidth").and_then(|v| v.parse().ok()),
+        max_height: extract_value(&stripped, "maxHeight").and_then(|v| v.parse().ok()),
+        scale: extract_value(&stripped, "scale").and_then(|v| v.parse().ok()),
+        frame: extract_value(&stripped, "frame").and_then(|v| v.parse().ok()),
+    };
 
     Some(GuiNode {
         node_type,
@@ -317,7 +329,10 @@ fn extract_int_value(content: &str, key: &str) -> Option<i32> {
 fn extract_background_sprite(content: &str) -> Option<String> {
     let re_bg = Regex::new(r"(?i)background\s*=\s*\{([^{}]*)\}").unwrap();
     if let Some(cap) = re_bg.captures(content) {
-        return extract_value(&cap[1], "spriteType");
+        let block = &cap[1];
+        return extract_value(block, "spriteType")
+            .or_else(|| extract_value(block, "quadTextureSprite"))
+            .or_else(|| extract_value(block, "sprite_type"));
     }
     None
 }
