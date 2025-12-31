@@ -17,6 +17,14 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.19-dev',
+    description: '移植Vscode HOI工具插件',
+    changes: [
+      { type: 'feature', content: '支持Map预览' },
+      { type: 'feature', content: '支持GUI预览' },
+    ]
+  },
+  {
     version: 'v0.2.18-dev',
     description: 'Modifier、AI更新',
     changes: [
