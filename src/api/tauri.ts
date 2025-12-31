@@ -685,10 +685,17 @@ export interface GuiNode {
     font?: string
     text?: string
     format?: string
+    vertical_alignment?: string
     max_width?: number
     max_height?: number
     scale?: number
     frame?: number
+    clipping?: boolean
+    fixedsize?: boolean
+    slotsize?: { width: number; height: number }
+    add_horizontal?: boolean
+    max_slots_horizontal?: number
+    max_slots_vertical?: number
   }
   children: GuiNode[]
 }
@@ -704,6 +711,7 @@ export interface GfxParseResult {
   sprites: Record<string, {
     texturefile: string
     noOfFrames: number
+    borderSize?: { x: number; y: number }
   }>
 }
 

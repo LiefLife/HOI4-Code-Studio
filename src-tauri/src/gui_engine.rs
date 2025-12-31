@@ -31,10 +31,17 @@ pub struct GuiProperties {
     pub font: Option<String>,
     pub text: Option<String>,
     pub format: Option<String>,
+    pub vertical_alignment: Option<String>,
     pub max_width: Option<i32>,
     pub max_height: Option<i32>,
     pub scale: Option<f32>,
     pub frame: Option<i32>,
+    pub clipping: Option<bool>,
+    pub fixedsize: Option<bool>,
+    pub slotsize: Option<Size>,
+    pub add_horizontal: Option<bool>,
+    pub max_slots_horizontal: Option<i32>,
+    pub max_slots_vertical: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -60,6 +67,7 @@ pub struct GuiNode {
 /// 解析 GUI 文件内容并返回所有顶层窗口
 #[tauri::command]
 pub fn parse_gui_content(content: String) -> Result<Value, String> {
+    let content = strip_comments(&content);
     // 基础解析：查找 containerWindowType 或 windowType
     let mut windows = Vec::new();
     let re_window = Regex::new(r"(?i)(containerWindowType|windowType)\s*=\s*\{").unwrap();
@@ -100,9 +108,10 @@ pub fn parse_gui_file(path: String) -> Result<Value, String> {
 #[tauri::command]
 pub fn parse_gfx_file(path: String) -> Result<Value, String> {
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let content = strip_comments(&content);
     let mut sprites = std::collections::HashMap::new();
     
-    let re_sprite = Regex::new(r"(?i)(spriteType|frameAnimatedSpriteType)\s*=\s*\{").unwrap();
+    let re_sprite = Regex::new(r"(?i)(spriteType|frameAnimatedSpriteType|corneredTileSpriteType)\s*=\s*\{").unwrap();
     let mut current_pos = 0;
     
     while let Some(mat) = re_sprite.find_at(&content, current_pos) {
@@ -115,10 +124,14 @@ pub fn parse_gfx_file(path: String) -> Result<Value, String> {
                 .and_then(|v| v.parse::<i32>().ok())
                 .unwrap_or(1);
             
+            // 提取 borderSize (用于 9 宫格渲染)
+            let border_size = extract_xy_value(block, "borderSize");
+            
             if let Some(n) = name {
                 sprites.insert(n, json!({
                     "texturefile": texturefile,
-                    "noOfFrames": noofframes
+                    "noOfFrames": noofframes,
+                    "borderSize": border_size
                 }));
             }
             current_pos = end;
@@ -173,7 +186,8 @@ pub async fn resolve_gui_resource(
                                             return Ok(json!({
                                                 "success": true,
                                                 "path": full_path.to_string_lossy(),
-                                                "noOfFrames": sprite["noOfFrames"]
+                                                "noOfFrames": sprite["noOfFrames"],
+                                                "borderSize": sprite["borderSize"]
                                             }));
                                         }
                                     }
@@ -187,6 +201,20 @@ pub async fn resolve_gui_resource(
     }
 
     Err(format!("Resource not found: {}", name))
+}
+
+/// 辅助函数：去除注释
+fn strip_comments(content: &str) -> String {
+    content.lines()
+        .map(|line| {
+            if let Some(pos) = line.find('#') {
+                &line[..pos]
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// 辅助函数：查找匹配的括号
@@ -208,22 +236,24 @@ fn find_matching_bracket(content: &str, start_pos: usize) -> Option<usize> {
 
 /// 辅助函数：解析单个 GUI 节点
 fn parse_node(content: &str) -> Option<GuiNode> {
-    let node_type = Regex::new(
+    let node_type_match = Regex::new(
         r"(?i)^\s*(containerWindowType|windowType|iconType|buttonType|instantTextBoxType|gridBoxType)\s*=",
     )
     .unwrap()
-    .captures(content)
-    .and_then(|cap| cap.get(1).map(|m| m.as_str().to_ascii_lowercase()))
-    .map(|t| match t.as_str() {
-        "containerwindowtype" => GuiNodeType::ContainerWindow,
-        "windowtype" => GuiNodeType::WindowType,
-        "icontype" => GuiNodeType::Icon,
-        "buttontype" => GuiNodeType::Button,
-        "instanttextboxtype" => GuiNodeType::InstantTextBox,
-        "gridboxtype" => GuiNodeType::GridBox,
-        _ => GuiNodeType::Window,
-    })
-    .unwrap_or(GuiNodeType::Window);
+    .captures(content);
+
+    let node_type = node_type_match
+        .and_then(|cap| cap.get(1).map(|m| m.as_str().to_ascii_lowercase()))
+        .map(|t| match t.as_str() {
+            "containerwindowtype" => GuiNodeType::ContainerWindow,
+            "windowtype" => GuiNodeType::WindowType,
+            "icontype" => GuiNodeType::Icon,
+            "buttontype" => GuiNodeType::Button,
+            "instanttextboxtype" => GuiNodeType::InstantTextBox,
+            "gridboxtype" => GuiNodeType::GridBox,
+            _ => GuiNodeType::Window,
+        })
+        .unwrap_or(GuiNodeType::Window);
 
     let mut children = Vec::new();
     let mut child_spans: Vec<(usize, usize)> = Vec::new();
@@ -235,7 +265,8 @@ fn parse_node(content: &str) -> Option<GuiNode> {
 
     let mut current_pos = 0;
     while let Some(mat) = re_child.find_at(content, current_pos) {
-        if mat.start() == 0 && current_pos == 0 {
+        // 如果匹配的是当前节点本身（起始位置），跳过
+        if mat.start() < 5 && current_pos == 0 {
             current_pos = mat.end();
             continue;
         }
@@ -268,13 +299,20 @@ fn parse_node(content: &str) -> Option<GuiNode> {
         sprite_type: extract_value(&stripped, "spriteType").or_else(|| extract_value(&stripped, "sprite_type")),
         quad_texture_sprite: extract_value(&stripped, "quadTextureSprite"),
         background: extract_background_sprite(&stripped),
-        font: extract_value(&stripped, "font"),
-        text: extract_value(&stripped, "text"),
+        font: extract_value(&stripped, "font").or_else(|| extract_value(&stripped, "buttonFont")),
+        text: extract_value(&stripped, "text").or_else(|| extract_value(&stripped, "buttonText")),
         format: extract_value(&stripped, "format"),
-        max_width: extract_value(&stripped, "maxWidth").and_then(|v| v.parse().ok()),
-        max_height: extract_value(&stripped, "maxHeight").and_then(|v| v.parse().ok()),
+        vertical_alignment: extract_value(&stripped, "vertical_alignment").or_else(|| extract_value(&stripped, "verticalAlignment")),
+        max_width: extract_int_value(&stripped, "maxWidth").or_else(|| extract_int_value(&stripped, "max_width")),
+        max_height: extract_int_value(&stripped, "maxHeight").or_else(|| extract_int_value(&stripped, "max_height")),
         scale: extract_value(&stripped, "scale").and_then(|v| v.parse().ok()),
-        frame: extract_value(&stripped, "frame").and_then(|v| v.parse().ok()),
+        frame: extract_int_value(&stripped, "frame"),
+        clipping: extract_value(&stripped, "clipping").map(|v| v.to_lowercase() == "yes"),
+        fixedsize: extract_value(&stripped, "fixedsize").map(|v| v.to_lowercase() == "yes"),
+        slotsize: extract_slotsize(&stripped),
+        add_horizontal: extract_value(&stripped, "add_horizontal").map(|v| v.to_lowercase() == "yes"),
+        max_slots_horizontal: extract_int_value(&stripped, "max_slots_horizontal"),
+        max_slots_vertical: extract_int_value(&stripped, "max_slots_vertical"),
     };
 
     Some(GuiNode {
@@ -295,7 +333,7 @@ fn extract_value(content: &str, key: &str) -> Option<String> {
 
 /// 辅助函数：提取位置
 fn extract_position(content: &str) -> Option<Position> {
-    // 兼容 position = { x = 10 y = 20 } 或 position = { x=10, y=20 }
+    // 1. 尝试解析 position = { x = 10 y = 20 }
     let re_block = Regex::new(r"(?i)position\s*=\s*\{([^{}]*)\}").unwrap();
     if let Some(cap) = re_block.captures(content) {
         let block = &cap[1];
@@ -303,17 +341,45 @@ fn extract_position(content: &str) -> Option<Position> {
         let y = extract_int_value(block, "y").unwrap_or(0);
         return Some(Position { x, y });
     }
+    
+    // 2. 尝试直接解析顶级 x = ... 和 y = ...
+    let x = extract_int_value(content, "x");
+    let y = extract_int_value(content, "y");
+    if x.is_some() || y.is_some() {
+        return Some(Position { x: x.unwrap_or(0), y: y.unwrap_or(0) });
+    }
+
     None
 }
 
 /// 辅助函数：提取尺寸
 fn extract_size(content: &str) -> Option<Size> {
-    // 兼容 size = { width = 100 height = 200 }
+    // 1. 尝试解析 size = { width = 100 height = 200 } 或 { x = 100 y = 200 }
     let re_block = Regex::new(r"(?i)size\s*=\s*\{([^{}]*)\}").unwrap();
     if let Some(cap) = re_block.captures(content) {
         let block = &cap[1];
-        let width = extract_int_value(block, "width").unwrap_or(0);
-        let height = extract_int_value(block, "height").unwrap_or(0);
+        let width = extract_int_value(block, "width").or_else(|| extract_int_value(block, "x")).unwrap_or(0);
+        let height = extract_int_value(block, "height").or_else(|| extract_int_value(block, "y")).unwrap_or(0);
+        return Some(Size { width, height });
+    }
+
+    // 2. 尝试直接解析顶级 width = ... 和 height = ...
+    let width = extract_int_value(content, "width");
+    let height = extract_int_value(content, "height");
+    if width.is_some() || height.is_some() {
+        return Some(Size { width: width.unwrap_or(0), height: height.unwrap_or(0) });
+    }
+
+    None
+}
+
+/// 辅助函数：提取格子尺寸
+fn extract_slotsize(content: &str) -> Option<Size> {
+    let re_block = Regex::new(r"(?i)slotsize\s*=\s*\{([^{}]*)\}").unwrap();
+    if let Some(cap) = re_block.captures(content) {
+        let block = &cap[1];
+        let width = extract_int_value(block, "width").or_else(|| extract_int_value(block, "x")).unwrap_or(0);
+        let height = extract_int_value(block, "height").or_else(|| extract_int_value(block, "y")).unwrap_or(0);
         return Some(Size { width, height });
     }
     None
@@ -333,6 +399,18 @@ fn extract_background_sprite(content: &str) -> Option<String> {
         return extract_value(block, "spriteType")
             .or_else(|| extract_value(block, "quadTextureSprite"))
             .or_else(|| extract_value(block, "sprite_type"));
+    }
+    None
+}
+
+/// 辅助函数：提取 x/y 结构的值 (常用于 borderSize 或 size)
+fn extract_xy_value(content: &str, key: &str) -> Option<Value> {
+    let re = Regex::new(&format!(r"(?i){}\s*=\s*\{{([^{{}}]*)\}}", key)).unwrap();
+    if let Some(cap) = re.captures(content) {
+        let block = &cap[1];
+        let x = extract_int_value(block, "x").unwrap_or(0);
+        let y = extract_int_value(block, "y").unwrap_or(0);
+        return Some(json!({ "x": x, "y": y }));
     }
     None
 }

@@ -73,25 +73,29 @@
         class="absolute" 
         :style="canvasStyle"
       >
-        <!-- 背景网格 -->
-        <div class="absolute inset-0 pointer-events-none opacity-10" :style="gridStyle"></div>
-        
-        <!-- GUI 渲染层 -->
-        <template v-if="activeWindow">
-          <GuiNodeRenderer 
-            :node="activeWindow" 
-            :sprites="sprites"
-            :project-path="projectPath"
-            :game-directory="gameDirectory"
-            :dependency-roots="dependencyRoots"
-          />
-        </template>
-        
-        <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
-          <svg class="w-16 h-16 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-sm">未找到可解析的窗口</p>
+        <div class="relative" :style="stageStyle">
+          <!-- 背景网格 -->
+          <div class="absolute inset-0 pointer-events-none opacity-10" :style="gridStyle"></div>
+          
+          <!-- GUI 渲染层 -->
+          <template v-if="activeWindow">
+            <GuiNodeRenderer 
+              :key="`${filePath}-${activeWindowIndex}-${activeWindow.properties.name || ''}`"
+              :node="activeWindow" 
+              :parent-size="stageSize"
+              :sprites="sprites"
+              :project-path="projectPath"
+              :game-directory="gameDirectory"
+              :dependency-roots="dependencyRoots"
+            />
+          </template>
+          
+          <div v-else class="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+            <svg class="w-16 h-16 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm">未找到可解析的窗口</p>
+          </div>
         </div>
       </div>
     </div>
@@ -145,6 +149,23 @@ const dependencyRoots = computed(() => dependencies.value.map(d => d.path))
 
 const activeWindow = computed(() => guiData.value?.windows[activeWindowIndex.value])
 
+const stageSize = computed((): { width: number; height: number } => {
+  // HOI4 界面通常以 1920x1080 为基准参考分辨率
+  return {
+    width: 1920,
+    height: 1080,
+  }
+})
+
+const stageStyle = computed(() => {
+  const width = stageSize.value.width
+  const height = stageSize.value.height
+  return {
+    width: `${width}px`,
+    height: `${height}px`,
+  }
+})
+
 const canvasStyle = computed(() => ({
   transform: `translate(${offset.value.x}px, ${offset.value.y}px) scale(${zoom.value})`,
   transformOrigin: '0 0',
@@ -163,6 +184,10 @@ const gridStyle = computed(() => ({
 // 方法
 const loadData = async () => {
   try {
+    // 加载前清空旧数据，防止切换时内容重叠
+    guiData.value = null
+    sprites.value = {}
+    
     // 1. 解析 GUI
     const res = await parseGuiFile(props.filePath)
     if (res.success) {
@@ -188,8 +213,6 @@ watch(() => props.content, () => {
   // 如果内容变化，可以重新解析
   // loadData() 
 }, { immediate: false })
-
-onMounted(loadData)
 
 const handleMouseDown = (e: MouseEvent) => {
   if (e.button === 0 || e.button === 1) { // 左键或中键
@@ -234,13 +257,27 @@ const handleWheel = (e: WheelEvent) => {
 }
 
 const resetView = () => {
-  zoom.value = 1.0
-  offset.value = { x: 50, y: 50 }
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    // 计算居中 offset
+    // 画布中心 - (stage尺寸 * 缩放 / 2)
+    const initialZoom = 0.8 // 默认稍微缩小一点以便看全
+    zoom.value = initialZoom
+    offset.value = {
+      x: (rect.width - stageSize.value.width * initialZoom) / 2,
+      y: (rect.height - stageSize.value.height * initialZoom) / 2
+    }
+  } else {
+    zoom.value = 1.0
+    offset.value = { x: 50, y: 50 }
+  }
 }
 
 // 生命周期
 onMounted(() => {
   loadData()
+  // 延迟一下等待 DOM 渲染完成
+  setTimeout(resetView, 100)
 })
 
 watch(() => props.filePath, () => {
