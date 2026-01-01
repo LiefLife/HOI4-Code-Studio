@@ -23,8 +23,10 @@ const emit = defineEmits<{
   previewMap: [paneId: string]
   previewGui: [paneId: string]
   previewMio: [paneId: string]
+  previewGfx: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
   jumpToMioFromPreview: [sourcePaneId: string, sourceFilePath: string, traitId: string, line: number]
+  jumpToGfxFromPreview: [sourcePaneId: string, sourceFilePath: string, line: number]
   contentChange: [paneId: string, content: string]
 }>()
 
@@ -306,6 +308,10 @@ function handlePreviewMio(paneId: string) {
   emit('previewMio', paneId)
 }
 
+function handlePreviewGfx(paneId: string) {
+  emit('previewGfx', paneId)
+}
+
 // 处理跳转到焦点
 function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, focusId: string, line: number) {
   emit('jumpToFocusFromPreview', sourcePaneId, sourceFilePath, focusId, line)
@@ -313,6 +319,10 @@ function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: stri
 
 function handleJumpToMioFromPreview(sourcePaneId: string, sourceFilePath: string, traitId: string, line: number) {
   emit('jumpToMioFromPreview', sourcePaneId, sourceFilePath, traitId, line)
+}
+
+function handleJumpToGfxFromPreview(sourcePaneId: string, sourceFilePath: string, line: number) {
+  emit('jumpToGfxFromPreview', sourcePaneId, sourceFilePath, line)
 }
 
 // 处理关闭窗格
@@ -532,8 +542,10 @@ defineExpose({
           @preview-map="handlePreviewMap"
           @preview-gui="handlePreviewGui"
           @preview-mio="handlePreviewMio"
+          @preview-gfx="handlePreviewGfx"
           @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
           @jump-to-mio-from-preview="handleJumpToMioFromPreview"
+          @jump-to-gfx-from-preview="handleJumpToGfxFromPreview"
         />
       </div>
       

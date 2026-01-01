@@ -136,6 +136,38 @@ async function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath
   }, 80)
 }
 
+async function handleJumpToGfxFromPreview(sourcePaneId: string, sourceFilePath: string, line: number) {
+  if (!editorGroupRef.value) return
+
+  const panes = editorGroupRef.value.panes
+  let targetPane = panes.find(p => {
+    const active = p.openFiles[p.activeFileIndex]
+    return !!active && active.isGfxPreview !== true
+  })
+
+  if (!targetPane) {
+    targetPane = panes.find(p => p.id === sourcePaneId)
+  }
+  if (!targetPane) return
+
+  editorGroupRef.value.setActivePane(targetPane.id)
+
+  const node: FileNode = {
+    name: basename(sourceFilePath),
+    path: sourceFilePath,
+    isDirectory: false
+  }
+
+  await handleOpenFile(node, targetPane.id)
+
+  setTimeout(() => {
+    const paneRef = (editorGroupRef.value as any)?.paneRefs?.get?.(targetPane!.id)
+    if (paneRef?.jumpToLine) {
+      paneRef.jumpToLine(line)
+    }
+  }, 80)
+}
+
 function escapeRegExp(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -1100,6 +1132,69 @@ async function handlePreviewEvent(paneId: string) {
     cursorLine: 1,
     cursorColumn: 1,
     isEventGraph: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
+  newPane.activeFileIndex = 0
+}
+
+async function handlePreviewGfx(paneId: string) {
+  if (!editorGroupRef.value) return
+
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+
+  let targetPane = null
+
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p =>
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap || f.isGuiPreview || f.isMioPreview || f.isGfxPreview)
+    )
+  }
+
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    const previewFile: OpenFile = {
+      node: {
+        ...currentFile.node,
+        name: `🧩 ${currentFile.node.name} - GFX 预览`
+      },
+      content: currentFile.content,
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isGfxPreview: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+
+  // 否则，分割窗格创建新预览
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+
+  const previewFile: OpenFile = {
+    node: {
+      ...currentFile.node,
+      name: `🧩 ${currentFile.node.name} - GFX 预览`
+    },
+    content: currentFile.content,
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isGfxPreview: true,
     isPreview: true,
     sourceFilePath: currentFile.node.path
   }
@@ -2077,8 +2172,8 @@ onUnmounted(() => {
         :dependency-roots="enabledDependencyRoots"
         :auto-save="autoSave"
         :disable-error-handling="disableErrorHandling"
-        @context-menu="showFileTabContextMenu"
         @open-file="handleOpenFile"
+        @context-menu="showFileTabContextMenu"
         @errors-change="handleErrorsChange"
         @editor-context-menu-action="handleEditorContextMenuAction"
         @preview-event="handlePreviewEvent"
@@ -2086,9 +2181,11 @@ onUnmounted(() => {
       @preview-map="handlePreviewMap"
       @preview-gui="handlePreviewGui"
       @preview-mio="handlePreviewMio"
+      @preview-gfx="handlePreviewGfx"
       @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
       @jump-to-mio-from-preview="handleJumpToMioFromPreview"
-        @content-change="handleContentChange"
+      @jump-to-gfx-from-preview="handleJumpToGfxFromPreview"
+      @content-change="handleContentChange"
       />
 
       <!-- 右侧拖动条 -->

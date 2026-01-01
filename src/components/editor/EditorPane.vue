@@ -9,6 +9,7 @@ import ImagePreviewer from './ImagePreviewer.vue'
 import WorldMapViewer from './WorldMapViewer.vue'
 import GuiViewer from './GuiViewer.vue'
 import MioViewer from './MioViewer.vue'
+import GfxViewer from './GfxViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -41,12 +42,25 @@ const emit = defineEmits<{
   previewMap: [paneId: string]
   previewGui: [paneId: string]
   previewMio: [paneId: string]
+  previewGfx: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
   jumpToMioFromPreview: [sourcePaneId: string, sourceFilePath: string, traitId: string, line: number]
+  jumpToGfxFromPreview: [sourcePaneId: string, sourceFilePath: string, line: number]
 }>()
 
 function handleExternalFileUpdate(filePath: string, content: string) {
   emit('externalFileUpdate', props.pane.id, filePath, content)
+}
+
+function handleJumpToGfx(line: number) {
+  if (isCurrentFileGfx.value) {
+    const sourcePath = currentFile.value?.sourceFilePath || currentFile.value?.node.path
+    if (!sourcePath) return
+    emit('jumpToGfxFromPreview', props.pane.id, sourcePath, line)
+    return
+  }
+
+  jumpToLine(line)
 }
 
 function handleJumpToMio(traitId: string, line: number) {
@@ -150,6 +164,11 @@ const isCurrentFileMio = computed(() => {
   return currentFile.value?.isMioPreview === true
 })
 
+// 当前文件是否为 GFX 预览
+const isCurrentFileGfx = computed(() => {
+  return currentFile.value?.isGfxPreview === true
+})
+
 // 当前文件是否为 MIO 文件
 const isMioFile = computed(() => {
   if (!currentFile.value?.node.path) return false
@@ -172,6 +191,20 @@ const isGuiFile = computed(() => {
   return (name.endsWith('.gui') || currentFile.value.node.path.toLowerCase().endsWith('.gui')) && 
          !isCurrentFileImage.value && 
          !isCurrentFileGui.value
+})
+
+// 当前文件是否为 GFX 文件
+const isGfxFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const name = currentFile.value.node.name.toLowerCase()
+  return (name.endsWith('.gfx') || currentFile.value.node.path.toLowerCase().endsWith('.gfx')) &&
+         !isCurrentFileImage.value &&
+         !isCurrentFileEventGraph.value &&
+         !isCurrentFileFocusTree.value &&
+         !isCurrentFileWorldMap.value &&
+         !isCurrentFileGui.value &&
+         !isCurrentFileMio.value &&
+         !isCurrentFileGfx.value
 })
 
 // 图片 URL (使用 base64 数据)
@@ -350,6 +383,10 @@ function handlePreviewGui() {
 
 function handlePreviewMio() {
   emit('previewMio', props.pane.id)
+}
+
+function handlePreviewGfx() {
+  emit('previewGfx', props.pane.id)
 }
 
 function handleJumpToEvent(eventId: string, line: number) {
@@ -631,6 +668,18 @@ defineExpose({
             </svg>
             <span>预览 MIO</span>
           </button>
+
+          <button
+            v-if="isGfxFile"
+            @click="handlePreviewGfx"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览 GFX"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+            <span>预览 GFX</span>
+          </button>
         </div>
         
         <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
@@ -700,6 +749,17 @@ defineExpose({
           :game-directory="gameDirectory"
           :dependency-roots="dependencyRoots"
           @jump-to-trait="handleJumpToMio"
+        />
+
+        <!-- GFX 预览 -->
+        <GfxViewer
+          v-else-if="isCurrentFileGfx"
+          :content="fileContent"
+          :file-path="currentFile.node.path"
+          :project-path="projectPath"
+          :game-directory="gameDirectory"
+          :dependency-roots="dependencyRoots"
+          @jump-to-line="handleJumpToGfx"
         />
         
         <!-- 代码编辑器 -->

@@ -29,6 +29,7 @@ export interface OpenFile {
   isWorldMap?: boolean    // 是否为世界地图预览
   isGuiPreview?: boolean  // 是否为 GUI 预览
   isMioPreview?: boolean  // 是否为 MIO 预览
+  isGfxPreview?: boolean  // 是否为 GFX 预览
   isPreview?: boolean   // 是否为预览文件
   sourceFilePath?: string // 源文件路径（用于预览文件）
 }

@@ -715,6 +715,17 @@ export interface GfxParseResult {
   }>
 }
 
+export interface GfxSpritePreviewItem {
+  name: string
+  texturefile?: string | null
+  noOfFrames: number
+  borderSize?: any
+  sourceLine: number
+  resolvedPath?: string | null
+  cachedPngPath?: string | null
+  error?: string | null
+}
+
 /**
  * 解析 GUI 文件
  */
@@ -734,6 +745,22 @@ export async function parseGuiContent(content: string): Promise<GuiParseResult> 
  */
 export async function parseGfxFile(path: string): Promise<GfxParseResult> {
   return await invoke('parse_gfx_file', { path })
+}
+
+export async function parseGfxPreview(params: {
+  filePath: string
+  contentOverride?: string
+  projectPath?: string
+  gameDirectory?: string
+  dependencyRoots?: string[]
+}): Promise<GfxSpritePreviewItem[]> {
+  return await invoke('parse_gfx_preview', {
+    filePath: params.filePath,
+    contentOverride: params.contentOverride,
+    projectPath: params.projectPath,
+    gameDirectory: params.gameDirectory,
+    dependencyRoots: params.dependencyRoots
+  })
 }
 
 /**

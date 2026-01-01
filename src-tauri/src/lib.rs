@@ -58,6 +58,291 @@ pub struct CreateProjectResult {
     project_path: Option<String>,
 }
 
+fn normalize_path(p: &str) -> String {
+    let mut s = p.replace('\\', "/");
+    while s.contains("//") {
+        s = s.replace("//", "/");
+    }
+    s
+}
+
+fn normalize_path_for_join(p: &str) -> String {
+    let mut s = p.replace('\\', "/");
+    while s.contains("//") {
+        s = s.replace("//", "/");
+    }
+    s.trim_start_matches('/').to_string()
+}
+
+fn find_existing_texture_path(texturefile: &str, roots: &[std::path::PathBuf]) -> Option<std::path::PathBuf> {
+    let normalized_rel = normalize_path_for_join(texturefile);
+
+    // 1) absolute path
+    let tex_path = std::path::PathBuf::from(texturefile);
+    if tex_path.is_absolute() && tex_path.exists() {
+        return Some(tex_path);
+    }
+
+    // 2) search roots
+    for root in roots {
+        let p = root.join(&normalized_rel);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    // 3) fallback: if .png/.tga not exist, try .dds
+    let lower = normalized_rel.to_lowercase();
+    if lower.ends_with(".png") || lower.ends_with(".tga") {
+        let dds_rel = format!("{}{}", &normalized_rel[..normalized_rel.len() - 4], ".dds");
+        for root in roots {
+            let p = root.join(&dds_rel);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+
+    None
+}
+
+fn write_png_cache_from_texture(texture_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    use std::fs;
+    use std::io::Cursor;
+    use image::ImageFormat;
+
+    let src = texture_path
+        .to_str()
+        .ok_or_else(|| "Invalid texture path".to_string())?
+        .to_string();
+
+    let meta = fs::metadata(texture_path).map_err(|e| format!("Failed to stat texture: {} ({})", src, e))?;
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let cache_dir = get_gfx_preview_cache_dir();
+    let key = format!("{}@{}", src, mtime);
+    let file_name = format!("{}.png", hash_string(&key));
+    let out_path = cache_dir.join(file_name);
+
+    if out_path.exists() {
+        println!("[gfx-preview] cache hit: {} -> {}", src, out_path.display());
+        return Ok(out_path);
+    }
+
+    println!("[gfx-preview] cache miss: {}", src);
+
+    let ext = texture_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // Convert to PNG bytes
+    let png_bytes: Vec<u8> = if ext == "png" {
+        println!("[gfx-preview] use png as-is: {}", src);
+        fs::read(texture_path).map_err(|e| format!("Failed to read png: {} ({})", src, e))?
+    } else if ext == "dds" {
+        println!("[gfx-preview] convert dds -> png: {}", src);
+        let dds_data = fs::read(texture_path).map_err(|e| format!("Failed to read dds: {} ({})", src, e))?;
+        let dds = image_dds::ddsfile::Dds::read(&mut Cursor::new(&dds_data))
+            .map_err(|e| format!("Failed to parse dds: {} ({})", src, e))?;
+        let img = image_dds::image_from_dds(&dds, 0)
+            .map_err(|e| format!("Failed to decode dds: {} ({})", src, e))?;
+        let mut buffer = Cursor::new(Vec::new());
+        img.write_to(&mut buffer, ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode png: {} ({})", src, e))?;
+        buffer.into_inner()
+    } else {
+        println!("[gfx-preview] decode image -> png: {} (ext={})", src, ext);
+        let img = image::open(texture_path)
+            .map_err(|e| format!("Failed to decode image: {} ({})", src, e))?;
+        let mut buffer = Cursor::new(Vec::new());
+        img.write_to(&mut buffer, ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode png: {} ({})", src, e))?;
+        buffer.into_inner()
+    };
+
+    fs::write(&out_path, png_bytes).map_err(|e| format!("Failed to write png cache: {} ({})", out_path.display(), e))?;
+    println!("[gfx-preview] wrote png cache: {}", out_path.display());
+    Ok(out_path)
+}
+
+fn count_line_number(content: &str, byte_pos: usize) -> i32 {
+    let mut line: i32 = 1;
+    let mut i: usize = 0;
+    for b in content.as_bytes() {
+        if i >= byte_pos {
+            break;
+        }
+        if *b == b'\n' {
+            line += 1;
+        }
+        i += 1;
+    }
+    line
+}
+
+#[tauri::command]
+fn parse_gfx_preview(
+    file_path: String,
+    content_override: Option<String>,
+    project_path: Option<String>,
+    game_directory: Option<String>,
+    dependency_roots: Option<Vec<String>>,
+) -> Result<Vec<GfxSpritePreviewItem>, String> {
+    use std::fs;
+    use std::path::PathBuf;
+    use regex::Regex;
+
+    let source = normalize_path(&file_path);
+    let content = match content_override {
+        Some(c) => c,
+        None => fs::read_to_string(&source).map_err(|e| format!("Failed to read file: {} ({})", source, e))?,
+    };
+
+    // Build search roots: project -> deps -> game
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Some(p) = project_path {
+        if !p.trim().is_empty() {
+            roots.push(PathBuf::from(normalize_path(&p)));
+        }
+    }
+    if let Some(deps) = dependency_roots {
+        for d in deps {
+            if !d.trim().is_empty() {
+                roots.push(PathBuf::from(normalize_path(&d)));
+            }
+        }
+    }
+    if let Some(g) = game_directory {
+        if !g.trim().is_empty() {
+            roots.push(PathBuf::from(normalize_path(&g)));
+        }
+    }
+
+    // Note: we keep original content to calculate line numbers, but use a stripped view for parsing.
+    let stripped = content
+        .lines()
+        .map(|line| {
+            if let Some(pos) = line.find('#') {
+                &line[..pos]
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let re_sprite = Regex::new(r"(?i)(spriteType|frameAnimatedSpriteType|corneredTileSpriteType|textSpriteType)\s*=\s*\{")
+        .map_err(|e| format!("Regex error: {}", e))?;
+
+    let mut items: Vec<GfxSpritePreviewItem> = Vec::new();
+    let mut current_pos: usize = 0;
+
+    while let Some(mat) = re_sprite.find_at(&stripped, current_pos) {
+        let start = mat.start();
+        let end_opt = {
+            // local bracket match
+            let mut count = 1;
+            let bytes = stripped.as_bytes();
+            let mut i = mat.end();
+            while i < bytes.len() {
+                if bytes[i] == b'{' {
+                    count += 1;
+                } else if bytes[i] == b'}' {
+                    count -= 1;
+                    if count == 0 {
+                        break;
+                    }
+                }
+                i += 1;
+            }
+            if count == 0 { Some(i + 1) } else { None }
+        };
+
+        let end = match end_opt {
+            Some(v) => v,
+            None => {
+                current_pos = mat.end();
+                continue;
+            }
+        };
+
+        let block = &stripped[start..end];
+        let source_line = count_line_number(&content, start);
+
+        // Extract fields (case-insensitive)
+        let extract_value = |key: &str| -> Option<String> {
+            let re = Regex::new(&format!(r#"(?i){}\s*=\s*(\"(?:[^\"\\]|\\.)*\"|[^\s{{}}]+)"#, key)).ok()?;
+            re.captures(block).map(|cap| cap[1].trim().trim_matches('"').to_string())
+        };
+
+        let extract_int = |key: &str| -> Option<i32> {
+            extract_value(key).and_then(|v| v.parse::<i32>().ok())
+        };
+
+        let extract_xy = |key: &str| -> Option<serde_json::Value> {
+            let re = Regex::new(&format!(r"(?i){}\s*=\s*\{{([^{{}}]*)\}}", key)).ok()?;
+            let cap = re.captures(block)?;
+            let inner = &cap[1];
+            let re_x = Regex::new(r"(?i)x\s*=\s*(-?\d+)").ok()?;
+            let re_y = Regex::new(r"(?i)y\s*=\s*(-?\d+)").ok()?;
+            let x = re_x.captures(inner).and_then(|c| c[1].parse::<i32>().ok()).unwrap_or(0);
+            let y = re_y.captures(inner).and_then(|c| c[1].parse::<i32>().ok()).unwrap_or(0);
+            Some(serde_json::json!({"x": x, "y": y}))
+        };
+
+        let name = extract_value("name");
+        let texturefile = extract_value("texturefile");
+        let no_of_frames = extract_int("noOfFrames")
+            .or_else(|| extract_int("noofframes"))
+            .unwrap_or(1);
+        let border_size = extract_xy("borderSize").or_else(|| extract_xy("bordersize"));
+
+        let mut resolved_path: Option<String> = None;
+        let mut cached_png_path: Option<String> = None;
+        let mut error: Option<String> = None;
+
+        if let Some(tex) = texturefile.as_ref() {
+            if roots.is_empty() {
+                error = Some("No search roots provided (project/deps/game)".to_string());
+            } else if let Some(p) = find_existing_texture_path(tex, &roots) {
+                resolved_path = Some(p.to_string_lossy().to_string());
+                match write_png_cache_from_texture(&p) {
+                    Ok(out) => {
+                        cached_png_path = Some(out.to_string_lossy().to_string());
+                    }
+                    Err(e) => {
+                        error = Some(e);
+                    }
+                }
+            } else {
+                error = Some(format!("Texture not found: {}", tex));
+            }
+        }
+
+        items.push(GfxSpritePreviewItem {
+            name: name.unwrap_or_else(|| "(unnamed)".to_string()),
+            texturefile,
+            no_of_frames,
+            border_size,
+            source_line,
+            resolved_path,
+            cached_png_path,
+            error,
+        });
+
+        current_pos = end;
+    }
+
+    Ok(items)
+}
+
 #[tauri::command]
 fn get_recent_project_stats(paths: Vec<String>) -> RecentProjectStatsResult {
     use std::fs;
@@ -191,6 +476,19 @@ pub struct ImageReadResult {
     message: Option<String>,
     base64: Option<String>,
     mime_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GfxSpritePreviewItem {
+    name: String,
+    texturefile: Option<String>,
+    no_of_frames: i32,
+    border_size: Option<serde_json::Value>,
+    source_line: i32,
+    resolved_path: Option<String>,
+    cached_png_path: Option<String>,
+    error: Option<String>,
 }
 
 #[tauri::command]
@@ -1028,6 +1326,20 @@ fn get_cache_dir() -> std::path::PathBuf {
     }
     
     cache_dir
+}
+
+fn get_gfx_preview_cache_dir() -> std::path::PathBuf {
+    let base = get_cache_dir();
+    let dir = base
+        .parent()
+        .map(|p| p.join("gfx-preview-cache"))
+        .unwrap_or_else(|| base.join("gfx-preview-cache"));
+
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        println!("创建 GFX 预览缓存目录失败: {}", e);
+    }
+
+    dir
 }
 
 /// 计算字符串的哈希值，用于缓存文件名
@@ -2653,6 +2965,7 @@ pub fn run() {
             gui_engine::parse_gfx_file,
             gui_engine::resolve_gui_resource,
             mio_parser::parse_mio_preview,
+            parse_gfx_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
