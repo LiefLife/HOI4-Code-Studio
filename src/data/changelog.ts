@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: 'v0.2.20-dev',
+    description: '移植Vscode HOI工具插件',
+    changes: [
+      { type: 'feature', content: '支持MIO军工组织预览' },
+    ]
+  },
+  {
     version: 'v0.2.19-dev',
     description: '移植Vscode HOI工具插件',
     changes: [

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import cytoscape from 'cytoscape'
 import type { MioDto, MioPreviewData, MioTraitDto } from '../../api/tauri'
-import { parseMioPreview } from '../../api/tauri'
+import { parseMioPreview, readImageAsBase64 } from '../../api/tauri'
 import { useImageProcessor } from '../../composables/useImageProcessor'
 
 const props = defineProps<{
@@ -28,6 +28,14 @@ const selectedMioIndex = ref(0)
 
 const GRID_SIZE = 140
 
+const MIO_UI_DIR = 'gfx/interface/military_industrial_organization'
+const MIO_FRAME_SPRITE = `${MIO_UI_DIR}/mio_department_trait.dds`
+const MIO_BOTTOM_PARTS = [
+  `${MIO_UI_DIR}/design_team_icon.dds`,
+  `${MIO_UI_DIR}/Industrial_manufacturer_icon.dds`,
+  `${MIO_UI_DIR}/generic_mio_trait_icon_facilities.dds`
+]
+
 const { initWorkerPool, loadIconsBatch, dispose } = useImageProcessor()
 
 const mios = computed(() => previewData.value?.mios ?? [])
@@ -45,6 +53,100 @@ const warningsText = computed(() => {
 })
 
 const showWarnings = ref(false)
+
+const imagePromiseCache = new Map<string, Promise<HTMLImageElement>>()
+
+function joinGamePath(gameDirectory: string, rel: string): string {
+  const base = gameDirectory.replace(/[\\/]+$/, '')
+  const rel2 = rel.replace(/^[\\/]+/, '').replace(/\\/g, '/')
+  return `${base}/${rel2}`
+}
+
+async function dataUrlToImage(dataUrl: string): Promise<HTMLImageElement> {
+  return await new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = (e) => reject(e)
+    img.src = dataUrl
+  })
+}
+
+async function loadGameImage(relPath: string): Promise<HTMLImageElement> {
+  if (!props.gameDirectory) {
+    throw new Error('gameDirectory is not set')
+  }
+
+  const key = `${props.gameDirectory}|${relPath}`
+  const cached = imagePromiseCache.get(key)
+  if (cached) return cached
+
+  const p = (async () => {
+    const fullPath = joinGamePath(props.gameDirectory!, relPath)
+    const resp = await readImageAsBase64(fullPath)
+    if (!resp.success || !resp.base64 || !resp.mimeType) {
+      throw new Error(resp.message || `Failed to load image: ${relPath}`)
+    }
+    const dataUrl = `data:${resp.mimeType};base64,${resp.base64}`
+    return await dataUrlToImage(dataUrl)
+  })()
+
+  imagePromiseCache.set(key, p)
+  return p
+}
+
+async function composeMioTraitIcon(traitIconDataUrl: string): Promise<string> {
+  try {
+    const [frameSheet, ...bottomParts] = await Promise.all([
+      loadGameImage(MIO_FRAME_SPRITE),
+      ...MIO_BOTTOM_PARTS.map(loadGameImage)
+    ])
+
+    const traitIcon = await dataUrlToImage(traitIconDataUrl)
+
+    const outSize = 96
+    const canvas = document.createElement('canvas')
+    canvas.width = outSize
+    canvas.height = outSize
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return traitIconDataUrl
+
+    // 1) frame: mio_department_trait.dds is a 1x3 sheet, take the 3rd frame
+    const frameW = Math.floor(frameSheet.width / 3)
+    const frameH = frameSheet.height
+    const sx = frameW * 2
+    ctx.imageSmoothingEnabled = true
+    ctx.clearRect(0, 0, outSize, outSize)
+    // Keep aspect ratio based on height to avoid the frame looking "flat"
+    const frameScale = outSize / frameH
+    const frameDw = Math.round(frameW * frameScale)
+    const frameDx = Math.round((outSize - frameDw) / 2)
+    ctx.drawImage(frameSheet, sx, 0, frameW, frameH, frameDx, 0, frameDw, outSize)
+
+    // 2) bottom parts: place 3 icons on bottom bar, left/center/right
+    const bottomY = Math.floor(outSize * 0.70)
+    const partSize = Math.floor(outSize * 0.22)
+    // Tighter spacing: place the 3 icons closer to each other
+    const gap = Math.max(1, Math.round(partSize * 0.90))
+    const centers = [outSize / 2 - gap, outSize / 2, outSize / 2 + gap]
+    for (let i = 0; i < bottomParts.length; i++) {
+      const part = bottomParts[i]
+      const cx = centers[i] ?? (outSize / 2)
+      const x = Math.round(cx - partSize / 2)
+      const y = Math.round(bottomY)
+      ctx.drawImage(part, 0, 0, part.width, part.height, x, y, partSize, partSize)
+    }
+
+    // 3) top icon: the actual trait icon
+    const topSize = Math.floor(outSize * 0.62)
+    const topX = Math.round(outSize / 2 - topSize / 2)
+    const topY = Math.round(outSize * 0.1)
+    ctx.drawImage(traitIcon, 0, 0, traitIcon.width, traitIcon.height, topX, topY, topSize, topSize)
+
+    return canvas.toDataURL('image/png')
+  } catch {
+    return traitIconDataUrl
+  }
+}
 
 function destroyCy() {
   if (cy) {
@@ -231,7 +333,11 @@ function initCytoscape() {
       {
         selector: 'node',
         style: {
-          'background-color': 'transparent',
+          'background-color': 'rgba(0,0,0,0)',
+          'background-opacity': 0,
+          'background-blacken': 0,
+          'underlay-opacity': 0,
+          'overlay-opacity': 0,
           'border-color': '#334155',
           'border-width': 0,
           'label': 'data(label)',
@@ -248,6 +354,7 @@ function initCytoscape() {
           'text-margin-y': 8,
           'background-fit': 'contain',
           'background-clip': 'none',
+          'background-image-opacity': 1,
           'background-image': 'none',
           'background-position-x': '50%',
           'background-position-y': '35%',
@@ -358,15 +465,24 @@ function initCytoscape() {
       priority: 'normal',
       onItemLoaded: (iconName, dataUrl) => {
         if (!cy) return
-        cy.nodes().forEach(n => {
-          if (n.data('icon') === iconName) {
-            n.style({
-              'background-image': `url(${dataUrl})`,
-              'background-color': 'transparent',
-              'background-fit': 'contain'
-            })
-          }
-        })
+        void (async () => {
+          const finalUrl = await composeMioTraitIcon(dataUrl)
+          if (!cy) return
+          cy.nodes().forEach(n => {
+            if (n.data('icon') === iconName) {
+              n.style({
+                'background-image': `url(${finalUrl})`,
+                'background-color': 'rgba(0,0,0,0)',
+                'background-opacity': 0,
+                'background-blacken': 0,
+                'underlay-opacity': 0,
+                'overlay-opacity': 0,
+                'background-fit': 'contain',
+                'background-image-opacity': 1
+              })
+            }
+          })
+        })()
       }
     })
   }

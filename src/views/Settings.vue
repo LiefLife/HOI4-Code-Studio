@@ -81,7 +81,7 @@ const showConfirmDialog = ref(false)
 const pendingDisableErrorHandling = ref(false)
 
 // 版本信息
-const CURRENT_VERSION = 'v0.2.19-dev'
+const CURRENT_VERSION = 'v0.2.20-dev'
 const currentVersion = ref(CURRENT_VERSION)
 const githubVersion = ref('检查中...')
 const isCheckingUpdate = ref(false)
