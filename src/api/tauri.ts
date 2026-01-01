@@ -986,3 +986,50 @@ export async function getStateOutline(stateId: number): Promise<Uint32Array> {
   const res = await invoke<number[]>('get_state_outline', { stateId })
   return new Uint32Array(new Uint8Array(res).buffer)
 }
+
+// ==================== MIO 预览 ====================
+
+export interface MioPreviewData {
+  source_file: string
+  mios: MioDto[]
+}
+
+export interface MioDto {
+  id: string
+  traits: MioTraitDto[]
+  warnings: string[]
+}
+
+export interface MioTraitDto {
+  id: string
+  name?: string
+  icon?: string
+  x: number
+  y: number
+  relative_position_id?: string
+  any_parent: string[]
+  all_parents: string[]
+  parent?: { traits: string[]; num_needed: number }
+  mutually_exclusive: string[]
+  effects_present: string[]
+  file: string
+  start: number
+  end: number
+  line: number
+}
+
+export async function parseMioPreview(params: {
+  filePath: string
+  contentOverride?: string
+  projectPath?: string
+  gameDirectory?: string
+  dependencyRoots?: string[]
+}): Promise<MioPreviewData> {
+  return await invoke('parse_mio_preview', {
+    filePath: params.filePath,
+    contentOverride: params.contentOverride,
+    projectPath: params.projectPath,
+    gameDirectory: params.gameDirectory,
+    dependencyRoots: params.dependencyRoots
+  })
+}

@@ -20,6 +20,7 @@ mod dependency;
 mod focus_localization;
 mod map_engine;
 mod gui_engine;
+mod mio_parser;
 
 use json_decoder::{
     get_json_path,
@@ -2309,6 +2310,7 @@ fn load_focus_icon_impl(
 ) -> ImageReadResult {
     use std::fs;
     use std::path::PathBuf;
+    use walkdir::WalkDir;
 
     let icon_name_trimmed = icon_name.trim().to_string();
     
@@ -2353,40 +2355,48 @@ fn load_focus_icon_impl(
     }
 
     for root in roots.iter() {
-        let interface_dir = root.join("interface");
-        
-        if !interface_dir.exists() || !interface_dir.is_dir() {
-            continue;
-        }
+        // HOI4 习惯把 gfx 定义放在 root/gfx/**/**.gfx
+        // 旧逻辑只扫 root/interface/*.gfx，导致 MIO trait 等图标无法命中。
+        let mut scan_roots: Vec<PathBuf> = vec![root.join("gfx")];
+        // 兼容某些工程把 gfx 直接放在 interface 下的情况
+        scan_roots.push(root.join("interface"));
 
-        let entries = match fs::read_dir(&interface_dir) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let ext = path
-                .extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            if ext != "gfx" {
+        for scan_root in scan_roots {
+            if !scan_root.exists() || !scan_root.is_dir() {
                 continue;
             }
 
-            let content = match fs::read_to_string(&path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            if let Some(texture_rel) =
-                find_texture_for_icon_in_gfx(&content, &icon_name_trimmed)
+            for entry in WalkDir::new(&scan_root)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
             {
-                let normalized_rel = texture_rel.replace('\\', "/");
-                let texture_path = root.join(normalized_rel);
-                let texture_path_str = texture_path.to_string_lossy().to_string();
-                return read_image_as_base64(texture_path_str);
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let path = entry.path();
+                let ext = path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if ext != "gfx" {
+                    continue;
+                }
+
+                let content = match fs::read_to_string(path) {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+
+                if let Some(texture_rel) =
+                    find_texture_for_icon_in_gfx(&content, &icon_name_trimmed)
+                {
+                    let normalized_rel = texture_rel.replace('\\', "/");
+                    let texture_path = root.join(normalized_rel);
+                    let texture_path_str = texture_path.to_string_lossy().to_string();
+                    return read_image_as_base64(texture_path_str);
+                }
             }
         }
     }
@@ -2394,7 +2404,7 @@ fn load_focus_icon_impl(
     ImageReadResult {
         success: false,
         message: Some(format!(
-            "未在 gfx/interface/goals/*.gfx 中找到图标定义: {}",
+            "未在 gfx/**/**/*.gfx 中找到图标定义: {}",
             icon_name_trimmed
         )),
         base64: None,
@@ -2642,6 +2652,7 @@ pub fn run() {
             gui_engine::parse_gui_content,
             gui_engine::parse_gfx_file,
             gui_engine::resolve_gui_resource,
+            mio_parser::parse_mio_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

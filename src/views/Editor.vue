@@ -235,6 +235,15 @@ const activeDependencyId = ref<string | undefined>(undefined)
 const dependencyManagerVisible = ref(false)
 const dependencyFileTrees = ref<Map<string, FileNode[]>>(new Map())
 
+const hasActiveDependencyTree = computed(() => {
+  return !!activeDependencyId.value && dependencyFileTrees.value.has(activeDependencyId.value)
+})
+
+const activeDependencyTree = computed(() => {
+  if (!activeDependencyId.value) return []
+  return dependencyFileTrees.value.get(activeDependencyId.value) || []
+})
+
 // Refs
 const editorGroupRef = ref<InstanceType<typeof EditorGroup> | null>(null)
 
@@ -342,7 +351,9 @@ async function handleRemoveDependency(id: string) {
     if (activeDependencyId.value === id) {
       handleSwitchToProject()
     }
-    dependencyFileTrees.value.delete(id)
+    const next = new Map(dependencyFileTrees.value)
+    next.delete(id)
+    dependencyFileTrees.value = next
   } else {
     alert(result.message)
   }
@@ -362,10 +373,9 @@ async function loadDependencyFileTree(dependencyId: string) {
   try {
     const result = await buildDirectoryTreeFast(dependency.path, 3)
     if (result.success && result.tree) {
-      dependencyFileTrees.value.set(
-        dependencyId,
-        result.tree.map(convertRustFileNode)
-      )
+      const next = new Map(dependencyFileTrees.value)
+      next.set(dependencyId, result.tree.map(convertRustFileNode))
+      dependencyFileTrees.value = next
     }
   } catch (error) {
     logger.error('加载依赖项文件树失败:', error)
@@ -462,19 +472,54 @@ function restoreExpandedState(nodes: FileNode[], expandedPaths: Set<string>): vo
   nodes.forEach(traverse)
 }
 
+// 合并旧树的 children（用于自动刷新时保持深层展开的子树）
+function mergeExpandedChildren(oldNodes: FileNode[], newNodes: FileNode[], expandedPaths: Set<string>): void {
+  const oldByPath = new Map<string, FileNode>()
+  const indexOld = (nodes: FileNode[]) => {
+    nodes.forEach(n => {
+      oldByPath.set(n.path, n)
+      if (n.children) indexOld(n.children)
+    })
+  }
+  indexOld(oldNodes)
+
+  const merge = (node: FileNode) => {
+    if (!node.isDirectory) return
+
+    if (expandedPaths.has(node.path)) {
+      const old = oldByPath.get(node.path)
+      // 自动刷新构建的树受 maxDepth 影响，深层 children 可能缺失；
+      // 对已展开的目录，优先保留旧 children，避免 UI 收缩。
+      if ((!node.children || node.children.length === 0) && old?.children && old.children.length > 0) {
+        node.children = old.children
+      }
+    }
+
+    if (node.children) {
+      node.children.forEach(merge)
+    }
+  }
+
+  newNodes.forEach(merge)
+}
+
 // 加载文件树
 async function loadFileTree() {
   if (!projectPath.value) return
   
   // 保存当前展开状态
-  const expandedPaths = collectExpandedPaths(fileTree.value)
+  const oldTree = fileTree.value
+  const expandedPaths = collectExpandedPaths(oldTree)
   
   try {
     const result = await buildDirectoryTreeFast(projectPath.value, 3)
     if (result.success && result.tree) {
-      fileTree.value = result.tree.map(convertRustFileNode)
+      const newTree = result.tree.map(convertRustFileNode)
+      // 合并旧 children（保持深层展开的子树）
+      mergeExpandedChildren(oldTree, newTree, expandedPaths)
       // 恢复展开状态
-      restoreExpandedState(fileTree.value, expandedPaths)
+      restoreExpandedState(newTree, expandedPaths)
+      fileTree.value = newTree
     }
     // 只设置根目录，不自动刷新 Tag/Idea（避免 2 秒刷新影响 30 秒定时器）
     const enabledDependencyPaths = dependencies.value.filter(dep => dep.enabled).map(dep => dep.path)
@@ -1060,6 +1105,102 @@ async function handlePreviewEvent(paneId: string) {
   }
   newPane.openFiles.push(previewFile)
   newPane.activeFileIndex = 0
+}
+
+// 处理预览 MIO
+async function handlePreviewMio(paneId: string) {
+  if (!editorGroupRef.value) return
+
+  const sourcePane = editorGroupRef.value.panes.find(p => p.id === paneId)
+  if (!sourcePane || sourcePane.activeFileIndex < 0) return
+
+  const currentFile = sourcePane.openFiles[sourcePane.activeFileIndex]
+  if (!currentFile) return
+
+  let targetPane = null
+
+  // 如果已有两个或更多窗格，查找包含预览的窗格
+  if (editorGroupRef.value.panes.length >= 2) {
+    targetPane = editorGroupRef.value.panes.find(p =>
+      p.openFiles.some(f => f.isEventGraph || f.isFocusTree || f.isWorldMap || f.isGuiPreview || f.isMioPreview)
+    )
+  }
+
+  // 如果找到了包含预览的窗格，直接在该窗格中添加
+  if (targetPane) {
+    const previewFile: OpenFile = {
+      node: {
+        ...currentFile.node,
+        name: `🏭 ${currentFile.node.name} - MIO 预览`
+      },
+      content: currentFile.content,
+      hasUnsavedChanges: false,
+      cursorLine: 1,
+      cursorColumn: 1,
+      isMioPreview: true,
+      isPreview: true,
+      sourceFilePath: currentFile.node.path
+    }
+    targetPane.openFiles.push(previewFile)
+    targetPane.activeFileIndex = targetPane.openFiles.length - 1
+    editorGroupRef.value.setActivePane(targetPane.id)
+    return
+  }
+
+  // 否则，分割窗格创建新预览
+  const splitSuccess = editorGroupRef.value.splitPane(paneId)
+  if (!splitSuccess) return
+
+  const newPane = editorGroupRef.value.panes[editorGroupRef.value.panes.length - 1]
+  if (!newPane) return
+
+  const previewFile: OpenFile = {
+    node: {
+      ...currentFile.node,
+      name: `🏭 ${currentFile.node.name} - MIO 预览`
+    },
+    content: currentFile.content,
+    hasUnsavedChanges: false,
+    cursorLine: 1,
+    cursorColumn: 1,
+    isMioPreview: true,
+    isPreview: true,
+    sourceFilePath: currentFile.node.path
+  }
+  newPane.openFiles.push(previewFile)
+  newPane.activeFileIndex = 0
+}
+
+async function handleJumpToMioFromPreview(sourcePaneId: string, sourceFilePath: string, _traitId: string, line: number) {
+  if (!editorGroupRef.value) return
+
+  const panes = editorGroupRef.value.panes
+  let targetPane = panes.find(p => {
+    const active = p.openFiles[p.activeFileIndex]
+    return !!active && active.isMioPreview !== true
+  })
+
+  if (!targetPane) {
+    targetPane = panes.find(p => p.id === sourcePaneId)
+  }
+  if (!targetPane) return
+
+  editorGroupRef.value.setActivePane(targetPane.id)
+
+  const node: FileNode = {
+    name: basename(sourceFilePath),
+    path: sourceFilePath,
+    isDirectory: false
+  }
+
+  await handleOpenFile(node, targetPane.id)
+
+  setTimeout(() => {
+    const paneRef = (editorGroupRef.value as any)?.paneRefs?.get?.(targetPane!.id)
+    if (paneRef?.jumpToLine) {
+      paneRef.jumpToLine(line)
+    }
+  }, 80)
 }
 
 // 处理预览国策树
@@ -1899,15 +2040,15 @@ onUnmounted(() => {
 
             <!-- 依赖项文件树 -->
             <div v-else-if="leftPanelActiveTab === 'dependencies' && activeDependencyId" :key="activeDependencyId">
-              <div v-if="!dependencyFileTrees.has(activeDependencyId)" class="text-hoi4-text-dim text-sm p-2">
+              <div v-if="!hasActiveDependencyTree" class="text-hoi4-text-dim text-sm p-2">
                 加载中...
               </div>
-              <div v-else-if="(dependencyFileTrees.get(activeDependencyId) || []).length === 0" class="text-hoi4-text-dim text-sm p-2">
+              <div v-else-if="activeDependencyTree.length === 0" class="text-hoi4-text-dim text-sm p-2">
                 无文件
               </div>
               <div v-else>
                 <FileTreeNode
-                  v-for="node in dependencyFileTrees.get(activeDependencyId)"
+                  v-for="node in activeDependencyTree"
                   :key="node.path"
                   :node="node"
                   :level="0"
@@ -1944,7 +2085,9 @@ onUnmounted(() => {
       @preview-focus="handlePreviewFocus"
       @preview-map="handlePreviewMap"
       @preview-gui="handlePreviewGui"
+      @preview-mio="handlePreviewMio"
       @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
+      @jump-to-mio-from-preview="handleJumpToMioFromPreview"
         @content-change="handleContentChange"
       />
 

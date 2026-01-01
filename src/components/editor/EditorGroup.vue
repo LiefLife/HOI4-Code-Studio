@@ -22,7 +22,9 @@ const emit = defineEmits<{
   previewFocus: [paneId: string]
   previewMap: [paneId: string]
   previewGui: [paneId: string]
+  previewMio: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
+  jumpToMioFromPreview: [sourcePaneId: string, sourceFilePath: string, traitId: string, line: number]
   contentChange: [paneId: string, content: string]
 }>()
 
@@ -299,9 +301,18 @@ function handlePreviewGui(paneId: string) {
   emit('previewGui', paneId)
 }
 
+// 处理预览 MIO
+function handlePreviewMio(paneId: string) {
+  emit('previewMio', paneId)
+}
+
 // 处理跳转到焦点
 function handleJumpToFocusFromPreview(sourcePaneId: string, sourceFilePath: string, focusId: string, line: number) {
   emit('jumpToFocusFromPreview', sourcePaneId, sourceFilePath, focusId, line)
+}
+
+function handleJumpToMioFromPreview(sourcePaneId: string, sourceFilePath: string, traitId: string, line: number) {
+  emit('jumpToMioFromPreview', sourcePaneId, sourceFilePath, traitId, line)
 }
 
 // 处理关闭窗格
@@ -520,7 +531,9 @@ defineExpose({
           @preview-focus="handlePreviewFocus"
           @preview-map="handlePreviewMap"
           @preview-gui="handlePreviewGui"
+          @preview-mio="handlePreviewMio"
           @jump-to-focus-from-preview="handleJumpToFocusFromPreview"
+          @jump-to-mio-from-preview="handleJumpToMioFromPreview"
         />
       </div>
       

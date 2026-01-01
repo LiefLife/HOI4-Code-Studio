@@ -8,6 +8,7 @@ import FocusTreeViewer from './FocusTreeViewer.vue'
 import ImagePreviewer from './ImagePreviewer.vue'
 import WorldMapViewer from './WorldMapViewer.vue'
 import GuiViewer from './GuiViewer.vue'
+import MioViewer from './MioViewer.vue'
 import type { EditorPane } from '../../composables/useEditorGroups'
 import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
 import { collectErrors } from '../../utils/ErrorTip'
@@ -39,11 +40,26 @@ const emit = defineEmits<{
   previewFocus: [paneId: string]
   previewMap: [paneId: string]
   previewGui: [paneId: string]
+  previewMio: [paneId: string]
   jumpToFocusFromPreview: [sourcePaneId: string, sourceFilePath: string, focusId: string, line: number]
+  jumpToMioFromPreview: [sourcePaneId: string, sourceFilePath: string, traitId: string, line: number]
 }>()
 
 function handleExternalFileUpdate(filePath: string, content: string) {
   emit('externalFileUpdate', props.pane.id, filePath, content)
+}
+
+function handleJumpToMio(traitId: string, line: number) {
+  console.log('Jump to mio trait:', traitId, 'at line:', line)
+
+  if (isCurrentFileMio.value) {
+    const sourcePath = currentFile.value?.sourceFilePath || currentFile.value?.node.path
+    if (!sourcePath) return
+    emit('jumpToMioFromPreview', props.pane.id, sourcePath, traitId, line)
+    return
+  }
+
+  jumpToLine(line)
 }
 
 const editorRef = ref<InstanceType<typeof CodeMirrorEditor> | null>(null)
@@ -127,6 +143,25 @@ const isMapFile = computed(() => {
 // 当前文件是否为 GUI 预览
 const isCurrentFileGui = computed(() => {
   return currentFile.value?.isGuiPreview === true
+})
+
+// 当前文件是否为 MIO 预览
+const isCurrentFileMio = computed(() => {
+  return currentFile.value?.isMioPreview === true
+})
+
+// 当前文件是否为 MIO 文件
+const isMioFile = computed(() => {
+  if (!currentFile.value?.node.path) return false
+  const normalizedPath = currentFile.value.node.path.replace(/\\/g, '/')
+  return normalizedPath.includes('/common/military_industrial_organization/organizations/') &&
+         normalizedPath.toLowerCase().endsWith('.txt') &&
+         !isCurrentFileImage.value &&
+         !isCurrentFileEventGraph.value &&
+         !isCurrentFileFocusTree.value &&
+         !isCurrentFileWorldMap.value &&
+         !isCurrentFileGui.value &&
+         !isCurrentFileMio.value
 })
 
 // 当前文件是否为 GUI 文件
@@ -311,6 +346,10 @@ function handlePreviewMap() {
 
 function handlePreviewGui() {
   emit('previewGui', props.pane.id)
+}
+
+function handlePreviewMio() {
+  emit('previewMio', props.pane.id)
 }
 
 function handleJumpToEvent(eventId: string, line: number) {
@@ -580,6 +619,18 @@ defineExpose({
             </svg>
             <span>预览 GUI</span>
           </button>
+
+          <button
+            v-if="isMioFile"
+            @click="handlePreviewMio"
+            class="px-3 py-1 bg-hoi4-gray hover:bg-hoi4-border rounded text-hoi4-text text-xs transition-colors flex items-center space-x-1"
+            title="预览 MIO"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L7 19.75 4.25 17M7 19.75V4.25m10.75 2L17 4.25 14.25 7M17 4.25v15.5"></path>
+            </svg>
+            <span>预览 MIO</span>
+          </button>
         </div>
         
         <div class="flex items-center space-x-4 text-xs text-hoi4-text-dim">
@@ -638,6 +689,17 @@ defineExpose({
           :file-path="currentFile.node.path"
           :project-path="projectPath"
           :game-directory="gameDirectory"
+        />
+
+        <!-- MIO 预览 -->
+        <MioViewer
+          v-else-if="isCurrentFileMio"
+          :content="fileContent"
+          :file-path="currentFile.node.path"
+          :project-path="projectPath"
+          :game-directory="gameDirectory"
+          :dependency-roots="dependencyRoots"
+          @jump-to-trait="handleJumpToMio"
         />
         
         <!-- 代码编辑器 -->
