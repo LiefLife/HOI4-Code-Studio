@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { documentationSections, type DocItem } from '../data/documentationContent'
+import hljs from 'highlight.js'
+import '../composables/useSyntaxHighlight'
 
 type DetailBlock =
   | { type: 'text'; text: string }
-  | { type: 'code'; language: string | null; code: string }
+  | { type: 'code'; language: string | null; code: string; html: string }
 
 const router = useRouter()
 const isLoading = ref(true)
@@ -32,6 +34,35 @@ const activeItem = computed<DocItem | null>(() => {
 function parseDetailBlocks(lines: string[]): DetailBlock[] {
   const blocks: DetailBlock[] = []
 
+  function normalizeLanguage(lang: string | null): string | null {
+    if (!lang) return null
+    const l = lang.trim().toLowerCase()
+    if (l.length === 0) return null
+    if (l === 'js') return 'javascript'
+    if (l === 'ts') return 'typescript'
+    if (l === 'yml') return 'yaml'
+    if (l === 'text') return 'plaintext'
+    return l
+  }
+
+  function highlightCodeBlock(code: string, lang: string | null): string {
+    const normalized = normalizeLanguage(lang)
+    try {
+      if (!normalized) {
+        return hljs.highlightAuto(code).value
+      }
+
+      const supported = hljs.getSupportedLanguages()
+      if (supported.includes(normalized)) {
+        return hljs.highlight(code, { language: normalized }).value
+      }
+
+      return hljs.highlightAuto(code).value
+    } catch (_e) {
+      return code
+    }
+  }
+
   let inCode = false
   let language: string | null = null
   let codeLines: string[] = []
@@ -56,7 +87,8 @@ function parseDetailBlocks(lines: string[]): DetailBlock[] {
     }
 
     if (isFenceEnd) {
-      blocks.push({ type: 'code', language, code: codeLines.join('\n') })
+      const code = codeLines.join('\n')
+      blocks.push({ type: 'code', language, code, html: highlightCodeBlock(code, language) })
       inCode = false
       language = null
       codeLines = []
@@ -67,7 +99,8 @@ function parseDetailBlocks(lines: string[]): DetailBlock[] {
   }
 
   if (inCode) {
-    blocks.push({ type: 'code', language, code: codeLines.join('\n') })
+    const code = codeLines.join('\n')
+    blocks.push({ type: 'code', language, code, html: highlightCodeBlock(code, language) })
   }
 
   return blocks
@@ -215,7 +248,7 @@ onMounted(() => {
 
                       <div v-else class="w-full">
                         <div class="text-xs text-theme-comment mb-2" v-if="block.language">{{ block.language }}</div>
-                        <pre class="w-full overflow-x-auto rounded-lg bg-theme-bg/40 border border-theme-border/30 p-4"><code class="text-theme-fg whitespace-pre">{{ block.code }}</code></pre>
+                        <pre class="w-full overflow-x-auto rounded-lg ui-surface-1 border border-theme-border/20 p-4"><code class="text-theme-fg whitespace-pre hljs" v-html="block.html"></code></pre>
                       </div>
                     </li>
                   </ul>

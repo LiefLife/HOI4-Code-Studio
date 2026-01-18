@@ -707,11 +707,48 @@ code.hljs {
 
 .hljs-variable,
 .hljs-template-variable {
-  color: #e06c75 !important;
+  color: var(--theme-error) !important;
 }
 
 .hljs-attr,
 .hljs-attribute {
+  color: var(--theme-accent) !important;
+}
+
+.hljs-property {
+  color: var(--theme-accent) !important;
+}
+
+.hljs-operator,
+.hljs-punctuation {
+  color: var(--theme-fg) !important;
+  opacity: 0.9;
+}
+
+.hljs-built_in,
+.hljs-type {
+  color: var(--theme-warning) !important;
+}
+
+.hljs-meta,
+.hljs-link {
+  color: var(--theme-comment) !important;
+}
+
+.hljs-symbol {
+  color: var(--theme-warning) !important;
+}
+
+.hljs-params {
+  color: var(--theme-fg) !important;
+}
+
+.hljs-subst {
+  color: var(--theme-fg) !important;
+}
+
+.hljs-function .hljs-title,
+.hljs-title.function_ {
   color: var(--theme-accent) !important;
 }
 
