@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import packageJson from '../../../package.json'
+import type { PluginToolbarItem } from '../../composables/usePluginManager'
 
 // 程序版本号
 const appVersion = packageJson.version
@@ -12,6 +13,7 @@ const props = defineProps<{
   tagCount?: number
   ideaCount?: number
   autoSave?: boolean
+  pluginToolbarItems?: PluginToolbarItem[]
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +25,7 @@ const emit = defineEmits<{
   packageProject: []
   toggleAutoSave: []
   openModifierSheet: []
+  pluginToolbarClick: [uid: string, open?: { side: 'left' | 'right'; panelUid: string }]
 }>()
 
 // 计算总加载数量
@@ -98,6 +101,18 @@ const totalLoadedCount = computed(() => {
       >
         <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+        </svg>
+      </button>
+
+      <button
+        v-for="it in (props.pluginToolbarItems || [])"
+        :key="it.uid"
+        @click="emit('pluginToolbarClick', it.uid, it.open)"
+        class="p-2 bg-hoi4-accent/80 hover:bg-hoi4-border/40 active:bg-hoi4-border/60 rounded-md transition-colors"
+        :title="`${it.title} (${it.pluginName})`"
+      >
+        <svg class="w-5 h-5 text-hoi4-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v2h1a2 2 0 012 2v1h-2a2 2 0 100 4h2v1a2 2 0 01-2 2h-1v2a2 2 0 11-4 0v-2H9a2 2 0 01-2-2v-1h2a2 2 0 100-4H7V8a2 2 0 012-2h2V4z"></path>
         </svg>
       </button>
       <button

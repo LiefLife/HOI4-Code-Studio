@@ -2,7 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadSettings, saveSettings, openUrl } from '../api/tauri'
-import { useTheme, themes } from '../composables/useTheme'
+import { useTheme } from '../composables/useTheme'
 import { useFileTreeIcons, iconSets } from '../composables/useFileTreeIcons'
 import { getDefaultMenuItem } from '../data/settingsMenu'
 import MarkdownIt from 'markdown-it'
@@ -16,6 +16,7 @@ import RecentProjectsSettings from '../components/settings/RecentProjectsSetting
 import EditorFontSettings from '../components/settings/EditorFontSettings.vue'
 import EditorSaveSettings from '../components/settings/EditorSaveSettings.vue'
 import ThemeSettings from '../components/settings/ThemeSettings.vue'
+import PluginSettings from '../components/settings/PluginSettings.vue'
 import IconSettings from '../components/settings/IconSettings.vue'
 import UpdateSettings from '../components/settings/UpdateSettings.vue'
 import VersionInfoSettings from '../components/settings/VersionInfoSettings.vue'
@@ -23,6 +24,7 @@ import AISettings from '../components/settings/AISettings.vue'
 
 // 主题系统
 const { currentThemeId } = useTheme()
+const { themes: allThemes } = useTheme()
 
 // 图标系统
 const { currentIconSetId } = useFileTreeIcons()
@@ -159,7 +161,7 @@ async function loadUserSettings() {
       })
     }
     // 加载主题设置
-    if (data.theme && themes.some(t => t.id === data.theme)) {
+    if (data.theme && allThemes.value.some(t => t.id === data.theme)) {
       currentThemeId.value = data.theme
     }
     
@@ -470,6 +472,14 @@ onMounted(async () => {
             description="选择应用界面主题"
           >
             <ThemeSettings />
+          </SettingsCard>
+
+          <SettingsCard
+            v-if="activeMenuItem === 'plugins'"
+            title="插件"
+            description="管理已安装的插件"
+          >
+            <PluginSettings />
           </SettingsCard>
 
           <!-- 图标设置 -->

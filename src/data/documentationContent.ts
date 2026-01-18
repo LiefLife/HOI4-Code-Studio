@@ -96,6 +96,195 @@ export const documentationSections: DocSection[] = [
     ]
   },
   {
+    id: 'plugin-dev',
+    title: '插件开发',
+    items: [
+      {
+        id: 'plugin-overview',
+        title: '插件系统概览',
+        summary: 'HOI4 Code Studio 提供类似 VSCode 的插件系统，插件可以贡献左/右侧边栏面板以及标题栏工具按钮，并通过受控的白名单调用后端命令。',
+        details: [
+          '插件包可以是“文件夹”或“.zip 压缩包”。',
+          '插件包根目录必须包含 About.hoics 描述文件（当前版本为 JSON）。',
+          '插件 UI 通过 iframe 在应用内加载，插件与宿主通过 postMessage 通信。',
+          '插件如需调用后端能力，需要在 About.hoics.permissions.commands 中声明允许调用的 Tauri command（白名单）。',
+          '插件的 UI 目前推荐使用 HTML/TS/Vue 自行构建，并输出为静态文件（例如 index.html + js/css）。',
+          '安装插件：设置 → 扩展 → 插件 → 安装插件(文件夹/zip)。'
+        ]
+      },
+      {
+        id: 'plugin-about-format',
+        title: 'About.hoics（JSON 格式）',
+        summary: 'About.hoics 用于声明插件元信息、扩展点贡献与权限。必须位于插件根目录，且必须是可解析的 JSON。',
+        details: [
+          '文件名固定为 About.hoics（区分大小写取决于文件系统，建议保持完全一致）。',
+          '必须字段：id、name、version。',
+          '可选字段：description、author、main、contributes、permissions。',
+          '建议 id 采用反向域名风格：例如 com.yourname.hoics.myplugin。',
+          '示例：',
+          '```json',
+          '{',
+          '  "id": "com.example.hello",',
+          '  "name": "Hello Plugin",',
+          '  "version": "0.0.1",',
+          '  "description": "一个示例插件，贡献侧栏面板与标题栏按钮",',
+          '  "author": "you",',
+          '  "main": "index.html",',
+          '  "permissions": {',
+          '    "commands": [',
+          '      "load_settings",',
+          '      "save_settings"',
+          '    ]',
+          '  },',
+          '  "contributes": {',
+          '    "left_sidebar": [',
+          '      { "id": "hello-left", "title": "Hello" }',
+          '    ],',
+          '    "right_sidebar": [',
+          '      { "id": "hello-right", "title": "HelloR" }',
+          '    ],',
+          '    "toolbar": [',
+          '      {',
+          '        "id": "open-hello",',
+          '        "title": "Open Hello",',
+          '        "open": { "side": "right", "panel": "hello-right" }',
+          '      }',
+          '    ]',
+          '  }',
+          '}',
+          '```'
+        ]
+      },
+      {
+        id: 'plugin-structure',
+        title: '插件目录结构建议',
+        summary: '插件本质是一个包含静态资源的目录（或 zip），宿主会从 About.hoics.main 指定的入口页面加载 iframe。',
+        details: [
+          '推荐结构：',
+          '```text',
+          'MyPlugin/',
+          '  About.hoics',
+          '  index.html',
+          '  assets/',
+          '    main.js',
+          '    style.css',
+          '    icon.png',
+          '```',
+          '入口文件：About.hoics.main（默认建议指向 index.html）。',
+          '入口文件路径是相对插件根目录的相对路径，不要写绝对路径。',
+          '建议将所有静态资源（js/css/png）放在 assets/ 下，避免根目录混乱。'
+        ]
+      },
+      {
+        id: 'plugin-contributes',
+        title: 'contributes：扩展点贡献',
+        summary: '插件可以贡献左侧栏/右侧栏面板以及标题栏工具按钮。面板以 iframe 形式展示入口页面。',
+        details: [
+          'contributes.left_sidebar: 左侧栏面板列表，每项包含 id/title。',
+          'contributes.right_sidebar: 右侧栏面板列表，每项包含 id/title。',
+          'contributes.toolbar: 标题栏按钮列表，每项包含 id/title，可选 open。',
+          'toolbar.open.side: "left" 或 "right"，表示点击按钮打开哪个侧栏的插件面板。',
+          'toolbar.open.panel: 对应侧栏贡献的 panel id（即 left_sidebar/right_sidebar 中的 id）。',
+          '注意：panel id 在同一插件内必须唯一；不同插件之间允许同名，宿主会用 pluginId 做隔离。'
+        ]
+      },
+      {
+        id: 'plugin-permissions',
+        title: 'permissions.commands：后端命令白名单',
+        summary: '插件默认不允许随意调用后端命令。只有在 About.hoics 中显式声明的 command 才会被宿主转发执行。',
+        details: [
+          'permissions.commands 是字符串数组，每个元素是一个 Tauri command 名称。',
+          '例如允许读取/保存设置：load_settings、save_settings。',
+          '宿主在收到 hoics.invoke 请求后会检查 command 是否在该白名单中：不在则拒绝并返回错误。',
+          '安全建议：尽量只开放插件确实需要的命令，避免把文件系统写入、删除等高危命令加入白名单。'
+        ]
+      },
+      {
+        id: 'plugin-messaging',
+        title: '插件与宿主通信协议（postMessage）',
+        summary: '插件运行在 iframe 内，通过 window.postMessage 与宿主通信。宿主会在 iframe load 后发送握手消息，插件可通过 hoics.invoke 请求宿主执行 Tauri command。',
+        details: [
+          '1) 宿主 -> 插件：hoics.host.ready',
+          '插件 iframe 加载完成后，宿主会发送：',
+          '```js',
+          '{',
+          '  type: "hoics.host.ready",',
+          '  pluginId, pluginName, side, panelId, panelTitle,',
+          '  allowedCommands: []',
+          '}',
+          '```',
+          '2) 插件 -> 宿主：hoics.invoke',
+          '插件请求宿主调用后端命令：',
+          '```js',
+          '{',
+          '  type: "hoics.invoke",',
+          '  id: "req-1",',
+          '  command: "load_settings",',
+          '  payload: { }',
+          '}',
+          '```',
+          '3) 宿主 -> 插件：hoics.invoke.result',
+          '宿主返回调用结果：',
+          '```js',
+          '{',
+          '  type: "hoics.invoke.result",',
+          '  id: "req-1",',
+          '  ok: true,',
+          '  data: <invoke result>',
+          '}',
+          '```',
+          '失败时：',
+          '```js',
+          '{ type: "hoics.invoke.result", id: "req-1", ok: false, error: "..." }',
+          '```',
+          '重要：id 用于关联请求与响应，插件应确保每次请求 id 唯一。',
+          '注意：当前宿主对 postMessage 的 origin 限制较宽（为了本地 file/webview 加载兼容），插件应避免把敏感数据输出到日志或对外发送。'
+        ]
+      },
+      {
+        id: 'plugin-install',
+        title: '安装、卸载与更新',
+        summary: '插件由宿主统一安装到用户配置目录。你无需手动复制到应用目录，但开发调试时可以用文件夹直接安装。',
+        details: [
+          '安装位置：config_dir/HOI4_GUI_Editor/plugins/<pluginId>。',
+          '安装方式：设置 → 扩展 → 插件 → 安装插件(文件夹/zip)。',
+          '卸载方式：设置 → 扩展 → 插件 → 已安装插件列表 → 卸载。',
+          '更新方式：通常建议先卸载旧版本，再安装新版本（或用相同 id 安装覆盖）。',
+          '如果你用 zip 安装：确保 zip 内的根目录就是插件根（根内直接包含 About.hoics），不要多包一层目录。'
+        ]
+      },
+      {
+        id: 'plugin-debug',
+        title: '调试建议',
+        summary: '插件以 iframe 运行，调试方式类似调试一个内嵌网页。你可以在插件页面里输出 console 日志，并逐步确认 postMessage 调用是否成功。',
+        details: [
+          '先用“文件夹安装”进行开发调试，改完文件后重新安装一次即可快速迭代。',
+          '在插件页面中使用 console.log 输出关键状态（例如收到 hoics.host.ready，allowedCommands 内容等）。',
+          '调用后端命令时，先从 load_settings/save_settings 这类低风险命令开始验证通路。',
+          '如果 hoics.invoke 返回 ok=false：优先检查 command 是否在 permissions.commands 白名单里。',
+          '如果 iframe 无法加载：优先检查 About.hoics.main 是否指向存在的文件，以及资源路径是否正确。'
+        ]
+      },
+      {
+        id: 'plugin-faq',
+        title: '常见问题（FAQ）',
+        summary: '整理插件开发中最常见的几个坑。',
+        details: [
+          'Q: 安装后看不到面板？',
+          'A: 检查 About.hoics.contributes 是否声明了 left_sidebar/right_sidebar；并确认编辑器左/右侧栏切到“插件”标签页。',
+          'Q: 标题栏按钮点击没反应？',
+          'A: 检查 contributes.toolbar.open.side/panel 是否正确指向已贡献的 panel id。',
+          'Q: 调用后端命令报 Command not allowed？',
+          'A: 将该命令名加入 About.hoics.permissions.commands 白名单后重新安装插件。',
+          'Q: zip 安装失败或提示缺少 About.hoics？',
+          'A: 你的 zip 可能多包了一层目录；确保 About.hoics 在 zip 解压后的根目录。',
+          'Q: main 指向的入口文件可不可以是子目录？',
+          'A: 可以，例如 "ui/index.html"，但要确保路径存在且为相对路径。'
+        ]
+      }
+    ]
+  },
+  {
     id: 'features',
     title: '特有功能',
     items: [

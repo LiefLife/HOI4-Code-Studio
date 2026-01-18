@@ -43,6 +43,19 @@ export const settingsMenuData: SettingsMenuCategory[] = [
     ]
   },
   {
+    id: 'extensions',
+    title: '扩展',
+    items: [
+      {
+        id: 'plugins',
+        title: '插件',
+        icon: 'puzzle',
+        description: '管理已安装的插件',
+        category: 'extensions'
+      }
+    ]
+  },
+  {
     id: 'ai',
     title: 'AI',
     items: [

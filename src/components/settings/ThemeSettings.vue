@@ -89,14 +89,112 @@
       <p class="text-hoi4-comment text-sm mt-2">
         在编辑器中可按 <kbd class="px-1.5 py-0.5 rounded bg-hoi4-gray border border-hoi4-border text-hoi4-text">Ctrl+Shift+T</kbd> 快速切换主题
       </p>
+      <button
+        @click="createCustomThemeFromCurrent"
+        class="text-xs text-hoi4-accent hover:text-hoi4-accent/80"
+      >
+        从当前主题创建
+      </button>
+    </div>
+
+    <div class="ui-surface-1 rounded-lg p-3 space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="text-hoi4-text font-semibold">自定义主题</div>
+        <button class="btn-primary px-3" @click="createCustomThemeFromCurrent">从当前主题复制创建</button>
+      </div>
+
+      <div v-if="customThemes.length === 0" class="text-hoi4-text-dim text-sm">暂无自定义主题</div>
+      <div v-else class="space-y-2">
+        <div
+          v-for="t in customThemes"
+          :key="t.id"
+          class="ui-surface-2 rounded-lg p-3 flex items-start justify-between gap-3"
+        >
+          <div class="min-w-0">
+            <div class="text-hoi4-text font-semibold truncate">{{ t.name }}</div>
+            <div class="text-hoi4-comment text-xs truncate">{{ t.id }}</div>
+            <div class="mt-2 flex items-center gap-2">
+              <button class="btn-secondary px-3" @click="setTheme(t.id)">应用</button>
+              <button class="btn-secondary px-3" @click="renameCustomTheme(t.id)">重命名</button>
+              <button class="btn-secondary px-3" @click="overwriteCustomThemeWithCurrent(t.id)">用当前覆盖</button>
+              <button class="btn-danger px-3" @click="removeCustomTheme(t.id)">删除</button>
+            </div>
+          </div>
+          <div class="flex space-x-1 pt-1">
+            <div class="w-3 h-3 rounded" :style="{ backgroundColor: t.colors.accent }"></div>
+            <div class="w-3 h-3 rounded" :style="{ backgroundColor: t.colors.success }"></div>
+            <div class="w-3 h-3 rounded" :style="{ backgroundColor: t.colors.warning }"></div>
+            <div class="w-3 h-3 rounded" :style="{ backgroundColor: t.colors.error }"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useTheme, themes } from '../../composables/useTheme'
+import { onMounted, ref } from 'vue'
+import { useTheme, type Theme } from '../../composables/useTheme'
 
-const { currentThemeId, setTheme } = useTheme()
+const {
+  themes,
+  customThemes,
+  currentThemeId,
+  currentTheme,
+  setTheme,
+  refreshCustomThemes,
+  upsertCustomTheme,
+  deleteCustomTheme
+} = useTheme()
 const showThemeOptions = ref(true)
+
+async function createCustomThemeFromCurrent() {
+  const id = window.prompt('请输入主题 ID（唯一）')
+  if (!id) return
+  const name = window.prompt('请输入主题名称')
+  if (!name) return
+
+  const base = currentTheme.value
+  const t: Theme = {
+    id,
+    name,
+    colors: {
+      ...base.colors
+    }
+  }
+  await upsertCustomTheme(t)
+}
+
+async function renameCustomTheme(themeId: string) {
+  const t = customThemes.value.find(x => x.id === themeId)
+  if (!t) return
+  const name = window.prompt('请输入新的主题名称', t.name)
+  if (!name) return
+  await upsertCustomTheme({
+    ...t,
+    name
+  })
+}
+
+async function overwriteCustomThemeWithCurrent(themeId: string) {
+  const t = customThemes.value.find(x => x.id === themeId)
+  if (!t) return
+  if (!window.confirm('确认用“当前主题”的配色覆盖该自定义主题？')) return
+  const base = currentTheme.value
+  await upsertCustomTheme({
+    ...t,
+    colors: {
+      ...base.colors
+    }
+  })
+}
+
+async function removeCustomTheme(themeId: string) {
+  if (!window.confirm('确认删除该自定义主题？')) return
+  await deleteCustomTheme(themeId)
+}
+
+onMounted(async () => {
+  await refreshCustomThemes()
+})
 </script>

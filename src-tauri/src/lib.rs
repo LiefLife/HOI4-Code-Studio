@@ -21,6 +21,8 @@ mod focus_localization;
 mod map_engine;
 mod gui_engine;
 mod mio_parser;
+mod plugin_manager;
+mod theme_manager;
 
 use json_decoder::{
     get_json_path,
@@ -2936,6 +2938,12 @@ pub fn run() {
             dependency::save_dependencies,
             dependency::validate_dependency_path,
             dependency::index_dependency,
+            plugin_manager::install_plugin,
+            plugin_manager::uninstall_plugin,
+            plugin_manager::list_installed_plugins,
+            theme_manager::list_themes,
+            theme_manager::upsert_theme,
+            theme_manager::delete_theme,
             pack_project,
             read_image_as_base64,
             load_focus_icon,

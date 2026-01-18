@@ -59,6 +59,7 @@ function getIconComponent(iconName: string) {
     folder: FolderIcon,
     play: PlayIcon,
     clock: ClockIcon,
+    puzzle: PuzzleIcon,
     ai: AIIcon,
     text: TextIcon,
     save: SaveIcon,
@@ -103,6 +104,14 @@ const ClockIcon = {
   template: `
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+  `
+}
+
+const PuzzleIcon = {
+  template: `
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v2h1a2 2 0 012 2v1h-2a2 2 0 100 4h2v1a2 2 0 01-2 2h-1v2a2 2 0 11-4 0v-2H9a2 2 0 01-2-2v-1h2a2 2 0 100-4H7V8a2 2 0 012-2h2V4z"></path>
     </svg>
   `
 }

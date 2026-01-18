@@ -36,6 +36,8 @@ import { logger } from '../utils/logger'
 import { readFileContent } from '../api/tauri'
 import { useDependencyManager } from '../composables/useDependencyManager'
 import { loadFontConfigFromSettings } from '../composables/useEditorFont'
+import { usePluginManager } from '../composables/usePluginManager'
+import PluginIframeHost from '../components/plugins/PluginIframeHost.vue'
 
 // Highlight.js 语言定义已移至 useSyntaxHighlight.ts 中
 
@@ -262,10 +264,12 @@ function handleConfirmDialogCancel() {
 }
 
 // 依赖项管理状态
-const leftPanelActiveTab = ref<'project' | 'dependencies'>('project')
+const leftPanelActiveTab = ref<'project' | 'dependencies' | 'plugins'>('project')
 const activeDependencyId = ref<string | undefined>(undefined)
 const dependencyManagerVisible = ref(false)
 const dependencyFileTrees = ref<Map<string, FileNode[]>>(new Map())
+
+const activeLeftPluginPanelUid = ref('')
 
 const hasActiveDependencyTree = computed(() => {
   return !!activeDependencyId.value && dependencyFileTrees.value.has(activeDependencyId.value)
@@ -327,6 +331,14 @@ const { toggleThemePanel, loadThemeFromSettings } = useTheme()
 
 // 图标系统
 const { toggleIconPanel, loadIconSetFromSettings } = useFileTreeIcons()
+
+const pluginManager = usePluginManager()
+const {
+  leftPanels: pluginLeftPanels,
+  rightPanels: pluginRightPanels,
+  toolbarItems: pluginToolbarItems,
+  refreshPlugins
+} = pluginManager
 // 依赖项管理
 const dependencyManager = useDependencyManager(projectPath.value)
 const {
@@ -360,6 +372,14 @@ function handleSwitchToDependency(id: string) {
   leftPanelActiveTab.value = 'dependencies'
   activeDependencyId.value = id
   loadDependencyFileTree(id)
+}
+
+function handleSwitchToPlugins() {
+  leftPanelActiveTab.value = 'plugins'
+  activeDependencyId.value = undefined
+  if (!activeLeftPluginPanelUid.value && pluginLeftPanels.value.length > 0) {
+    activeLeftPluginPanelUid.value = pluginLeftPanels.value[0].uid
+  }
 }
 
 function handleManageDependencies() {
@@ -1759,7 +1779,8 @@ async function handlePackageProject(fileName: string) {
 }
 
 // 右侧面板活动标签页
-const rightPanelActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai'>('info')
+const rightPanelActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai' | 'plugins'>('info')
+const activeRightPluginPanelUid = ref('')
 
 // 切换右侧面板
 function toggleRightPanel() {
@@ -2007,6 +2028,20 @@ useKeyboardShortcuts({
   toggleIconPanel: toggleIconPanel
 })
 
+function handlePluginToolbarClick(_uid: string, open?: { side: 'left' | 'right'; panelUid: string }) {
+  if (!open) return
+
+  if (open.side === 'left') {
+    handleSwitchToPlugins()
+    activeLeftPluginPanelUid.value = open.panelUid
+    return
+  }
+
+  rightPanelExpanded.value = true
+  rightPanelActiveTab.value = 'plugins'
+  activeRightPluginPanelUid.value = open.panelUid
+}
+
 // 开始目录树自动刷新
 function startFileTreeAutoRefresh() {
   stopFileTreeAutoRefresh() // 先清除现有的定时器
@@ -2047,6 +2082,7 @@ onMounted(async () => {
   
   projectPath.value = route.query.path as string || ''
   if (projectPath.value) {
+    await refreshPlugins()
     dependencyManager.setProjectPath(projectPath.value)
     loadProjectInfo()
     loadFileTree()
@@ -2081,6 +2117,7 @@ onUnmounted(() => {
       :tag-count="tagList.length"
       :idea-count="ideaList.length"
       :auto-save="autoSave"
+      :plugin-toolbar-items="pluginToolbarItems"
       @go-back="goBack"
       @toggle-right-panel="toggleRightPanel"
       @launch-game="handleLaunchGame"
@@ -2089,6 +2126,7 @@ onUnmounted(() => {
       @package-project="openPackageDialog"
       @toggle-auto-save="toggleAutoSave"
       @open-modifier-sheet="openModifierSheet"
+      @plugin-toolbar-click="handlePluginToolbarClick"
     />
 
     <!-- 主内容区域 -->
@@ -2105,13 +2143,14 @@ onUnmounted(() => {
           :dependencies="dependencies"
           @switch-to-project="handleSwitchToProject"
           @switch-to-dependency="handleSwitchToDependency"
+          @switch-to-plugins="handleSwitchToPlugins"
           @manage-dependencies="handleManageDependencies"
         />
         
         <!-- 文件树内容 -->
         <div class="flex-1 overflow-y-auto p-2" @contextmenu.prevent="showTreeContextMenu($event, null)">
           <h3 class="text-hoi4-text font-bold mb-2 text-sm">
-            {{ leftPanelActiveTab === 'project' ? '项目文件' : '依赖项文件' }}
+            {{ leftPanelActiveTab === 'project' ? '项目文件' : leftPanelActiveTab === 'dependencies' ? '依赖项文件' : '插件' }}
           </h3>
           <!-- 文件树切换过渡效果 -->
           <Transition name="sidebar-fade-slide" mode="out-in">
@@ -2151,6 +2190,34 @@ onUnmounted(() => {
                   @toggle="toggleFolder"
                   @open-file="handleOpenFile"
                   @contextmenu="(e, n) => showTreeContextMenu(e, n)"
+                />
+              </div>
+            </div>
+
+            <div v-else-if="leftPanelActiveTab === 'plugins'" :key="'plugins'" class="h-full overflow-hidden flex flex-col">
+              <div class="p-2 ui-separator-bottom flex items-center gap-2 overflow-x-auto">
+                <button
+                  v-for="p in pluginLeftPanels"
+                  :key="p.uid"
+                  class="px-2 py-1 rounded text-xs flex-shrink-0"
+                  :class="p.uid === activeLeftPluginPanelUid ? 'bg-hoi4-accent text-hoi4-text' : 'bg-hoi4-border/40 text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/60'"
+                  @click="activeLeftPluginPanelUid = p.uid"
+                  :title="p.title"
+                >
+                  {{ p.title }}
+                </button>
+              </div>
+              <div class="flex-1 overflow-hidden">
+                <div v-if="pluginLeftPanels.length === 0" class="p-3 text-hoi4-text-dim text-sm">暂无插件面板</div>
+                <PluginIframeHost
+                  v-else
+                  :entry-file-path="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).entryFilePath"
+                  :plugin-id="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).pluginId"
+                  :plugin-name="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).pluginName"
+                  :side="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).side"
+                  :panel-id="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).panelId"
+                  :panel-title="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).title"
+                  :allowed-commands="(pluginLeftPanels.find(x => x.uid === activeLeftPluginPanelUid) || pluginLeftPanels[0]).allowedCommands"
                 />
               </div>
             </div>
@@ -2212,6 +2279,8 @@ onUnmounted(() => {
         :search-scope="searchScope"
         :include-all-files="includeAllFiles"
         :project-path="projectPath"
+        :plugin-panels="pluginRightPanels"
+        v-model:activePluginPanelUid="activeRightPluginPanelUid"
         v-model:active-tab="rightPanelActiveTab"
         @close="toggleRightPanel"
         @jumpToError="jumpToError"

@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ProjectInfo from './ProjectInfo.vue'
 import GameDirectory from './GameDirectory.vue'
 import ErrorList from './ErrorList.vue'
 import SearchPanel from './SearchPanel.vue'
 import AIPanel from './AIPanel.vue'
+import PluginIframeHost from '../plugins/PluginIframeHost.vue'
 import type { FileNode } from '../../composables/useFileManager'
 import type { SearchResult } from '../../composables/useSearch'
+import type { PluginPanelRef } from '../../composables/usePluginManager'
 
 const props = withDefaults(defineProps<{
   projectInfo: any
@@ -23,7 +25,9 @@ const props = withDefaults(defineProps<{
   searchScope: string
   includeAllFiles: boolean
   projectPath: string
-  activeTab?: 'info' | 'game' | 'errors' | 'search' | 'ai'
+  pluginPanels: PluginPanelRef[]
+  activePluginPanelUid?: string
+  activeTab?: 'info' | 'game' | 'errors' | 'search' | 'ai' | 'plugins'
 }>(), {
   activeTab: 'info'
 })
@@ -42,10 +46,19 @@ const emit = defineEmits<{
   performSearch: []
   performReplace: [replaceText: string]
   jumpToSearchResult: [result: SearchResult]
-  'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search' | 'ai']
+  'update:activeTab': [value: 'info' | 'game' | 'errors' | 'search' | 'ai' | 'plugins']
+  'update:activePluginPanelUid': [value: string]
 }>()
 
-const localActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai'>(props.activeTab)
+const localActiveTab = ref<'info' | 'game' | 'errors' | 'search' | 'ai' | 'plugins'>(props.activeTab)
+const localActivePluginPanelUid = ref<string>(props.activePluginPanelUid || '')
+
+const activePluginPanel = computed(() => {
+  const panels = props.pluginPanels || []
+  if (panels.length === 0) return null
+  const byUid = panels.find(p => p.uid === localActivePluginPanelUid.value)
+  return byUid || panels[0]
+})
 
 // 监听props.activeTab变化，更新本地状态
 watch(() => props.activeTab, (newTab) => {
@@ -54,9 +67,34 @@ watch(() => props.activeTab, (newTab) => {
   }
 })
 
+watch(() => props.activePluginPanelUid, (uid) => {
+  if (uid !== undefined) {
+    localActivePluginPanelUid.value = uid
+  }
+})
+
+watch(() => props.pluginPanels, (panels) => {
+  if (!panels || panels.length === 0) return
+  if (!localActivePluginPanelUid.value) {
+    localActivePluginPanelUid.value = panels[0].uid
+    emit('update:activePluginPanelUid', panels[0].uid)
+    return
+  }
+  if (!panels.some(p => p.uid === localActivePluginPanelUid.value)) {
+    localActivePluginPanelUid.value = panels[0].uid
+    emit('update:activePluginPanelUid', panels[0].uid)
+  }
+})
+
 // 监听本地activeTab变化，通知父组件
 watch(localActiveTab, (newTab) => {
   emit('update:activeTab', newTab)
+})
+
+watch(localActivePluginPanelUid, (uid) => {
+  if (uid) {
+    emit('update:activePluginPanelUid', uid)
+  }
 })
 </script>
 
@@ -115,6 +153,16 @@ watch(localActiveTab, (newTab) => {
           title="AI"
         >
           AI
+        </button>
+        <button
+          @click="localActiveTab = 'plugins'"
+          class="p-2 transition-all rounded-lg hover-scale"
+          :class="localActiveTab === 'plugins' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+          title="插件"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v2h1a2 2 0 012 2v1h-2a2 2 0 100 4h2v1a2 2 0 01-2 2h-1v2a2 2 0 11-4 0v-2H9a2 2 0 01-2-2v-1h2a2 2 0 100-4H7V8a2 2 0 012-2h2V4z"></path>
+          </svg>
         </button>
       </div>
       <button
@@ -183,6 +231,38 @@ watch(localActiveTab, (newTab) => {
           v-else-if="localActiveTab === 'ai'"
           :key="'ai'"
         />
+
+        <div
+          v-else-if="localActiveTab === 'plugins'"
+          :key="'plugins'"
+          class="h-full overflow-hidden flex flex-col"
+        >
+          <div class="p-2 ui-separator-bottom flex items-center gap-2 overflow-x-auto">
+            <button
+              v-for="p in pluginPanels"
+              :key="p.uid"
+              class="px-2 py-1 rounded text-xs flex-shrink-0"
+              :class="p.uid === localActivePluginPanelUid ? 'bg-hoi4-accent text-hoi4-text' : 'bg-hoi4-border/40 text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/60'"
+              @click="localActivePluginPanelUid = p.uid"
+              :title="p.title"
+            >
+              {{ p.title }}
+            </button>
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <div v-if="!activePluginPanel" class="p-3 text-hoi4-text-dim text-sm">暂无插件面板</div>
+            <PluginIframeHost
+              v-else
+              :entry-file-path="activePluginPanel.entryFilePath"
+              :plugin-id="activePluginPanel.pluginId"
+              :plugin-name="activePluginPanel.pluginName"
+              :side="activePluginPanel.side"
+              :panel-id="activePluginPanel.panelId"
+              :panel-title="activePluginPanel.title"
+              :allowed-commands="activePluginPanel.allowedCommands"
+            />
+          </div>
+        </div>
       </Transition>
     </div>
   </div>

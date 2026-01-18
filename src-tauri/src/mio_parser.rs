@@ -477,7 +477,7 @@ fn parse_mio_block(
     file: &str,
     full_content: &str,
     block_start: usize,
-    block_end: usize,
+    _block_end: usize,
     block_content: &str,
 ) -> MioDef {
     let include = extract_field_value(block_content, "include");

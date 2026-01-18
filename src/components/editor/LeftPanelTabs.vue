@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { Dependency } from '../../types/dependency'
 
 const props = defineProps<{
-  activeTab: 'project' | 'dependencies'
+  activeTab: 'project' | 'dependencies' | 'plugins'
   activeDependencyId?: string
   dependencies: Dependency[]
 }>()
@@ -11,6 +11,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   switchToProject: []
   switchToDependency: [id: string]
+  switchToPlugins: []
   manageDependencies: []
 }>()
 
@@ -54,6 +55,18 @@ const enabledDependencies = computed(() =>
         </span>
       </button>
     </template>
+
+    <div class="w-px h-6 bg-hoi4-border/40"></div>
+    <button
+      @click="emit('switchToPlugins')"
+      class="p-2 transition-all rounded-lg flex-shrink-0 hover-scale"
+      :class="activeTab === 'plugins' ? 'bg-hoi4-accent text-hoi4-text' : 'text-hoi4-text-dim hover:text-hoi4-text hover:bg-hoi4-border/40'"
+      title="插件面板"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v2h1a2 2 0 012 2v1h-2a2 2 0 100 4h2v1a2 2 0 01-2 2h-1v2a2 2 0 11-4 0v-2H9a2 2 0 01-2-2v-1h2a2 2 0 100-4H7V8a2 2 0 012-2h2V4z"></path>
+      </svg>
+    </button>
 
     <!-- 管理依赖项按钮 -->
     <div class="ml-auto flex items-center gap-1">

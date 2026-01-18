@@ -3,6 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { documentationSections, type DocItem } from '../data/documentationContent'
 
+type DetailBlock =
+  | { type: 'text'; text: string }
+  | { type: 'code'; language: string | null; code: string }
+
 const router = useRouter()
 const isLoading = ref(true)
 const hoveredSection = ref<string | null>(null)
@@ -23,6 +27,55 @@ const activeItem = computed<DocItem | null>(() => {
     }
   }
   return firstItem
+})
+
+function parseDetailBlocks(lines: string[]): DetailBlock[] {
+  const blocks: DetailBlock[] = []
+
+  let inCode = false
+  let language: string | null = null
+  let codeLines: string[] = []
+
+  for (const rawLine of lines) {
+    const line = rawLine ?? ''
+    const trimmed = line.trim()
+    const isFenceStart = trimmed.startsWith('```')
+    const isFenceEnd = trimmed === '```'
+
+    if (!inCode) {
+      if (isFenceStart) {
+        inCode = true
+        const lang = trimmed.slice(3).trim()
+        language = lang.length > 0 ? lang : null
+        codeLines = []
+        continue
+      }
+
+      blocks.push({ type: 'text', text: line })
+      continue
+    }
+
+    if (isFenceEnd) {
+      blocks.push({ type: 'code', language, code: codeLines.join('\n') })
+      inCode = false
+      language = null
+      codeLines = []
+      continue
+    }
+
+    codeLines.push(line)
+  }
+
+  if (inCode) {
+    blocks.push({ type: 'code', language, code: codeLines.join('\n') })
+  }
+
+  return blocks
+}
+
+const activeDetailBlocks = computed<DetailBlock[]>(() => {
+  if (!activeItem.value) return []
+  return parseDetailBlocks(activeItem.value.details)
 })
 
 
@@ -147,17 +200,22 @@ onMounted(() => {
                 <div class="content-body-island">
                   <ul class="space-y-4">
                     <li
-                      v-for="(line, index) in activeItem.details"
+                      v-for="(block, index) in activeDetailBlocks"
                       :key="index"
                       class="content-item p-4 bg-theme-bg-secondary/50 rounded-xl border border-theme-border/20 hover:border-theme-accent/30 transition-all duration-300 hover:shadow-lg"
                     >
-                      <div class="flex items-start space-x-3">
+                      <div v-if="block.type === 'text'" class="flex items-start space-x-3">
                         <div class="flex-shrink-0 w-6 h-6 rounded-full bg-theme-accent/20 flex items-center justify-center mt-0.5">
                           <div class="w-2 h-2 rounded-full bg-theme-accent"></div>
                         </div>
                         <p class="text-theme-fg leading-relaxed flex-1">
-                          {{ line }}
+                          {{ block.text }}
                         </p>
+                      </div>
+
+                      <div v-else class="w-full">
+                        <div class="text-xs text-theme-comment mb-2" v-if="block.language">{{ block.language }}</div>
+                        <pre class="w-full overflow-x-auto rounded-lg bg-theme-bg/40 border border-theme-border/30 p-4"><code class="text-theme-fg whitespace-pre">{{ block.code }}</code></pre>
                       </div>
                     </li>
                   </ul>

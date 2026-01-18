@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { loadSettings, saveSettings } from '../api/tauri'
+import { loadSettings, saveSettings, listThemes, upsertTheme, deleteTheme } from '../api/tauri'
 
 /**
  * 主题定义接口
@@ -1088,6 +1088,8 @@ export const themes: Theme[] = [
 // 当前主题ID
 const currentThemeId = ref('onedark')
 
+const customThemes = ref<Theme[]>([])
+
 // 主题面板可见性
 const themePanelVisible = ref(false)
 
@@ -1105,9 +1107,38 @@ function withAlpha(hexColor: string, alpha: number) {
 /**
  * 获取当前主题
  */
-const currentTheme = computed(() => {
-  return themes.find(t => t.id === currentThemeId.value) || themes[0]
+const mergedThemes = computed<Theme[]>(() => {
+  const map = new Map<string, Theme>()
+  for (const t of themes) {
+    map.set(t.id, t)
+  }
+  for (const t of customThemes.value) {
+    map.set(t.id, t)
+  }
+  return Array.from(map.values())
 })
+
+const currentTheme = computed(() => {
+  return mergedThemes.value.find(t => t.id === currentThemeId.value) || mergedThemes.value[0] || themes[0]
+})
+
+async function refreshCustomThemes() {
+  try {
+    customThemes.value = await listThemes()
+  } catch (_e) {
+    customThemes.value = []
+  }
+}
+
+async function upsertCustomTheme(theme: Theme) {
+  const res = await upsertTheme(theme)
+  customThemes.value = res
+}
+
+async function deleteCustomTheme(themeId: string) {
+  const res = await deleteTheme(themeId)
+  customThemes.value = res
+}
 
 /**
  * 应用主题到 CSS 变量
@@ -1168,7 +1199,7 @@ function applyTheme(theme: Theme) {
  * 设置主题
  */
 async function setTheme(themeId: string, saveToSettings = true) {
-  const theme = themes.find(t => t.id === themeId)
+  const theme = mergedThemes.value.find(t => t.id === themeId)
   if (!theme) return
   
   currentThemeId.value = themeId
@@ -1194,23 +1225,24 @@ async function setTheme(themeId: string, saveToSettings = true) {
  */
 async function loadThemeFromSettings() {
   try {
+    await refreshCustomThemes()
     const result = await loadSettings()
     if (result.success && result.data) {
       const settings = result.data as Record<string, unknown>
       const savedTheme = settings.theme as string
-      if (savedTheme && themes.some(t => t.id === savedTheme)) {
+      if (savedTheme && mergedThemes.value.some(t => t.id === savedTheme)) {
         currentThemeId.value = savedTheme
         applyTheme(currentTheme.value)
       } else {
         // 默认主题
-        applyTheme(themes[0])
+        applyTheme(mergedThemes.value[0] || themes[0])
       }
     } else {
-      applyTheme(themes[0])
+      applyTheme(mergedThemes.value[0] || themes[0])
     }
   } catch (error) {
     console.error('加载主题设置失败:', error)
-    applyTheme(themes[0])
+    applyTheme(mergedThemes.value[0] || themes[0])
   }
 }
 
@@ -1233,12 +1265,16 @@ function closeThemePanel() {
  */
 export function useTheme() {
   return {
-    themes,
+    themes: mergedThemes,
+    customThemes,
     currentThemeId,
     currentTheme,
     themePanelVisible,
     setTheme,
     loadThemeFromSettings,
+    refreshCustomThemes,
+    upsertCustomTheme,
+    deleteCustomTheme,
     toggleThemePanel,
     closeThemePanel,
     applyTheme

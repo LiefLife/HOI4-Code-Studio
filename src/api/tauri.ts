@@ -64,6 +64,69 @@ export interface JsonValidationResult {
   errors: string[]
 }
 
+export interface ThemeColors {
+  bg: string
+  bgSecondary: string
+  fg: string
+  comment: string
+  border: string
+  selection: string
+  accent: string
+  success: string
+  warning: string
+  error: string
+  keyword: string
+}
+
+export interface Theme {
+  id: string
+  name: string
+  colors: ThemeColors
+}
+
+export interface PluginPermissions {
+  commands: string[]
+}
+
+export interface PluginPanelContribution {
+  id: string
+  title: string
+}
+
+export interface PluginToolbarOpenTarget {
+  side: string
+  panel: string
+}
+
+export interface PluginToolbarContribution {
+  id: string
+  title: string
+  open?: PluginToolbarOpenTarget
+}
+
+export interface PluginContributes {
+  left_sidebar: PluginPanelContribution[]
+  right_sidebar: PluginPanelContribution[]
+  toolbar: PluginToolbarContribution[]
+}
+
+export interface PluginAbout {
+  id: string
+  name: string
+  version: string
+  description?: string
+  author?: string
+  main?: string
+  contributes: PluginContributes
+  permissions: PluginPermissions
+}
+
+export interface InstalledPlugin {
+  about: PluginAbout
+  install_path: string
+  entry_file_path: string
+}
+
 // ==================== 项目管理 ====================
 
 /**
@@ -206,6 +269,30 @@ export async function writeFileContent(filePath: string, content: string): Promi
  */
 export async function getModifierList(): Promise<JsonResult<string>> {
   return await invoke('get_modifier_list')
+}
+
+export async function installPlugin(sourcePath: string): Promise<InstalledPlugin> {
+  return await invoke('install_plugin', { sourcePath })
+}
+
+export async function uninstallPlugin(pluginId: string): Promise<void> {
+  await invoke('uninstall_plugin', { pluginId })
+}
+
+export async function listInstalledPlugins(): Promise<InstalledPlugin[]> {
+  return await invoke('list_installed_plugins')
+}
+
+export async function listThemes(): Promise<Theme[]> {
+  return await invoke('list_themes')
+}
+
+export async function upsertTheme(theme: Theme): Promise<Theme[]> {
+  return await invoke('upsert_theme', { theme })
+}
+
+export async function deleteTheme(themeId: string): Promise<Theme[]> {
+  return await invoke('delete_theme', { themeId })
 }
 
 // ==================== 设置管理 ====================
