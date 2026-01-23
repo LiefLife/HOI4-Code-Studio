@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { readFileContent, readImageAsBase64 } from '../../api/tauri'
 
 const props = defineProps<{
   entryFilePath: string
@@ -13,28 +14,171 @@ const props = defineProps<{
 
 const iframeRef = ref<HTMLIFrameElement | null>(null)
 const iframeSrc = ref<string>('')
+const iframeSrcDoc = ref<string>('')
 
 function isTauriRuntime() {
   const w = window as any
   return !!(w.__TAURI__ || w.__TAURI_INTERNALS__)
 }
 
-async function toWebviewUrl(filePath: string): Promise<string> {
-  if (!isTauriRuntime()) {
-    return `file://${filePath.replace(/\\/g, '/')}`
-  }
-
-  try {
-    const mod = await import('@tauri-apps/api/core')
-    const convertFileSrc = (mod as any).convertFileSrc
-    if (typeof convertFileSrc === 'function') {
-      const u1 = convertFileSrc(filePath)
-      return u1
-    }
-  } catch (_e) {
-  }
-
+function toFileUrl(filePath: string): string {
   return `file://${filePath.replace(/\\/g, '/')}`
+}
+
+function injectHostScript(html: string, baseHref: string, query: string): string {
+  const injection = `<base href="${baseHref}">\n<script>window.__HOICS_QUERY__=${JSON.stringify(query)};<\/script>`
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head[^>]*>/i, match => `${match}\n${injection}`)
+  }
+  return `${injection}\n${html}`
+}
+
+function stripQueryHash(value: string): string {
+  return value.split('#')[0]?.split('?')[0] || value
+}
+
+function normalizePath(path: string): string {
+  const parts = path.split('/').filter(Boolean)
+  const stack: string[] = []
+  for (const part of parts) {
+    if (part === '.') continue
+    if (part === '..') {
+      stack.pop()
+      continue
+    }
+    stack.push(part)
+  }
+  return stack.join('/')
+}
+
+function resolveLocalPath(entryFilePath: string, ref: string): string | null {
+  const cleaned = stripQueryHash(ref).replace(/\\/g, '/')
+  if (!cleaned) return null
+  if (/^[a-zA-Z]+:/.test(cleaned) && !/^[A-Za-z]:/.test(cleaned)) return null
+  if (/^\/\//.test(cleaned)) return null
+
+  if (/^[A-Za-z]:/.test(cleaned)) {
+    return cleaned
+  }
+
+  const baseDir = entryFilePath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+  if (cleaned.startsWith('/')) {
+    const drive = baseDir.match(/^[A-Za-z]:/)
+    const normalized = normalizePath(cleaned)
+    return drive ? `${drive[0]}${normalized}` : normalized
+  }
+
+  const combined = `${baseDir}/${cleaned}`
+  const drive = combined.match(/^[A-Za-z]:/)
+  const rest = drive ? combined.slice(drive[0].length) : combined
+  const normalized = normalizePath(rest)
+  return `${drive ? drive[0] : ''}${normalized}`
+}
+
+function sanitizeScriptAttrs(attrs: string): string {
+  return attrs.replace(/\s*src=["'][^"']+["']/i, '').trim()
+}
+
+function toBase64(content: string): string {
+  return btoa(unescape(encodeURIComponent(content)))
+}
+
+const moduleUrlCache = new Map<string, string>()
+
+async function rewriteModuleImports(content: string, modulePath: string): Promise<string> {
+  const importRegex = /(?:import\s+(?:[^"']+?\s+from\s+)?|export\s+[^"']*?\s+from\s+)["']([^"']+)["']/g
+  let output = ''
+  let lastIndex = 0
+
+  for (const match of content.matchAll(importRegex)) {
+    const start = match.index ?? 0
+    const full = match[0]
+    const spec = match[1]
+    output += content.slice(lastIndex, start)
+
+    const resolved = resolveLocalPath(modulePath, spec)
+    if (!resolved) {
+      output += full
+    } else {
+      const dataUrl = await moduleToDataUrl(resolved)
+      if (dataUrl) {
+        output += full.replace(spec, dataUrl)
+      } else {
+        output += full
+      }
+    }
+
+    lastIndex = start + full.length
+  }
+
+  output += content.slice(lastIndex)
+  return output
+}
+
+async function moduleToDataUrl(modulePath: string): Promise<string> {
+  const cached = moduleUrlCache.get(modulePath)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  moduleUrlCache.set(modulePath, '')
+  const result = await readFileContent(modulePath)
+  if (!result.success) {
+    return ''
+  }
+
+  let content = result.content || ''
+  content = await rewriteModuleImports(content, modulePath)
+  const dataUrl = `data:text/javascript;base64,${toBase64(content)}`
+  moduleUrlCache.set(modulePath, dataUrl)
+  return dataUrl
+}
+
+async function inlineLocalAssets(html: string): Promise<string> {
+  let output = html
+
+  const scriptMatches = [...output.matchAll(/<script([^>]*?)src=["']([^"']+)["']([^>]*)>\s*<\/script>/gi)]
+  for (const match of scriptMatches) {
+    const ref = match[2] || ''
+    const resolved = resolveLocalPath(props.entryFilePath, ref)
+    if (!resolved) continue
+    const result = await readFileContent(resolved)
+    if (!result.success) continue
+    const mergedAttrs = `${match[1] || ''} ${match[3] || ''}`
+    const attrs = sanitizeScriptAttrs(mergedAttrs)
+    const isModule = /type\s*=\s*["']module["']/i.test(attrs)
+    let scriptContent = result.content || ''
+    if (isModule) {
+      scriptContent = await rewriteModuleImports(scriptContent, resolved)
+    }
+    const attrSuffix = attrs ? ` ${attrs}` : ''
+    const inline = `<script${attrSuffix}>\n${scriptContent}\n<\/script>`
+    output = output.replace(match[0], inline)
+  }
+
+  const styleMatches = [...output.matchAll(/<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi)]
+  for (const match of styleMatches) {
+    const ref = match[1] || ''
+    const resolved = resolveLocalPath(props.entryFilePath, ref)
+    if (!resolved) continue
+    const result = await readFileContent(resolved)
+    if (!result.success) continue
+    const inline = `<style>\n${result.content || ''}\n</style>`
+    output = output.replace(match[0], inline)
+  }
+
+  const imgMatches = [...output.matchAll(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi)]
+  for (const match of imgMatches) {
+    const ref = match[1] || ''
+    const resolved = resolveLocalPath(props.entryFilePath, ref)
+    if (!resolved) continue
+    const result = await readImageAsBase64(resolved)
+    if (!result.success || !result.base64) continue
+    const dataUrl = `data:${result.mimeType || 'image/png'};base64,${result.base64}`
+    output = output.replace(match[1], dataUrl)
+  }
+
+  return output
 }
 
 const queryString = computed(() => {
@@ -48,9 +192,21 @@ const queryString = computed(() => {
 })
 
 async function rebuildSrc() {
-  const base = await toWebviewUrl(props.entryFilePath)
-  const joiner = base.includes('?') ? '&' : '?' 
+  if (isTauriRuntime()) {
+    const r = await readFileContent(props.entryFilePath)
+    if (r.success) {
+      const withAssets = await inlineLocalAssets(r.content || '')
+      const html = injectHostScript(withAssets, 'about:blank', queryString.value)
+      iframeSrcDoc.value = html
+      iframeSrc.value = ''
+      return
+    }
+  }
+
+  const base = toFileUrl(props.entryFilePath)
+  const joiner = base.includes('?') ? '&' : '?'
   iframeSrc.value = `${base}${joiner}${queryString.value}`
+  iframeSrcDoc.value = ''
 }
 
 type InvokeRequest = {
@@ -161,6 +317,7 @@ function handleIframeLoad() {
       ref="iframeRef"
       class="flex-1 w-full"
       :src="iframeSrc"
+      :srcdoc="iframeSrcDoc"
       sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"
       @load="handleIframeLoad"
     ></iframe>

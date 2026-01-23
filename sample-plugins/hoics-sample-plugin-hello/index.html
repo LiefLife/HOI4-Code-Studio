@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HOI4CS Sample Plugin - Hello</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      /*
+        重要：插件运行在 iframe 中。
+        - 宿主页面会把一些信息通过 query 参数传入（见 PluginIframeHost.vue 的 queryString）
+        - 同时也会通过 postMessage 发送 hoics.host.ready 握手消息
+        
+        你可以在这里做一个“极简 UI”，不依赖任何构建工具：
+        - 只用原生 ES Module（<script type="module">）
+        - 只用静态文件（html/js/css）
+        
+        这样压缩包/文件夹安装后就能直接运行。
+      */
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        background: #10141b;
+        color: #e7e7e7;
+      }
+
+      .app {
+        padding: 12px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .title {
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .sub {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 4px;
+      }
+
+      button {
+        background: rgba(97, 175, 239, 0.25);
+        color: #e7e7e7;
+        border: 1px solid rgba(97, 175, 239, 0.6);
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: rgba(97, 175, 239, 0.35);
+      }
+
+      pre {
+        margin: 0;
+        padding: 10px;
+        overflow: auto;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="app">
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="title" id="panelTitle">Panel</div>
+            <div class="sub" id="panelMeta">loading...</div>
+          </div>
+          <button id="btnPing">Ping Host</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom: 10px;">
+          <div>
+            <div class="title">调用后端命令（白名单）</div>
+            <div class="sub">本示例会调用：load_settings / save_settings / list_themes</div>
+          </div>
+        </div>
+
+        <div class="row" style="justify-content: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+          <button id="btnLoadSettings">load_settings</button>
+          <button id="btnSaveSettings">save_settings (写入 samplePluginHello=timestamp)</button>
+          <button id="btnListThemes">list_themes</button>
+        </div>
+
+        <pre><code id="output">等待操作...
+</code></pre>
+      </div>
+
+      <div class="card">
+        <div class="title">说明</div>
+        <div class="sub">
+          这个示例插件没有使用 Vue/构建工具，是为了让你“复制文件夹→安装→立即运行”。
+          如果你希望用 Vue/TS 模块化开发：可以把这里的 ES Module 代码迁移到你自己的 Vite 项目，最后输出静态文件即可。
+        </div>
+      </div>
+    </div>
+
+    <!--
+      入口脚本：使用 type="module"，便于拆分模块。
+      代码主要在 sample-plugins/hoics-sample-plugin-hello/src 下。
+    -->
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

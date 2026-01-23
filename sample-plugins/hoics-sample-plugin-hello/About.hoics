@@ -1,0 +1,47 @@
+{
+  "id": "com.hoics.sample.hello",
+  "name": "HOI4 Code Studio Sample Plugin - Hello",
+  "version": "0.1.0",
+  "description": "示例插件：展示左右侧栏面板 + 标题栏按钮 + 通过 postMessage 调用后端命令（受 permissions.commands 白名单控制）。",
+  "author": "HOI4 Code Studio",
+  "main": "index.html",
+  "permissions": {
+    "commands": [
+      "load_settings",
+      "save_settings",
+      "list_themes"
+    ]
+  },
+  "contributes": {
+    "left_sidebar": [
+      {
+        "id": "hello-left",
+        "title": "Hello (Left)"
+      }
+    ],
+    "right_sidebar": [
+      {
+        "id": "hello-right",
+        "title": "Hello (Right)"
+      }
+    ],
+    "toolbar": [
+      {
+        "id": "open-hello-left",
+        "title": "Hello(L)",
+        "open": {
+          "side": "left",
+          "panel": "hello-left"
+        }
+      },
+      {
+        "id": "open-hello-right",
+        "title": "Hello(R)",
+        "open": {
+          "side": "right",
+          "panel": "hello-right"
+        }
+      }
+    ]
+  }
+}

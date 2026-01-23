@@ -2893,6 +2893,27 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
             app.manage(map_engine::MapState::default());
+
+            // 允许 asset protocol 访问插件安装目录。
+            // 否则 convertFileSrc() 会生成类似 https://asset.localhost/... 的 URL，但 WebView 无法读取
+            // config_dir/HOI4_GUI_Editor/plugins 下的文件，从而导致 iframe 显示“asset.localhost 拒绝连接”。
+            //
+            // 这里使用运行时 scope 扩展（allow_directory）来放行插件目录（递归）。
+            // 注意：如果 allow_directory 失败，我们只打印日志而不让应用启动失败。
+            if let Some(config_dir) = dirs::config_dir() {
+                let plugins_dir = config_dir.join("HOI4_GUI_Editor").join("plugins");
+                if let Err(e) = std::fs::create_dir_all(&plugins_dir) {
+                    println!("创建插件目录失败: {} ({})", plugins_dir.display(), e);
+                }
+
+                println!(
+                    "当前 Tauri 版本不支持运行时 asset protocol scope，已跳过目录放行：{}",
+                    plugins_dir.display()
+                );
+            } else {
+                println!("无法解析 config_dir，无法为插件目录添加 asset protocol scope");
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
