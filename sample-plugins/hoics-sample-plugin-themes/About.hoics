@@ -1,0 +1,63 @@
+{
+  "id": "com.hoics.sample.themes",
+  "name": "Sample Themes",
+  "version": "0.1.0",
+  "description": "示例插件：安装即写入三个自定义主题（无需打开插件面板）",
+  "author": "HOI4CS",
+  "main": "index.html",
+  "install": {
+    "themes": [
+      {
+        "id": "plugin-ember-atelier",
+        "name": "Ember Atelier",
+        "colors": {
+          "bg": "#1b1412",
+          "bgSecondary": "#251c19",
+          "fg": "#f0d6c6",
+          "comment": "#a18b82",
+          "border": "#3b2a24",
+          "selection": "#3a2620",
+          "accent": "#f04a3a",
+          "success": "#9bd06c",
+          "warning": "#f5b971",
+          "error": "#f15b5b",
+          "keyword": "#f28e4b"
+        }
+      },
+      {
+        "id": "plugin-salt-marsh",
+        "name": "Salt Marsh",
+        "colors": {
+          "bg": "#0f1f1e",
+          "bgSecondary": "#142b29",
+          "fg": "#cce8e4",
+          "comment": "#7aa7a1",
+          "border": "#1c3b37",
+          "selection": "#1f3b37",
+          "accent": "#4ac1a3",
+          "success": "#9ad94a",
+          "warning": "#f0c46b",
+          "error": "#f06b6b",
+          "keyword": "#78c5f5"
+        }
+      },
+      {
+        "id": "plugin-moonlit-ink",
+        "name": "Moonlit Ink",
+        "colors": {
+          "bg": "#101321",
+          "bgSecondary": "#161a2b",
+          "fg": "#d9defa",
+          "comment": "#8f97c1",
+          "border": "#222745",
+          "selection": "#1f2440",
+          "accent": "#8b7bff",
+          "success": "#56d3b8",
+          "warning": "#f2b36b",
+          "error": "#ef6b7b",
+          "keyword": "#f07ed7"
+        }
+      }
+    ]
+  }
+}

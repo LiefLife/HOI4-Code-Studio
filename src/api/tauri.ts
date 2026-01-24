@@ -84,6 +84,48 @@ export interface Theme {
   colors: ThemeColors
 }
 
+export interface PluginShortcut {
+  id: string
+  keys?: string[]
+  description?: string
+  action?: string
+}
+
+export interface PluginSnippet {
+  id: string
+  title: string
+  description?: string
+  content: string
+  pathIncludes?: string[]
+}
+
+export interface PluginIconSetFolder {
+  closed: string
+  open: string
+}
+
+export interface PluginIconSetIcons {
+  folder: PluginIconSetFolder
+  files: Record<string, string>
+}
+
+export interface PluginIconSet {
+  id: string
+  name: string
+  description?: string
+  type: 'emoji' | 'svg'
+  icons: PluginIconSetIcons
+}
+
+export interface PluginInstallHooks {
+  themes?: Theme[]
+  settings?: Record<string, unknown>
+  shortcuts?: PluginShortcut[]
+  snippets?: PluginSnippet[]
+  iconSets?: PluginIconSet[]
+  editorSettings?: Record<string, unknown>
+}
+
 export interface PluginPermissions {
   commands: string[]
 }
@@ -119,12 +161,110 @@ export interface PluginAbout {
   main?: string
   contributes: PluginContributes
   permissions: PluginPermissions
+  install?: PluginInstallHooks
 }
 
 export interface InstalledPlugin {
   about: PluginAbout
   install_path: string
   entry_file_path: string
+}
+
+export interface PluginValidateResult {
+  ok: boolean
+  errors: string[]
+  warnings: string[]
+  about?: PluginAbout
+  entry_file_path?: string
+}
+
+/**
+ * 构建插件安装钩子（提供空数组默认值，便于 JS/TS 调用）
+ */
+export function buildPluginInstallHooks(hooks: PluginInstallHooks): PluginInstallHooks {
+  return {
+    themes: hooks.themes ?? [],
+    settings: hooks.settings,
+    shortcuts: hooks.shortcuts ?? [],
+    snippets: hooks.snippets ?? [],
+    iconSets: hooks.iconSets ?? [],
+    editorSettings: hooks.editorSettings
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeJsonObject(target: Record<string, unknown>, src: Record<string, unknown>) {
+  Object.entries(src).forEach(([key, value]) => {
+    const existing = target[key]
+    if (isPlainObject(existing) && isPlainObject(value)) {
+      mergeJsonObject(existing, value)
+    } else {
+      target[key] = value
+    }
+  })
+}
+
+function mergeById<T extends { id: string }>(existing: T[], incoming: T[]): T[] {
+  const out: T[] = []
+  existing.forEach(item => {
+    if (item.id?.trim()) out.push(item)
+  })
+  incoming.forEach(item => {
+    if (!item.id?.trim()) return
+    const index = out.findIndex(x => x.id === item.id)
+    if (index >= 0) out[index] = item
+    else out.push(item)
+  })
+  return out
+}
+
+/**
+ * JS/TS 侧应用 install hooks（合并并写入 settings.json）
+ */
+export async function applyPluginInstallHooks(hooks: PluginInstallHooks): Promise<JsonResult> {
+  const install = buildPluginInstallHooks(hooks)
+  const result = await loadSettings()
+  if (!result.success || !result.data) {
+    return result
+  }
+
+  const settings = (result.data as Record<string, unknown>) || {}
+
+  const shortcuts: PluginShortcut[] = install.shortcuts ?? []
+  const snippets: PluginSnippet[] = install.snippets ?? []
+  const iconSets: PluginIconSet[] = install.iconSets ?? []
+
+  if (install.settings && isPlainObject(install.settings)) {
+    mergeJsonObject(settings, install.settings)
+  }
+
+  if (shortcuts.length > 0) {
+    const existing = Array.isArray(settings.shortcuts) ? (settings.shortcuts as PluginShortcut[]) : []
+    settings.shortcuts = mergeById(existing, shortcuts)
+  }
+
+  if (snippets.length > 0) {
+    const existing = Array.isArray(settings.snippets) ? (settings.snippets as PluginSnippet[]) : []
+    settings.snippets = mergeById(existing, snippets)
+  }
+
+  if (iconSets.length > 0) {
+    const existing = Array.isArray(settings.iconSets) ? (settings.iconSets as PluginIconSet[]) : []
+    settings.iconSets = mergeById(existing, iconSets)
+  }
+
+  if (install.editorSettings && isPlainObject(install.editorSettings)) {
+    if (isPlainObject(settings.editorSettings)) {
+      mergeJsonObject(settings.editorSettings, install.editorSettings)
+    } else {
+      settings.editorSettings = install.editorSettings
+    }
+  }
+
+  return await saveSettings(settings)
 }
 
 // ==================== 项目管理 ====================
@@ -281,6 +421,10 @@ export async function uninstallPlugin(pluginId: string): Promise<void> {
 
 export async function listInstalledPlugins(): Promise<InstalledPlugin[]> {
   return await invoke('list_installed_plugins')
+}
+
+export async function validatePluginPackage(sourcePath: string): Promise<PluginValidateResult> {
+  return await invoke('validate_plugin_package', { sourcePath })
 }
 
 export async function listThemes(): Promise<Theme[]> {

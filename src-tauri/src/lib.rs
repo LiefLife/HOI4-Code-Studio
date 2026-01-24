@@ -2962,6 +2962,7 @@ pub fn run() {
             plugin_manager::install_plugin,
             plugin_manager::uninstall_plugin,
             plugin_manager::list_installed_plugins,
+            plugin_manager::validate_plugin_package,
             theme_manager::list_themes,
             theme_manager::upsert_theme,
             theme_manager::delete_theme,
