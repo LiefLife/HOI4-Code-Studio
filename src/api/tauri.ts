@@ -267,6 +267,49 @@ export async function applyPluginInstallHooks(hooks: PluginInstallHooks): Promis
   return await saveSettings(settings)
 }
 
+/**
+ * 检查插件是否已执行过 install hooks（基于 settings.pluginInstallFlags）
+ */
+export async function hasPluginInstalled(pluginId: string): Promise<boolean> {
+  const result = await loadSettings()
+  if (!result.success || !result.data) {
+    return false
+  }
+  const settings = result.data as Record<string, unknown>
+  const flags = (settings.pluginInstallFlags as Record<string, boolean>) || {}
+  return flags[pluginId] === true
+}
+
+/**
+ * 标记插件已执行 install hooks（基于 settings.pluginInstallFlags）
+ */
+export async function markPluginInstalled(pluginId: string, installed: boolean = true): Promise<JsonResult> {
+  const result = await loadSettings()
+  if (!result.success || !result.data) {
+    return result
+  }
+  const settings = (result.data as Record<string, unknown>) || {}
+  const flags = (settings.pluginInstallFlags as Record<string, boolean>) || {}
+  flags[pluginId] = installed
+  settings.pluginInstallFlags = flags
+  return await saveSettings(settings)
+}
+
+/**
+ * 仅执行一次 install hooks（若已标记则跳过）
+ */
+export async function applyPluginInstallHooksOnce(pluginId: string, hooks: PluginInstallHooks): Promise<JsonResult> {
+  const alreadyInstalled = await hasPluginInstalled(pluginId)
+  if (alreadyInstalled) {
+    return { success: true, message: 'already installed', data: null }
+  }
+  const result = await applyPluginInstallHooks(hooks)
+  if (result.success) {
+    await markPluginInstalled(pluginId, true)
+  }
+  return result
+}
+
 // ==================== 项目管理 ====================
 
 /**
