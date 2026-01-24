@@ -115,7 +115,11 @@ vi.mock('@/components/settings/AISettings.vue', () => ({
 // Mock composables
 vi.mock('@/composables/useTheme', () => ({
   useTheme: () => ({
-    currentThemeId: { value: 'default' }
+    currentThemeId: { value: 'default' },
+    themes: { value: [
+      { id: 'default', name: '默认主题' },
+      { id: 'dark', name: '暗色主题' }
+    ] }
   }),
   themes: [
     { id: 'default', name: '默认主题' },

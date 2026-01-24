@@ -4,13 +4,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { ref } from 'vue'
+
 import ThemeSettings from '@/components/settings/ThemeSettings.vue'
 
 
 // Mock the useTheme composable
 vi.mock('@/composables/useTheme', () => {
   // Define mock variables inside the factory to avoid hoisting issues
-  const mockCurrentThemeId = { value: 'onedark' }
+  const mockCurrentThemeId = ref('onedark')
   const mockSetTheme = vi.fn()
   
   // Define some mock themes for testing
@@ -73,11 +75,20 @@ vi.mock('@/composables/useTheme', () => {
   ;(global as any).mockSetTheme = mockSetTheme
   ;(global as any).mockThemes = mockThemes
 
+  const mockThemesRef = ref([...mockThemes])
+  const mockCustomThemes = ref([])
+  const mockCurrentTheme = ref(mockThemes[0])
+
   return {
     useTheme: vi.fn(() => ({
       currentThemeId: mockCurrentThemeId,
       setTheme: mockSetTheme,
-      themes: [...mockThemes]
+      themes: mockThemesRef,
+      customThemes: mockCustomThemes,
+      currentTheme: mockCurrentTheme,
+      refreshCustomThemes: vi.fn().mockResolvedValue(undefined),
+      upsertCustomTheme: vi.fn().mockResolvedValue(undefined),
+      deleteCustomTheme: vi.fn().mockResolvedValue(undefined)
     })),
     themes: [...mockThemes]
   }

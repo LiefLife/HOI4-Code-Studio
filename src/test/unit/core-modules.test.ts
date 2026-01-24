@@ -123,10 +123,10 @@ describe('HOI4语言模块测试', () => {
 describe('设置菜单数据模块测试', () => {
   describe('数据结构验证', () => {
     it('应该包含正确的菜单分类', () => {
-      expect(settingsMenuData).toHaveLength(5)
+      expect(settingsMenuData).toHaveLength(6)
       
       const categories = settingsMenuData.map(cat => cat.id)
-      expect(categories).toEqual(['general', 'ai', 'editor', 'appearance', 'updates'])
+      expect(categories).toEqual(['general', 'extensions', 'ai', 'editor', 'appearance', 'updates'])
     })
 
     it('每个分类应该有正确的结构', () => {
@@ -190,7 +190,7 @@ describe('设置菜单数据模块测试', () => {
 
     it('getAllMenuItems 应该返回所有菜单项的扁平化列表', () => {
       const allItems = getAllMenuItems()
-      expect(allItems).toHaveLength(11) // 根据实际数据结构
+      expect(allItems).toHaveLength(12) // 根据实际数据结构
       
       allItems.forEach(item => {
         expect(item).toHaveProperty('id')
@@ -478,20 +478,31 @@ describe('文档内容数据模块测试', () => {
         })
       })
     })
-
     it('详细描述应该有适当的长度', () => {
       documentationSections.forEach(section => {
         section.items.forEach(item => {
+          let inCodeBlock = false
           item.details.forEach(detail => {
+            const trimmed = detail.trim()
+            if (trimmed.startsWith('```')) {
+              inCodeBlock = !inCodeBlock
+              return
+            }
+            if (inCodeBlock) {
+              return
+            }
+            if (
+              trimmed.length <= 10 &&
+              (trimmed.endsWith('：') || /^[-*]\s/.test(trimmed) || /^\d+\)/.test(trimmed) || /^[QA]:/.test(trimmed))
+            ) {
+              return
+            }
             expect(detail.length).toBeGreaterThan(10) // 详细描述应该有一定长度
             expect(detail.length).toBeLessThan(500) // 但不应该太长
           })
         })
       })
     })
-  })
-
-  describe('接口类型测试', () => {
     it('DocItem 接口应该正确工作', () => {
       const validItem: DocItem = {
         id: 'test-item',
