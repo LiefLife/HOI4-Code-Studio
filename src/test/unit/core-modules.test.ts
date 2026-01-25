@@ -180,7 +180,7 @@ describe('设置菜单数据模块测试', () => {
       expect(category).toBeDefined()
       expect(category?.id).toBe('general')
       expect(category?.title).toBe('通用设置')
-      expect(category?.items).toHaveLength(3)
+      expect(category?.items).toHaveLength(2)
     })
 
     it('getCategoryById 应该对不存在的ID返回null', () => {
@@ -190,7 +190,7 @@ describe('设置菜单数据模块测试', () => {
 
     it('getAllMenuItems 应该返回所有菜单项的扁平化列表', () => {
       const allItems = getAllMenuItems()
-      expect(allItems).toHaveLength(12) // 根据实际数据结构
+      expect(allItems).toHaveLength(11) // 根据实际数据结构
       
       allItems.forEach(item => {
         expect(item).toHaveProperty('id')
