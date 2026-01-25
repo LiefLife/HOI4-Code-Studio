@@ -32,13 +32,6 @@ export const settingsMenuData: SettingsMenuCategory[] = [
         icon: 'play',
         description: '游戏启动方式配置',
         category: 'general'
-      },
-      {
-        id: 'recent-projects',
-        title: '最近项目',
-        icon: 'clock',
-        description: '最近项目显示设置',
-        category: 'general'
       }
     ]
   },

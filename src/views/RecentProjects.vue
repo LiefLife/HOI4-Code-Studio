@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getRecentProjects, getRecentProjectStats, openProject, initializeProject, loadSettings, type RecentProject, type ProjectStats } from '../api/tauri'
+import { getRecentProjects, getRecentProjectStats, openProject, initializeProject, type RecentProject, type ProjectStats } from '../api/tauri'
 
 const router = useRouter()
 
@@ -10,26 +10,7 @@ const loading = ref(true)
 const projectStatsByPath = ref<Record<string, ProjectStats>>({})
 const showStatus = ref(false)
 const statusMessage = ref('')
-const layoutMode = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
 const searchQuery = ref('')
-
-// 计算网格布局类
-const gridClass = computed(() => {
-  switch (layoutMode.value) {
-    case 'four-columns':
-      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-    case 'three-columns':
-      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
-    case 'two-columns':
-      return 'grid grid-cols-1 md:grid-cols-2 gap-4'
-    case 'one-column':
-      return 'flex flex-col space-y-4'
-    case 'masonry':
-      return 'columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4'
-    default:
-      return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-  }
-})
 
 // 过滤后的项目列表
 const filteredProjects = computed(() => {
@@ -46,13 +27,6 @@ const filteredProjects = computed(() => {
   })
 })
 
-// 项目卡片样式
-const cardClass = computed(() => {
-  if (layoutMode.value === 'masonry') {
-    return 'break-inside-avoid mb-4'
-  }
-  return ''
-})
 
 function displayStatus(message: string, duration: number = 3000) {
   statusMessage.value = message
@@ -142,13 +116,6 @@ function formatBytes(bytes: number) {
 }
 
 onMounted(async () => {
-  // 加载布局设置
-  const settings = await loadSettings()
-  if (settings.success && settings.data) {
-    const data = settings.data as any
-    layoutMode.value = data.recentProjectsLayout || 'four-columns'
-  }
-  
   // 加载项目列表
   loadRecentProjects()
 })
@@ -218,15 +185,12 @@ onMounted(async () => {
         <p class="text-hoi4-text-dim text-sm mt-2">尝试使用不同的关键词搜索</p>
       </div>
 
-      <div
-        v-else
-        :class="gridClass"
-      >
+      <div v-else class="space-y-4">
         <div
           v-for="project in filteredProjects"
           :key="project.path"
           @click="handleOpenProject(project)"
-          :class="['card cursor-pointer hover:border-hoi4-accent hover:shadow-xl hover:shadow-black/20 transition-all duration-200', cardClass]"
+          class="card cursor-pointer hover:border-hoi4-accent hover:shadow-xl hover:shadow-black/20 transition-all duration-200"
         >
           <div class="flex flex-col h-full">
             <div class="flex items-start justify-between gap-3 mb-3">

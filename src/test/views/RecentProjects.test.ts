@@ -7,8 +7,7 @@ vi.mock('@/api/tauri', () => ({
   getRecentProjects: vi.fn(),
   getRecentProjectStats: vi.fn(),
   openProject: vi.fn(),
-  initializeProject: vi.fn(),
-  loadSettings: vi.fn()
+  initializeProject: vi.fn()
 }))
 
 // Mock window.confirm
@@ -79,13 +78,6 @@ describe('RecentProjects.vue', () => {
     vi.mocked(tauriApi.getRecentProjectStats).mockResolvedValue({
       success: true,
       stats: mockStats
-    })
-
-    // Mock loadSettings
-    vi.mocked(tauriApi.loadSettings).mockResolvedValue({
-      success: true,
-      message: '',
-      data: { recentProjectsLayout: 'four-columns' }
     })
 
     // Mock openProject
@@ -298,47 +290,6 @@ describe('RecentProjects.vue', () => {
       await clearButton.trigger('click')
       
       expect(wrapper.vm.searchQuery).toBe('')
-    })
-  })
-
-  describe('布局模式', () => {
-    it('应该默认使用四列布局', async () => {
-      await nextTick()
-      
-      expect(wrapper.vm.layoutMode).toBe('four-columns')
-      expect(wrapper.vm.gridClass).toContain('xl:grid-cols-4')
-    })
-
-    it('应该能够切换到三列布局', async () => {
-      wrapper.vm.layoutMode = 'three-columns'
-      await nextTick()
-      
-      expect(wrapper.vm.gridClass).toContain('lg:grid-cols-3')
-      expect(wrapper.vm.gridClass).not.toContain('xl:grid-cols-4')
-    })
-
-    it('应该能够切换到两列布局', async () => {
-      wrapper.vm.layoutMode = 'two-columns'
-      await nextTick()
-      
-      expect(wrapper.vm.gridClass).toContain('md:grid-cols-2')
-      expect(wrapper.vm.gridClass).not.toContain('lg:grid-cols-3')
-    })
-
-    it('应该能够切换到单列布局', async () => {
-      wrapper.vm.layoutMode = 'one-column'
-      await nextTick()
-      
-      expect(wrapper.vm.gridClass).toContain('flex')
-      expect(wrapper.vm.gridClass).toContain('flex-col')
-    })
-
-    it('应该能够切换到瀑布流布局', async () => {
-      wrapper.vm.layoutMode = 'masonry'
-      await nextTick()
-      
-      expect(wrapper.vm.gridClass).toContain('columns-1')
-      expect(wrapper.vm.cardClass).toContain('break-inside-avoid')
     })
   })
 
@@ -596,51 +547,6 @@ describe('RecentProjects.vue', () => {
     })
   })
 
-  describe('设置加载', () => {
-    it('应该从设置中加载布局模式', async () => {
-      vi.mocked(tauriApi.loadSettings).mockResolvedValue({
-        success: true,
-        message: '',
-        data: { recentProjectsLayout: 'three-columns' }
-      })
-      
-      const settingsWrapper = mount(RecentProjects, {
-        global: {
-          stubs: {
-            'router-link': true
-          }
-        }
-      })
-      
-      await settingsWrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      expect((settingsWrapper.vm as any).layoutMode).toBe('three-columns')
-      settingsWrapper.unmount()
-    })
-
-    it('当设置加载失败时应该使用默认布局', async () => {
-      vi.mocked(tauriApi.loadSettings).mockResolvedValue({
-        success: false,
-        message: '设置加载失败'
-      })
-      
-      const settingsWrapper = mount(RecentProjects, {
-        global: {
-          stubs: {
-            'router-link': true
-          }
-        }
-      })
-      
-      await settingsWrapper.vm.$nextTick()
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      expect((settingsWrapper.vm as any).layoutMode).toBe('four-columns')
-      settingsWrapper.unmount()
-    })
-  })
-
   describe('项目统计', () => {
     it('应该正确加载项目统计信息', async () => {
       await nextTick()
@@ -690,13 +596,6 @@ describe('RecentProjects.vue', () => {
       await nextTick()
       
       expect(wrapper.vm.filteredProjects.length).toBeLessThan(wrapper.vm.projects.length)
-    })
-
-    it('应该正确响应布局模式的变化', async () => {
-      wrapper.vm.layoutMode = 'two-columns'
-      await nextTick()
-      
-      expect(wrapper.vm.gridClass).toContain('md:grid-cols-2')
     })
   })
 

@@ -12,7 +12,6 @@ import SettingsSidebar from '../components/settings/SettingsSidebar.vue'
 import SettingsCard from '../components/settings/SettingsCard.vue'
 import GameDirectorySettings from '../components/settings/GameDirectorySettings.vue'
 import GameLaunchSettings from '../components/settings/GameLaunchSettings.vue'
-import RecentProjectsSettings from '../components/settings/RecentProjectsSettings.vue'
 import EditorFontSettings from '../components/settings/EditorFontSettings.vue'
 import EditorSaveSettings from '../components/settings/EditorSaveSettings.vue'
 import ThemeSettings from '../components/settings/ThemeSettings.vue'
@@ -42,7 +41,6 @@ function handleMenuItemClick(itemId: string) {
 // 设置数据
 const gameDirectory = ref('')
 const checkForUpdatesOnStartup = ref(true)
-const recentProjectsLayout = ref<'four-columns' | 'three-columns' | 'two-columns' | 'one-column' | 'masonry'>('four-columns')
 
 const autoSave = ref(true)
 const disableErrorHandling = ref(false)
@@ -127,7 +125,6 @@ async function loadUserSettings() {
     const data = result.data as any
     gameDirectory.value = data.gameDirectory || ''
     checkForUpdatesOnStartup.value = data.checkForUpdates !== false
-    recentProjectsLayout.value = data.recentProjectsLayout || 'four-columns'
     useSteamVersion.value = data.useSteamVersion !== false
     usePirateVersion.value = data.usePirateVersion || false
     pirateExecutable.value = data.pirateExecutable || 'dowser'
@@ -179,7 +176,6 @@ async function handleSave() {
   const settings = {
     gameDirectory: gameDirectory.value,
     checkForUpdates: checkForUpdatesOnStartup.value,
-    recentProjectsLayout: recentProjectsLayout.value,
     useSteamVersion: useSteamVersion.value,
     usePirateVersion: usePirateVersion.value,
     pirateExecutable: pirateExecutable.value,
@@ -349,18 +345,6 @@ onMounted(async () => {
               @update:usePirateVersion="usePirateVersion = $event"
               @update:pirateExecutable="pirateExecutable = $event"
               @update:launchWithDebug="launchWithDebug = $event"
-              @save="handleSave"
-            />
-          </SettingsCard>
-
-          <!-- 最近项目设置 -->
-          <SettingsCard 
-            v-if="activeMenuItem === 'recent-projects'"
-            title="最近项目显示"
-            description="设置最近项目的布局方式"
-          >
-            <RecentProjectsSettings 
-              v-model="recentProjectsLayout"
               @save="handleSave"
             />
           </SettingsCard>

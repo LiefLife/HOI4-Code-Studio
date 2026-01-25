@@ -45,15 +45,6 @@ vi.mock('@/components/settings/GameLaunchSettings.vue', () => ({
   }
 }))
 
-vi.mock('@/components/settings/RecentProjectsSettings.vue', () => ({
-  default: {
-    name: 'RecentProjectsSettings',
-    template: '<div class="recent-projects-settings">最近项目设置</div>',
-    props: ['modelValue'],
-    emits: ['update:modelValue', 'save']
-  }
-}))
-
 vi.mock('@/components/settings/EditorFontSettings.vue', () => ({
   default: {
     name: 'EditorFontSettings',
@@ -193,7 +184,6 @@ describe('Settings.vue', () => {
       data: {
         gameDirectory: 'C:/Games/HOI4',
         checkForUpdates: true,
-        recentProjectsLayout: 'four-columns',
         useSteamVersion: true,
         usePirateVersion: false,
         pirateExecutable: 'dowser',
@@ -429,12 +419,6 @@ describe('Settings.vue', () => {
       expect(wrapper.vm.checkForUpdatesOnStartup).toBe(true)
     })
 
-    it('应该正确加载最近项目布局设置', async () => {
-      await wrapper.vm.loadUserSettings()
-
-      expect(wrapper.vm.recentProjectsLayout).toBe('four-columns')
-    })
-
     it('应该正确加载游戏启动设置', async () => {
       await wrapper.vm.loadUserSettings()
 
@@ -471,7 +455,6 @@ describe('Settings.vue', () => {
         expect.objectContaining({
           gameDirectory: 'C:/Games/HOI4',
           checkForUpdates: true,
-          recentProjectsLayout: 'four-columns',
           useSteamVersion: true,
           usePirateVersion: false,
           pirateExecutable: 'dowser',
@@ -778,22 +761,6 @@ describe('Settings.vue', () => {
           aiAgentMode: 'code'
         })
       )
-    })
-
-    it('应该正确处理不同的最近项目布局选项', async () => {
-      const layouts = ['four-columns', 'three-columns', 'two-columns', 'one-column', 'masonry'] as const
-
-      for (const layout of layouts) {
-        mockLoadSettings.mockResolvedValue({
-          success: true,
-          data: { recentProjectsLayout: layout }
-        })
-        vi.mocked(tauriApi.loadSettings).mockImplementation(mockLoadSettings)
-
-        await wrapper.vm.loadUserSettings()
-
-        expect(wrapper.vm.recentProjectsLayout).toBe(layout)
-      }
     })
 
     it('应该正确处理不同的海盗版可执行文件选项', async () => {
