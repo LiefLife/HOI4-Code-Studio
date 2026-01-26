@@ -17,6 +17,13 @@ export interface VersionLog {
 
 export const changelog: VersionLog[] = [
   {
+    version: '2026.1.26-dev',
+    description: '测试并修改版本号',
+    changes: [
+      { type: 'improvement', content: '修改版本号为日期格式' },
+    ]
+  },
+  {
     version: 'v0.3.1-dev',
     description: '优化UI',
     changes: [

@@ -50,6 +50,15 @@ describe('version.ts', () => {
       expect(parseTagToVersion('Dev_10_20_30')).toBe('v10.20.30-dev')
     })
 
+    it('应该兼容OV正式版与dev日期标签', () => {
+      expect(parseTagToVersion('OV_0_3_1')).toBe('v0.3.1')
+      expect(parseTagToVersion('OV_0_3_1_dev_20250101')).toBe('v0.3.1-dev-20250101')
+    })
+
+    it('应该兼容纯dev日期标签', () => {
+      expect(parseTagToVersion('dev_20250101')).toBe('v0.0.0-dev-20250101')
+    })
+
     it('应该将v标签转换为正式版本', () => {
       expect(parseTagToVersion('v0_1_1')).toBe('v0.1.1')
       expect(parseTagToVersion('v1_2_0')).toBe('v1.2.0')
@@ -96,6 +105,11 @@ describe('version.ts', () => {
       
       // 不同版本号时，先比较版本号
       expect(compareVersions('v0.2.0-dev', 'v0.1.0')).toBe(false) // 0.2.0 > 0.1.0
+    })
+
+    it('应该比较dev日期版本', () => {
+      expect(compareVersions('v0.1.0-dev-20240101', 'v0.1.0-dev-20240102')).toBe(true)
+      expect(compareVersions('v0.1.0-dev-20240102', 'v0.1.0-dev-20240101')).toBe(false)
     })
 
     it('应该处理没有v前缀的版本', () => {

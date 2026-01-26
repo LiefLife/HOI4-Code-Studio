@@ -10,6 +10,40 @@ interface VersionCache {
   timestamp: number
 }
 
+interface ParsedVersion {
+  major: number
+  minor: number
+  patch: number
+  isDev: boolean
+  devDate?: number
+}
+
+function parseVersion(version: string): ParsedVersion {
+  const clean = version.replace(/^v/, '')
+  const devMatch = clean.match(/^(\d+(?:\.\d+){0,2})(?:-dev(?:-(\d+))?)?$/)
+
+  if (!devMatch) {
+    return {
+      major: 0,
+      minor: 0,
+      patch: 0,
+      isDev: false
+    }
+  }
+
+  const numbers = devMatch[1].split('.').map(Number)
+  const [major, minor, patch] = [numbers[0] || 0, numbers[1] || 0, numbers[2] || 0]
+  const devDate = devMatch[2] ? Number(devMatch[2]) : undefined
+
+  return {
+    major,
+    minor,
+    patch,
+    isDev: Boolean(devMatch[0]?.includes('-dev')),
+    devDate
+  }
+}
+
 // 缓存时间：1小时（毫秒）
 const CACHE_DURATION = 60 * 60 * 1000
 
@@ -81,6 +115,22 @@ export function parseVersionToTag(version: string): string {
  * @returns 版本字符串 (例如: "v0.1.1-dev" 或 "v0.1.1")
  */
 export function parseTagToVersion(tag: string): string {
+  // 兼容新的正式版与日期 dev 标签
+  if (tag.startsWith('OV_')) {
+    const body = tag.replace('OV_', '')
+    const [versionPart, devPart] = body.split('_dev_')
+    const normalizedVersion = versionPart.replace(/_/g, '.').replace(/\./g, '.')
+    if (devPart) {
+      return `v${normalizedVersion}-dev-${devPart}`
+    }
+    return `v${normalizedVersion}`
+  }
+
+  if (tag.startsWith('dev_')) {
+    const devDate = tag.replace('dev_', '')
+    return `v0.0.0-dev-${devDate}`
+  }
+
   // 检查是否是 Dev 标签
   if (tag.startsWith('Dev_')) {
     // 移除 Dev_ 前缀，替换下划线为点，添加 v 前缀和 -dev 后缀
@@ -103,28 +153,33 @@ export function parseTagToVersion(tag: string): string {
  * @returns 如果 version2 > version1 返回 true
  */
 export function compareVersions(version1: string, version2: string): boolean {
-  // 清理版本字符串
-  const clean1 = version1.replace(/^v/, '').replace(/-dev$/, '')
-  const clean2 = version2.replace(/^v/, '').replace(/-dev$/, '')
-  
-  const parts1 = clean1.split('.').map(Number)
-  const parts2 = clean2.split('.').map(Number)
+  const parsed1 = parseVersion(version1)
+  const parsed2 = parseVersion(version2)
   
   // 比较主版本、次版本、补丁版本
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const num1 = parts1[i] || 0
-    const num2 = parts2[i] || 0
-    
+  const parts1 = [parsed1.major, parsed1.minor, parsed1.patch]
+  const parts2 = [parsed2.major, parsed2.minor, parsed2.patch]
+
+  for (let i = 0; i < parts1.length; i++) {
+    const num1 = parts1[i]
+    const num2 = parts2[i]
+
     if (num2 > num1) return true
     if (num2 < num1) return false
   }
   
   // 如果版本号相同，检查是否有 -dev 后缀
   // 正式版本 > dev 版本
-  const isDev1 = version1.includes('-dev')
-  const isDev2 = version2.includes('-dev')
+  const isDev1 = parsed1.isDev
+  const isDev2 = parsed2.isDev
   
   if (!isDev2 && isDev1) return true
+
+  if (isDev1 && isDev2) {
+    const devDate1 = parsed1.devDate ?? 0
+    const devDate2 = parsed2.devDate ?? 0
+    return devDate2 > devDate1
+  }
   
   return false
 }

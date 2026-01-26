@@ -26,7 +26,7 @@ const loadingRecent = ref(true)
 const searchQuery = ref('')
 
 // 当前版本
-const CURRENT_VERSION = 'v0.3.1-dev'
+const CURRENT_VERSION = '2026.1.26-dev'
 
 // 更新提示
 const showUpdateDialog = ref(false)
@@ -320,6 +320,7 @@ onMounted(() => {
 })
 </script>
 
+
 <template>
   <div class="h-full w-full grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-8 p-[2.5vh] bg-onedark-bg home-hero">
     <div class="flex flex-col items-center justify-center">
@@ -341,7 +342,7 @@ onMounted(() => {
               Code Studio
             </h2>
             <div class="mt-1 text-onedark-comment" style="font-size: clamp(0.75rem, 1vw, 0.875rem);">
-              v0.3.0-dev
+              {{ CURRENT_VERSION }}
             </div>
           </div>
         </div>
