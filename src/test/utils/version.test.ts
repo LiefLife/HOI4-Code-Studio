@@ -112,6 +112,18 @@ describe('version.ts', () => {
       expect(compareVersions('v0.1.0-dev-20240102', 'v0.1.0-dev-20240101')).toBe(false)
     })
 
+    it('应该比较版本后缀修订号', () => {
+      expect(compareVersions('v0.1.0', 'v0.1.0-1')).toBe(true)
+      expect(compareVersions('v0.1.0-2', 'v0.1.0-1')).toBe(false)
+      expect(compareVersions('v0.1.0-1', 'v0.1.0')).toBe(false)
+    })
+
+    it('应在dev日期相同时比较修订号', () => {
+      expect(compareVersions('v0.1.0-dev-20240101-1', 'v0.1.0-dev-20240101-2')).toBe(true)
+      expect(compareVersions('v0.1.0-dev-20240101-2', 'v0.1.0-dev-20240101-1')).toBe(false)
+      expect(compareVersions('v0.1.0-dev-20240101', 'v0.1.0-dev-20240101-1')).toBe(true)
+    })
+
     it('应该处理没有v前缀的版本', () => {
       expect(compareVersions('0.1.0', '0.2.0')).toBe(true)
       expect(compareVersions('1.0.0-dev', '1.0.0')).toBe(true)

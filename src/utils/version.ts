@@ -16,31 +16,35 @@ interface ParsedVersion {
   patch: number
   isDev: boolean
   devDate?: number
+  revision: number
 }
 
 function parseVersion(version: string): ParsedVersion {
   const clean = version.replace(/^v/, '')
-  const devMatch = clean.match(/^(\d+(?:\.\d+){0,2})(?:-dev(?:-(\d+))?)?$/)
+  const devMatch = clean.match(/^(\d+(?:\.\d+){0,2})(?:-dev(?:-(\d+))?)?(?:-(\d+))?$/)
 
   if (!devMatch) {
     return {
       major: 0,
       minor: 0,
       patch: 0,
-      isDev: false
+      isDev: false,
+      revision: 0
     }
   }
 
   const numbers = devMatch[1].split('.').map(Number)
   const [major, minor, patch] = [numbers[0] || 0, numbers[1] || 0, numbers[2] || 0]
   const devDate = devMatch[2] ? Number(devMatch[2]) : undefined
+  const revision = devMatch[3] ? Number(devMatch[3]) : 0
 
   return {
     major,
     minor,
     patch,
     isDev: Boolean(devMatch[0]?.includes('-dev')),
-    devDate
+    devDate,
+    revision
   }
 }
 
@@ -178,7 +182,17 @@ export function compareVersions(version1: string, version2: string): boolean {
   if (isDev1 && isDev2) {
     const devDate1 = parsed1.devDate ?? 0
     const devDate2 = parsed2.devDate ?? 0
-    return devDate2 > devDate1
+    if (devDate2 > devDate1) return true
+    if (devDate2 < devDate1) return false
+    const rev1 = parsed1.revision ?? 0
+    const rev2 = parsed2.revision ?? 0
+    return rev2 > rev1
+  }
+
+  if (!isDev1 && !isDev2) {
+    const rev1 = parsed1.revision ?? 0
+    const rev2 = parsed2.revision ?? 0
+    return rev2 > rev1
   }
   
   return false
