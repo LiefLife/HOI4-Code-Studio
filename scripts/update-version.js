@@ -142,7 +142,7 @@ function updateVueFile(filePath, version) {
     let content = fs.readFileSync(filePath, 'utf8');
     
     // 添加 v 前缀
-    const versionWithV = `${version}`;
+    const versionWithV = `v${version}`;
     
     // 替换 CURRENT_VERSION 常量
     content = content.replace(
