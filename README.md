@@ -191,13 +191,49 @@ HOI4 Code Studio/
 │   └── test/                    # 前端测试文件
 ├── src-tauri/                   # Rust后端源代码
 │   ├── src/                     # Rust源代码
+│   │   ├── commands/           # 命令层 - Tauri命令接口
+│   │   │   ├── mod.rs         # 命令模块导出
+│   │   │   ├── project.rs     # 项目管理命令
+│   │   │   ├── file.rs        # 文件操作命令
+│   │   │   ├── settings.rs    # 设置相关命令
+│   │   │   ├── game.rs        # 游戏集成命令
+│   │   │   └── gfx.rs         # GFX预览命令
+│   │   ├── services/          # 服务层 - 核心业务逻辑
+│   │   │   ├── mod.rs         # 服务模块导出
+│   │   │   ├── project_service.rs    # 项目管理服务
+│   │   │   ├── file_service.rs       # 文件操作服务
+│   │   │   ├── cache_service.rs      # 缓存管理服务
+│   │   │   └── dependency_service.rs # 依赖管理服务
+│   │   ├── models/            # 模型层 - 数据类型定义
+│   │   │   ├── mod.rs         # 模型模块导出
+│   │   │   └── types.rs       # 数据结构定义
+│   │   └── lib.rs            # 主入口（约150行）
 │   ├── Cargo.toml              # Rust依赖配置
 │   └── tauri.conf.json         # Tauri应用配置
 ├── docs/                       # 项目文档
+│   ├── Backend/               # 后端文档
+│   │   ├── ModuleStructure.md # 模块结构说明
+│   │   └── *.md              # 其他后端文档
+│   └── *.md                  # 其他文档
 ├── picture/                    # 项目截图和演示图片
 ├── scripts/                    # 构建和部署脚本
 └── public/                     # 静态资源文件
 ```
+
+### 后端架构说明
+
+后端采用清晰的三层架构设计：
+
+- **命令层 (Commands)**: 提供前端可调用的 Tauri 命令接口，负责参数验证和错误转换
+- **服务层 (Services)**: 实现核心业务逻辑，被命令层调用，包含项目管理、文件操作、缓存管理等服务
+- **模型层 (Models)**: 定义数据结构和类型，被所有层共享使用
+
+这种模块化结构带来了显著的性能提升：
+- **编译时间减少 36.16%**（从 8分15秒 降至 5分16秒）
+- **增量编译优化**：修改单个模块仅需 1-2 分钟重新编译
+- **代码可维护性提升**：lib.rs 从 2677 行减少到约 150 行
+
+详细的模块结构和开发指南请参考 [后端模块结构文档](docs/Backend/ModuleStructure.md)。
 
 ## 🧪 测试
 

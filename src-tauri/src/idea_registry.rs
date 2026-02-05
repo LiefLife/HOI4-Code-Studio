@@ -80,7 +80,7 @@ pub fn load_ideas(
         .into_iter()
         .filter_map(|s| normalize_root(Some(&s)))
         .collect();
-    
+
     let cache_key = format!(
         "{}||{}||{}",
         normalized_project.clone().unwrap_or_default(),
@@ -181,7 +181,11 @@ fn add_files_under_root(
                         stack.push(path);
                     } else if is_script_file(&path) {
                         let modified = entry.metadata().ok().and_then(|m| m.modified().ok());
-                        out.push(IdeaFileInfo { path, source, modified });
+                        out.push(IdeaFileInfo {
+                            path,
+                            source,
+                            modified,
+                        });
                     }
                 }
             }

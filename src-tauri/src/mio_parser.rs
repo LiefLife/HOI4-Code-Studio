@@ -212,10 +212,12 @@ fn resolve_mio(id: &str, all: &HashMap<String, MioDef>, loc: &HashMap<String, St
         .iter()
         .chain(mio_def.add_trait_defs.iter())
     {
-        let trait_id = def
-            .id
-            .clone()
-            .unwrap_or_else(|| format!("[missing_token_{}]", simple_hash(&format!("{}:{}", def.file, def.start))));
+        let trait_id = def.id.clone().unwrap_or_else(|| {
+            format!(
+                "[missing_token_{}]",
+                simple_hash(&format!("{}:{}", def.file, def.start))
+            )
+        });
 
         if def.id.is_none() {
             warnings.push(format!(
@@ -483,8 +485,15 @@ fn parse_mio_block(
     let include = extract_field_value(block_content, "include");
 
     let trait_defs = parse_trait_list(file, full_content, block_start, block_content, "trait");
-    let add_trait_defs = parse_trait_list(file, full_content, block_start, block_content, "add_trait");
-    let override_trait_defs = parse_trait_list(file, full_content, block_start, block_content, "override_trait");
+    let add_trait_defs =
+        parse_trait_list(file, full_content, block_start, block_content, "add_trait");
+    let override_trait_defs = parse_trait_list(
+        file,
+        full_content,
+        block_start,
+        block_content,
+        "override_trait",
+    );
     let remove_trait_ids = parse_string_list(block_content, "remove_trait");
 
     MioDef {
@@ -531,14 +540,22 @@ fn parse_trait_list(
             }
 
             let abs_trait_block_start = mio_block_abs_start + 1 + j;
-            let trait_block_end_abs = match find_matching_brace(full_content, abs_trait_block_start) {
+            let trait_block_end_abs = match find_matching_brace(full_content, abs_trait_block_start)
+            {
                 Some(v) => v,
                 None => break,
             };
 
-            let trait_block_content = &full_content[(abs_trait_block_start + 1)..trait_block_end_abs];
+            let trait_block_content =
+                &full_content[(abs_trait_block_start + 1)..trait_block_end_abs];
 
-            let def = parse_trait_block(file, full_content, abs_trait_block_start, trait_block_end_abs, trait_block_content);
+            let def = parse_trait_block(
+                file,
+                full_content,
+                abs_trait_block_start,
+                trait_block_end_abs,
+                trait_block_content,
+            );
             traits.push(def);
 
             // 前进到块结束
@@ -857,7 +874,11 @@ fn starts_with_word(s: &str, idx: usize, word: &str) -> bool {
         return false;
     }
 
-    let before = if idx == 0 { None } else { s.as_bytes().get(idx - 1).copied() };
+    let before = if idx == 0 {
+        None
+    } else {
+        s.as_bytes().get(idx - 1).copied()
+    };
     let after = s.as_bytes().get(idx + word.len()).copied();
 
     let before_ok = before.map(|b| !is_ident_continue(b)).unwrap_or(true);
@@ -907,9 +928,7 @@ fn load_simp_chinese_localization(roots: &[String]) -> HashMap<String, String> {
         if root.trim().is_empty() {
             continue;
         }
-        let base = Path::new(root)
-            .join("localisation")
-            .join("simp_chinese");
+        let base = Path::new(root).join("localisation").join("simp_chinese");
         if !base.exists() || !base.is_dir() {
             continue;
         }

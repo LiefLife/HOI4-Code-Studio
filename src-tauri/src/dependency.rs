@@ -69,7 +69,7 @@ pub struct DependencyIndexResult {
 #[tauri::command]
 pub fn load_dependencies(project_path: String) -> DependencyLoadResult {
     let project_json_path = Path::new(&project_path).join("project.json");
-    
+
     // 检查 project.json 是否存在
     if !project_json_path.exists() {
         return DependencyLoadResult {
@@ -78,22 +78,25 @@ pub fn load_dependencies(project_path: String) -> DependencyLoadResult {
             dependencies: None,
         };
     }
-    
+
     // 读取并解析 project.json
     match fs::read_to_string(&project_json_path) {
         Ok(content) => {
             match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(json) => {
                     // 获取 dependencies 字段
-                    let deps = json.get("dependencies")
+                    let deps = json
+                        .get("dependencies")
                         .and_then(|d| d.as_array())
                         .map(|arr| {
                             arr.iter()
-                                .filter_map(|v| serde_json::from_value::<Dependency>(v.clone()).ok())
+                                .filter_map(|v| {
+                                    serde_json::from_value::<Dependency>(v.clone()).ok()
+                                })
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default();
-                    
+
                     DependencyLoadResult {
                         success: true,
                         message: format!("成功加载 {} 个依赖项", deps.len()),
@@ -122,7 +125,7 @@ pub fn save_dependencies(
     dependencies: Vec<Dependency>,
 ) -> DependencySaveResult {
     let project_json_path = Path::new(&project_path).join("project.json");
-    
+
     // 读取现有的 project.json
     match fs::read_to_string(&project_json_path) {
         Ok(content) => {
@@ -138,26 +141,24 @@ pub fn save_dependencies(
                             }
                         }
                     };
-                    
+
                     // 更新 dependencies 字段
                     if let Some(obj) = json.as_object_mut() {
                         obj.insert("dependencies".to_string(), deps_json);
                     }
-                    
+
                     // 写回文件
                     match serde_json::to_string_pretty(&json) {
-                        Ok(output) => {
-                            match fs::write(&project_json_path, output) {
-                                Ok(_) => DependencySaveResult {
-                                    success: true,
-                                    message: "依赖项保存成功".to_string(),
-                                },
-                                Err(e) => DependencySaveResult {
-                                    success: false,
-                                    message: format!("写入文件失败: {}", e),
-                                },
-                            }
-                        }
+                        Ok(output) => match fs::write(&project_json_path, output) {
+                            Ok(_) => DependencySaveResult {
+                                success: true,
+                                message: "依赖项保存成功".to_string(),
+                            },
+                            Err(e) => DependencySaveResult {
+                                success: false,
+                                message: format!("写入文件失败: {}", e),
+                            },
+                        },
                         Err(e) => DependencySaveResult {
                             success: false,
                             message: format!("序列化 JSON 失败: {}", e),
@@ -181,7 +182,7 @@ pub fn save_dependencies(
 #[tauri::command]
 pub fn validate_dependency_path(path: String) -> DependencyValidation {
     let dep_path = Path::new(&path);
-    
+
     // 检查路径是否存在
     if !dep_path.exists() {
         return DependencyValidation {
@@ -191,7 +192,7 @@ pub fn validate_dependency_path(path: String) -> DependencyValidation {
             dependency_type: None,
         };
     }
-    
+
     // 检查是否是目录
     if !dep_path.is_dir() {
         return DependencyValidation {
@@ -201,34 +202,33 @@ pub fn validate_dependency_path(path: String) -> DependencyValidation {
             dependency_type: None,
         };
     }
-    
+
     // 检查是否是 HOICS 项目（是否存在 project.json）
     let project_json = dep_path.join("project.json");
     if project_json.exists() {
         // 尝试读取项目名称
         match fs::read_to_string(&project_json) {
-            Ok(content) => {
-                match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json) => {
-                        let name = json.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("未命名项目")
-                            .to_string();
-                        
-                        return DependencyValidation {
-                            valid: true,
-                            message: "有效的 HOICS 项目".to_string(),
-                            name: Some(name),
-                            dependency_type: Some(DependencyType::Hoics),
-                        };
-                    }
-                    Err(_) => {}
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(json) => {
+                    let name = json
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("未命名项目")
+                        .to_string();
+
+                    return DependencyValidation {
+                        valid: true,
+                        message: "有效的 HOICS 项目".to_string(),
+                        name: Some(name),
+                        dependency_type: Some(DependencyType::Hoics),
+                    };
                 }
-            }
+                Err(_) => {}
+            },
             Err(_) => {}
         }
     }
-    
+
     // 检查是否是普通 HOI4 Mod（是否存在 descriptor.mod）
     let descriptor_mod = dep_path.join("descriptor.mod");
     if descriptor_mod.exists() {
@@ -239,11 +239,8 @@ pub fn validate_dependency_path(path: String) -> DependencyValidation {
                 for line in content.lines() {
                     if line.trim().starts_with("name") {
                         if let Some(name_part) = line.split('=').nth(1) {
-                            let name = name_part
-                                .trim()
-                                .trim_matches('"')
-                                .to_string();
-                            
+                            let name = name_part.trim().trim_matches('"').to_string();
+
                             return DependencyValidation {
                                 valid: true,
                                 message: "有效的 HOI4 Mod".to_string(),
@@ -256,7 +253,7 @@ pub fn validate_dependency_path(path: String) -> DependencyValidation {
             }
             Err(_) => {}
         }
-        
+
         // 即使无法读取名称，也认为是有效的 Mod
         return DependencyValidation {
             valid: true,
@@ -265,7 +262,7 @@ pub fn validate_dependency_path(path: String) -> DependencyValidation {
             dependency_type: Some(DependencyType::Hoi4mod),
         };
     }
-    
+
     // 如果都不是，则无效
     DependencyValidation {
         valid: false,

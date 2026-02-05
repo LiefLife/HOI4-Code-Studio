@@ -1,10 +1,9 @@
-
 #![deny(clippy::unwrap_used)]
 // serde 序列化/反序列化
 use serde::{Deserialize, Serialize};
 
 // serde_json 工具
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 // 缓存映射
 use std::collections::HashMap;
@@ -30,7 +29,7 @@ pub struct JsonValidationResult {
 
 pub struct JsonDecoder {
     #[allow(dead_code)]
-    cache: HashMap<String, Value>
+    cache: HashMap<String, Value>,
 }
 
 impl JsonDecoder {
@@ -41,8 +40,7 @@ impl JsonDecoder {
     }
 
     pub fn parse(&mut self, json_str: &str) -> Result<Value, String> {
-        serde_json::from_str(json_str)
-            .map_err(|e| format!("JSON 解析错误: {}", e))
+        serde_json::from_str(json_str).map_err(|e| format!("JSON 解析错误: {}", e))
     }
 
     #[allow(dead_code)]
@@ -67,13 +65,11 @@ impl JsonDecoder {
     }
 
     pub fn stringify(&self, value: &Value) -> Result<String, String> {
-        serde_json::to_string(value)
-            .map_err(|e| format!("JSON 序列化错误: {}", e))
+        serde_json::to_string(value).map_err(|e| format!("JSON 序列化错误: {}", e))
     }
 
     pub fn stringify_pretty(&self, value: &Value) -> Result<String, String> {
-        serde_json::to_string_pretty(value)
-            .map_err(|e| format!("JSON 序列化错误: {}", e))
+        serde_json::to_string_pretty(value).map_err(|e| format!("JSON 序列化错误: {}", e))
     }
 
     /// 验证 JSON 格式
@@ -175,7 +171,9 @@ impl JsonDecoder {
                 if !map.contains_key(*part) {
                     map.insert(part.to_string(), json!({}));
                 }
-                current = map.get_mut(*part).expect("key should exist after insertion");
+                current = map
+                    .get_mut(*part)
+                    .expect("key should exist after insertion");
             } else {
                 return false;
             }
@@ -336,20 +334,18 @@ pub async fn write_json_file(file_path: String, value: Value, pretty: bool) -> J
     };
 
     match json_str {
-        Ok(content) => {
-            match fs::write(&file_path, content) {
-                Ok(_) => JsonResult {
-                    success: true,
-                    message: format!("成功写入文件 '{}'", file_path),
-                    data: None,
-                },
-                Err(e) => JsonResult {
-                    success: false,
-                    message: format!("写入文件失败: {}", e),
-                    data: None,
-                },
-            }
-        }
+        Ok(content) => match fs::write(&file_path, content) {
+            Ok(_) => JsonResult {
+                success: true,
+                message: format!("成功写入文件 '{}'", file_path),
+                data: None,
+            },
+            Err(e) => JsonResult {
+                success: false,
+                message: format!("写入文件失败: {}", e),
+                data: None,
+            },
+        },
         Err(e) => JsonResult {
             success: false,
             message: format!("序列化失败: {}", e),
