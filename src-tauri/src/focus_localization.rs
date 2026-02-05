@@ -109,9 +109,7 @@ fn normalize_root(path: Option<&str>) -> Option<String> {
 fn collect_localization_files(roots: &[String]) -> io::Result<Vec<LocalizationFileInfo>> {
     let mut out: Vec<LocalizationFileInfo> = Vec::new();
     for root in roots {
-        let dir = Path::new(root)
-            .join("localisation")
-            .join("simp_chinese");
+        let dir = Path::new(root).join("localisation").join("simp_chinese");
         add_yml_files_recursive(&dir, &mut out)?;
     }
     Ok(out)
@@ -154,7 +152,10 @@ fn is_yml_file(path: &Path) -> bool {
     }
 }
 
-fn try_use_cache(cache_key: &str, files: &[LocalizationFileInfo]) -> Option<HashMap<String, String>> {
+fn try_use_cache(
+    cache_key: &str,
+    files: &[LocalizationFileInfo],
+) -> Option<HashMap<String, String>> {
     let cache_map = LOCALIZATION_CACHE.read().ok()?;
     let cached = cache_map.get(cache_key)?;
 
@@ -237,10 +238,7 @@ fn parse_localizations(
         }
     }
 
-    let result: HashMap<String, String> = merged
-        .into_iter()
-        .map(|(k, (v, _p))| (k, v))
-        .collect();
+    let result: HashMap<String, String> = merged.into_iter().map(|(k, (v, _p))| (k, v)).collect();
 
     Ok(result)
 }

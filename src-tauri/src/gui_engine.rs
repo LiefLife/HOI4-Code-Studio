@@ -1,8 +1,8 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
-use regex::Regex;
 
 /// GUI 节点类型
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -72,7 +72,7 @@ pub fn parse_gui_content(content: String) -> Result<Value, String> {
     let mut windows = Vec::new();
     let re_window = Regex::new(r"(?i)(containerWindowType|windowType)\s*=\s*\{").unwrap();
     let mut current_pos = 0;
-    
+
     while let Some(mat) = re_window.find_at(&content, current_pos) {
         let start = mat.start();
         // 查找匹配的闭合括号
@@ -86,7 +86,7 @@ pub fn parse_gui_content(content: String) -> Result<Value, String> {
             current_pos = mat.end();
         }
     }
-    
+
     Ok(json!({
         "success": true,
         "windows": windows
@@ -110,10 +110,12 @@ pub fn parse_gfx_file(path: String) -> Result<Value, String> {
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let content = strip_comments(&content);
     let mut sprites = std::collections::HashMap::new();
-    
-    let re_sprite = Regex::new(r"(?i)(spriteType|frameAnimatedSpriteType|corneredTileSpriteType)\s*=\s*\{").unwrap();
+
+    let re_sprite =
+        Regex::new(r"(?i)(spriteType|frameAnimatedSpriteType|corneredTileSpriteType)\s*=\s*\{")
+            .unwrap();
     let mut current_pos = 0;
-    
+
     while let Some(mat) = re_sprite.find_at(&content, current_pos) {
         let start = mat.start();
         if let Some(end) = find_matching_bracket(&content, mat.end()) {
@@ -123,23 +125,26 @@ pub fn parse_gfx_file(path: String) -> Result<Value, String> {
             let noofframes = extract_value(block, "noOfFrames")
                 .and_then(|v| v.parse::<i32>().ok())
                 .unwrap_or(1);
-            
+
             // 提取 borderSize (用于 9 宫格渲染)
             let border_size = extract_xy_value(block, "borderSize");
-            
+
             if let Some(n) = name {
-                sprites.insert(n, json!({
-                    "texturefile": texturefile,
-                    "noOfFrames": noofframes,
-                    "borderSize": border_size
-                }));
+                sprites.insert(
+                    n,
+                    json!({
+                        "texturefile": texturefile,
+                        "noOfFrames": noofframes,
+                        "borderSize": border_size
+                    }),
+                );
             }
             current_pos = end;
         } else {
             current_pos = mat.end();
         }
     }
-    
+
     Ok(json!({
         "success": true,
         "sprites": sprites
@@ -149,10 +154,10 @@ pub fn parse_gfx_file(path: String) -> Result<Value, String> {
 /// 查找资源文件路径
 #[tauri::command]
 pub async fn resolve_gui_resource(
-    name: String, 
-    project_path: String, 
+    name: String,
+    project_path: String,
     game_directory: String,
-    dependency_roots: Vec<String>
+    dependency_roots: Vec<String>,
 ) -> Result<Value, String> {
     // 1. 搜寻所有可能的根目录：项目 > 依赖 > 游戏目录
     let mut search_roots = vec![Path::new(&project_path).to_path_buf()];
@@ -166,7 +171,9 @@ pub async fn resolve_gui_resource(
     // 2. 搜寻所有的 .gfx 文件，寻找名为 name 的 spriteType
     for root in &search_roots {
         let interface_dir = root.join("interface");
-        if !interface_dir.exists() { continue; }
+        if !interface_dir.exists() {
+            continue;
+        }
 
         if let Ok(entries) = fs::read_dir(interface_dir) {
             for entry in entries.flatten() {
@@ -181,7 +188,8 @@ pub async fn resolve_gui_resource(
                                 if let Some(texture_rel_path) = sprite["texturefile"].as_str() {
                                     // 3. 在所有根目录下寻找这个 texturefile
                                     for t_root in &search_roots {
-                                        let full_path = t_root.join(texture_rel_path.replace("\\", "/"));
+                                        let full_path =
+                                            t_root.join(texture_rel_path.replace("\\", "/"));
                                         if full_path.exists() {
                                             return Ok(json!({
                                                 "success": true,
@@ -205,7 +213,8 @@ pub async fn resolve_gui_resource(
 
 /// 辅助函数：去除注释
 fn strip_comments(content: &str) -> String {
-    content.lines()
+    content
+        .lines()
         .map(|line| {
             if let Some(pos) = line.find('#') {
                 &line[..pos]
@@ -296,21 +305,26 @@ fn parse_node(content: &str) -> Option<GuiNode> {
         size: extract_size(&stripped),
         orientation: extract_value(&stripped, "orientation"),
         origo: extract_value(&stripped, "origo"),
-        sprite_type: extract_value(&stripped, "spriteType").or_else(|| extract_value(&stripped, "sprite_type")),
+        sprite_type: extract_value(&stripped, "spriteType")
+            .or_else(|| extract_value(&stripped, "sprite_type")),
         quad_texture_sprite: extract_value(&stripped, "quadTextureSprite"),
         background: extract_background_sprite(&stripped),
         font: extract_value(&stripped, "font").or_else(|| extract_value(&stripped, "buttonFont")),
         text: extract_value(&stripped, "text").or_else(|| extract_value(&stripped, "buttonText")),
         format: extract_value(&stripped, "format"),
-        vertical_alignment: extract_value(&stripped, "vertical_alignment").or_else(|| extract_value(&stripped, "verticalAlignment")),
-        max_width: extract_int_value(&stripped, "maxWidth").or_else(|| extract_int_value(&stripped, "max_width")),
-        max_height: extract_int_value(&stripped, "maxHeight").or_else(|| extract_int_value(&stripped, "max_height")),
+        vertical_alignment: extract_value(&stripped, "vertical_alignment")
+            .or_else(|| extract_value(&stripped, "verticalAlignment")),
+        max_width: extract_int_value(&stripped, "maxWidth")
+            .or_else(|| extract_int_value(&stripped, "max_width")),
+        max_height: extract_int_value(&stripped, "maxHeight")
+            .or_else(|| extract_int_value(&stripped, "max_height")),
         scale: extract_value(&stripped, "scale").and_then(|v| v.parse().ok()),
         frame: extract_int_value(&stripped, "frame"),
         clipping: extract_value(&stripped, "clipping").map(|v| v.to_lowercase() == "yes"),
         fixedsize: extract_value(&stripped, "fixedsize").map(|v| v.to_lowercase() == "yes"),
         slotsize: extract_slotsize(&stripped),
-        add_horizontal: extract_value(&stripped, "add_horizontal").map(|v| v.to_lowercase() == "yes"),
+        add_horizontal: extract_value(&stripped, "add_horizontal")
+            .map(|v| v.to_lowercase() == "yes"),
         max_slots_horizontal: extract_int_value(&stripped, "max_slots_horizontal"),
         max_slots_vertical: extract_int_value(&stripped, "max_slots_vertical"),
     };
@@ -325,10 +339,13 @@ fn parse_node(content: &str) -> Option<GuiNode> {
 /// 辅助函数：提取属性值
 fn extract_value(content: &str, key: &str) -> Option<String> {
     // 支持 key = value, key = "value"
-    let re = Regex::new(&format!(r#"(?i){}\s*=\s*("(?:[^"\\]|\\.)*"|[^\s{{}}]+)"#, key)).unwrap();
-    re.captures(content).map(|cap| {
-        cap[1].trim_matches('"').to_string()
-    })
+    let re = Regex::new(&format!(
+        r#"(?i){}\s*=\s*("(?:[^"\\]|\\.)*"|[^\s{{}}]+)"#,
+        key
+    ))
+    .unwrap();
+    re.captures(content)
+        .map(|cap| cap[1].trim_matches('"').to_string())
 }
 
 /// 辅助函数：提取位置
@@ -341,12 +358,15 @@ fn extract_position(content: &str) -> Option<Position> {
         let y = extract_int_value(block, "y").unwrap_or(0);
         return Some(Position { x, y });
     }
-    
+
     // 2. 尝试直接解析顶级 x = ... 和 y = ...
     let x = extract_int_value(content, "x");
     let y = extract_int_value(content, "y");
     if x.is_some() || y.is_some() {
-        return Some(Position { x: x.unwrap_or(0), y: y.unwrap_or(0) });
+        return Some(Position {
+            x: x.unwrap_or(0),
+            y: y.unwrap_or(0),
+        });
     }
 
     None
@@ -358,8 +378,12 @@ fn extract_size(content: &str) -> Option<Size> {
     let re_block = Regex::new(r"(?i)size\s*=\s*\{([^{}]*)\}").unwrap();
     if let Some(cap) = re_block.captures(content) {
         let block = &cap[1];
-        let width = extract_int_value(block, "width").or_else(|| extract_int_value(block, "x")).unwrap_or(0);
-        let height = extract_int_value(block, "height").or_else(|| extract_int_value(block, "y")).unwrap_or(0);
+        let width = extract_int_value(block, "width")
+            .or_else(|| extract_int_value(block, "x"))
+            .unwrap_or(0);
+        let height = extract_int_value(block, "height")
+            .or_else(|| extract_int_value(block, "y"))
+            .unwrap_or(0);
         return Some(Size { width, height });
     }
 
@@ -367,7 +391,10 @@ fn extract_size(content: &str) -> Option<Size> {
     let width = extract_int_value(content, "width");
     let height = extract_int_value(content, "height");
     if width.is_some() || height.is_some() {
-        return Some(Size { width: width.unwrap_or(0), height: height.unwrap_or(0) });
+        return Some(Size {
+            width: width.unwrap_or(0),
+            height: height.unwrap_or(0),
+        });
     }
 
     None
@@ -378,8 +405,12 @@ fn extract_slotsize(content: &str) -> Option<Size> {
     let re_block = Regex::new(r"(?i)slotsize\s*=\s*\{([^{}]*)\}").unwrap();
     if let Some(cap) = re_block.captures(content) {
         let block = &cap[1];
-        let width = extract_int_value(block, "width").or_else(|| extract_int_value(block, "x")).unwrap_or(0);
-        let height = extract_int_value(block, "height").or_else(|| extract_int_value(block, "y")).unwrap_or(0);
+        let width = extract_int_value(block, "width")
+            .or_else(|| extract_int_value(block, "x"))
+            .unwrap_or(0);
+        let height = extract_int_value(block, "height")
+            .or_else(|| extract_int_value(block, "y"))
+            .unwrap_or(0);
         return Some(Size { width, height });
     }
     None

@@ -28,7 +28,8 @@ pub struct Theme {
 }
 
 fn get_theme_file_path() -> Result<PathBuf, String> {
-    let config_dir = dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
+    let config_dir =
+        dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
     Ok(config_dir.join("HOI4_GUI_Editor").join("themes.json"))
 }
 
@@ -44,7 +45,8 @@ fn read_themes_file() -> Result<Vec<Theme>, String> {
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let text = fs::read_to_string(&path).map_err(|e| format!("Failed to read themes.json: {}", e))?;
+    let text =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read themes.json: {}", e))?;
     if text.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -55,7 +57,8 @@ fn write_themes_file(themes: &[Theme]) -> Result<(), String> {
     let path = get_theme_file_path()?;
     ensure_parent_dir(&path)?;
 
-    let json = serde_json::to_string_pretty(themes).map_err(|e| format!("Failed to serialize themes: {}", e))?;
+    let json = serde_json::to_string_pretty(themes)
+        .map_err(|e| format!("Failed to serialize themes: {}", e))?;
     fs::write(&path, json).map_err(|e| format!("Failed to write themes.json: {}", e))?;
     Ok(())
 }

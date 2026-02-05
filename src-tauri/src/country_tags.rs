@@ -67,7 +67,7 @@ pub fn load_country_tags(
         .into_iter()
         .filter_map(|s| normalize_root(Some(&s)))
         .collect();
-    
+
     let cache_key = format!(
         "{}||{}||{}",
         normalized_project.clone().unwrap_or_default(),
@@ -249,10 +249,10 @@ fn parse_tags(files: &[TagFileInfo]) -> io::Result<Vec<TagEntry>> {
         .collect();
 
     let all_tags_lists = parsed_results?;
-    
+
     // 合并结果，按来源优先级去重 (Project > Dependency > Game)
     let mut grouped: HashMap<String, (TagEntry, u8)> = HashMap::new();
-    
+
     for list in all_tags_lists {
         for entry in list {
             let priority = match entry.source {
@@ -260,8 +260,9 @@ fn parse_tags(files: &[TagFileInfo]) -> io::Result<Vec<TagEntry>> {
                 TagSource::Dependency => 1u8,
                 TagSource::Project => 2u8,
             };
-            
-            grouped.entry(entry.code.clone())
+
+            grouped
+                .entry(entry.code.clone())
                 .and_modify(|(existing_entry, existing_priority)| {
                     if priority >= *existing_priority {
                         *existing_entry = entry.clone();
@@ -290,11 +291,7 @@ fn extract_tags(content: &str, source: TagSource) -> Vec<TagEntry> {
                     .map(|m| m.as_str().trim().to_uppercase())
                     .unwrap_or_default();
                 let name = caps.get(2).map(|m| m.as_str().trim().to_string());
-                TagEntry {
-                    code,
-                    name,
-                    source,
-                }
+                TagEntry { code, name, source }
             })
         })
         .collect()

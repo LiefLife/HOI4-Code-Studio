@@ -1,11 +1,11 @@
 #![deny(clippy::unwrap_used)]
 
+use crate::country_tags::{load_country_tags, TagEntry, TagLoadResponse};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::sync::RwLock;
-use crate::country_tags::{load_country_tags, TagEntry, TagLoadResponse};
 
 /// ：单个标签引用的错误信息。
 #[derive(Debug, Serialize)]
@@ -73,7 +73,8 @@ fn ensure_tag_cache(
     };
 
     // 每次请求都重新加载 tags，保持与 country_tags 的缓存一致
-    let TagLoadResponse { success, tags, .. } = load_country_tags(project_root.clone(), game_root.clone(), dependency_roots);
+    let TagLoadResponse { success, tags, .. } =
+        load_country_tags(project_root.clone(), game_root.clone(), dependency_roots);
     if success {
         if let Some(tags) = tags {
             let tag_set = build_tag_set(&tags);
@@ -90,10 +91,7 @@ fn ensure_tag_cache(
 
     // 如果加载失败，仍然返回现有缓存
     let cache = TAG_CACHE.read().expect("tag cache poisoned");
-    cache
-        .as_ref()
-        .map(|c| c.tags.clone())
-        .unwrap_or_default()
+    cache.as_ref().map(|c| c.tags.clone()).unwrap_or_default()
 }
 
 fn collect_direct_assignments(content: &str) -> Vec<(usize, String)> {
@@ -102,7 +100,11 @@ fn collect_direct_assignments(content: &str) -> Vec<(usize, String)> {
         .filter_map(|caps| {
             let full = caps.get(0)?;
             let tag = normalize_tag(caps.get(2)?.as_str());
-            let line = content[..full.start()].chars().filter(|&c| c == '\n').count() + 1;
+            let line = content[..full.start()]
+                .chars()
+                .filter(|&c| c == '\n')
+                .count()
+                + 1;
             Some((line, tag))
         })
         .collect()
@@ -114,7 +116,11 @@ fn collect_scope_blocks(content: &str) -> Vec<(usize, String)> {
         .filter_map(|caps| {
             let full = caps.get(0)?;
             let tag = normalize_tag(caps.get(2)?.as_str());
-            let line = content[..full.start()].chars().filter(|&c| c == '\n').count() + 1;
+            let line = content[..full.start()]
+                .chars()
+                .filter(|&c| c == '\n')
+                .count()
+                + 1;
             Some((line, tag))
         })
         .collect()
@@ -126,7 +132,11 @@ fn collect_target_blocks(content: &str) -> Vec<(usize, String)> {
         .filter_map(|caps| {
             let full = caps.get(0)?;
             let tag = normalize_tag(caps.get(1)?.as_str());
-            let line = content[..full.start()].chars().filter(|&c| c == '\n').count() + 1;
+            let line = content[..full.start()]
+                .chars()
+                .filter(|&c| c == '\n')
+                .count()
+                + 1;
             Some((line, tag))
         })
         .collect()

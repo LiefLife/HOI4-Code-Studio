@@ -1,9 +1,9 @@
 #![deny(clippy::unwrap_used)]
 
+use crate::theme_manager::{upsert_theme, Theme};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use crate::theme_manager::{Theme, upsert_theme};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -206,10 +206,16 @@ fn validate_install_hooks(about: &PluginAbout) -> (Vec<String>, Vec<String>) {
                 continue;
             }
             if !seen.insert(shortcut.id.clone()) {
-                warnings.push(format!("install.shortcuts: duplicated id '{}', later one overrides", shortcut.id));
+                warnings.push(format!(
+                    "install.shortcuts: duplicated id '{}', later one overrides",
+                    shortcut.id
+                ));
             }
             if shortcut.keys.is_empty() {
-                warnings.push(format!("install.shortcuts: '{}' has empty keys", shortcut.id));
+                warnings.push(format!(
+                    "install.shortcuts: '{}' has empty keys",
+                    shortcut.id
+                ));
             }
         }
     }
@@ -231,14 +237,23 @@ fn validate_install_hooks(about: &PluginAbout) -> (Vec<String>, Vec<String>) {
                 errors.push(format!("install.snippets: '{}' title is empty", snippet.id));
             }
             if snippet.content.trim().is_empty() {
-                warnings.push(format!("install.snippets: '{}' content is empty", snippet.id));
+                warnings.push(format!(
+                    "install.snippets: '{}' content is empty",
+                    snippet.id
+                ));
             }
             if !seen.insert(snippet.id.clone()) {
-                warnings.push(format!("install.snippets: duplicated id '{}', later one overrides", snippet.id));
+                warnings.push(format!(
+                    "install.snippets: duplicated id '{}', later one overrides",
+                    snippet.id
+                ));
             }
             if let Some(paths) = snippet.path_includes.as_ref() {
                 if paths.is_empty() {
-                    warnings.push(format!("install.snippets: '{}' pathIncludes is empty", snippet.id));
+                    warnings.push(format!(
+                        "install.snippets: '{}' pathIncludes is empty",
+                        snippet.id
+                    ));
                 }
             }
         }
@@ -255,16 +270,30 @@ fn validate_install_hooks(about: &PluginAbout) -> (Vec<String>, Vec<String>) {
                 errors.push(format!("install.iconSets: '{}' name is empty", icon_set.id));
             }
             if !seen.insert(icon_set.id.clone()) {
-                warnings.push(format!("install.iconSets: duplicated id '{}', later one overrides", icon_set.id));
+                warnings.push(format!(
+                    "install.iconSets: duplicated id '{}', later one overrides",
+                    icon_set.id
+                ));
             }
             if icon_set.icon_type != "emoji" && icon_set.icon_type != "svg" {
-                errors.push(format!("install.iconSets: '{}' type must be 'emoji' or 'svg'", icon_set.id));
+                errors.push(format!(
+                    "install.iconSets: '{}' type must be 'emoji' or 'svg'",
+                    icon_set.id
+                ));
             }
-            if icon_set.icons.folder.closed.trim().is_empty() || icon_set.icons.folder.open.trim().is_empty() {
-                errors.push(format!("install.iconSets: '{}' folder icons are empty", icon_set.id));
+            if icon_set.icons.folder.closed.trim().is_empty()
+                || icon_set.icons.folder.open.trim().is_empty()
+            {
+                errors.push(format!(
+                    "install.iconSets: '{}' folder icons are empty",
+                    icon_set.id
+                ));
             }
             if !icon_set.icons.files.contains_key("default") {
-                warnings.push(format!("install.iconSets: '{}' files.default is missing", icon_set.id));
+                warnings.push(format!(
+                    "install.iconSets: '{}' files.default is missing",
+                    icon_set.id
+                ));
             }
         }
     }
@@ -289,12 +318,14 @@ pub struct PluginValidateResult {
 }
 
 fn get_plugins_dir() -> Result<PathBuf, String> {
-    let config_dir = dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
+    let config_dir =
+        dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
     Ok(config_dir.join("HOI4_GUI_Editor").join("plugins"))
 }
 
 fn get_settings_path() -> Result<PathBuf, String> {
-    let config_dir = dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
+    let config_dir =
+        dirs::config_dir().ok_or_else(|| "Failed to resolve config_dir".to_string())?;
     Ok(config_dir.join("HOI4_GUI_Editor").join("settings.json"))
 }
 
@@ -336,7 +367,8 @@ fn read_settings_file() -> Result<Value, String> {
     if !path.exists() {
         return Ok(Value::Object(serde_json::Map::new()));
     }
-    let text = fs::read_to_string(&path).map_err(|e| format!("Failed to read settings.json: {}", e))?;
+    let text =
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read settings.json: {}", e))?;
     if text.trim().is_empty() {
         return Ok(Value::Object(serde_json::Map::new()));
     }
@@ -374,7 +406,10 @@ fn merge_json(target: &mut Value, src: &Value) {
     }
 }
 
-fn merge_shortcuts(existing: &[PluginShortcut], incoming: &[PluginShortcut]) -> Vec<PluginShortcut> {
+fn merge_shortcuts(
+    existing: &[PluginShortcut],
+    incoming: &[PluginShortcut],
+) -> Vec<PluginShortcut> {
     let mut out: Vec<PluginShortcut> = Vec::new();
     for item in existing.iter().cloned() {
         if !item.id.trim().is_empty() {
@@ -441,7 +476,10 @@ fn sanitize_rel_path(p: &Path) -> Result<PathBuf, String> {
             Component::Normal(s) => out.push(s),
             Component::CurDir => {}
             _ => {
-                return Err(format!("Invalid path component in zip entry: {}", p.display()));
+                return Err(format!(
+                    "Invalid path component in zip entry: {}",
+                    p.display()
+                ));
             }
         }
     }
@@ -453,7 +491,8 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
         return Err(format!("Source path not found: {}", src.display()));
     }
 
-    fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir: {} ({})", dst.display(), e))?;
+    fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create dir: {} ({})", dst.display(), e))?;
 
     for entry in WalkDir::new(src)
         .follow_links(false)
@@ -475,8 +514,14 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
                 fs::create_dir_all(parent)
                     .map_err(|e| format!("Failed to create dir: {} ({})", parent.display(), e))?;
             }
-            fs::copy(p, &target)
-                .map_err(|e| format!("Failed to copy file: {} -> {} ({})", p.display(), target.display(), e))?;
+            fs::copy(p, &target).map_err(|e| {
+                format!(
+                    "Failed to copy file: {} -> {} ({})",
+                    p.display(),
+                    target.display(),
+                    e
+                )
+            })?;
         }
     }
 
@@ -487,7 +532,8 @@ fn extract_zip_to_dir(zip_path: &Path, dst: &Path) -> Result<(), String> {
     let f = fs::File::open(zip_path).map_err(|e| format!("Failed to open zip: {}", e))?;
     let mut archive = zip::ZipArchive::new(f).map_err(|e| format!("Failed to read zip: {}", e))?;
 
-    fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir: {} ({})", dst.display(), e))?;
+    fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create dir: {} ({})", dst.display(), e))?;
 
     for i in 0..archive.len() {
         let mut file = archive
@@ -553,7 +599,9 @@ fn load_installed_plugins_impl() -> Result<Vec<InstalledPlugin>, String> {
     }
 
     let mut out: Vec<InstalledPlugin> = Vec::new();
-    for entry in fs::read_dir(&plugins_dir).map_err(|e| format!("Failed to read plugins dir: {}", e))? {
+    for entry in
+        fs::read_dir(&plugins_dir).map_err(|e| format!("Failed to read plugins dir: {}", e))?
+    {
         let entry = entry.map_err(|e| format!("Failed to read plugins dir entry: {}", e))?;
         let p = entry.path();
         if !p.is_dir() {
@@ -642,7 +690,8 @@ pub fn install_plugin(source_path: String) -> Result<InstalledPlugin, String> {
 
     let final_dir = plugins_dir.join(&plugin_id);
     if final_dir.exists() {
-        fs::remove_dir_all(&final_dir).map_err(|e| format!("Failed to remove existing plugin: {}", e))?;
+        fs::remove_dir_all(&final_dir)
+            .map_err(|e| format!("Failed to remove existing plugin: {}", e))?;
     }
 
     fs::rename(&tmp_dir, &final_dir).map_err(|e| {
