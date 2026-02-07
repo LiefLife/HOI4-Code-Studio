@@ -9,7 +9,8 @@ import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
 import { javascript } from '@codemirror/lang-javascript'
 import { hoi4 } from '../../lang/hoi4'
-import { createLinter } from '../../utils/ErrorTip'
+// import { createLinter } from '../../utils/ErrorTip' // 旧版错误检测系统（已废弃，已被 cwtools 替代）
+import { createCWToolsLinter } from '../../utils/cwtoolsLinter' // 新版 cwtools 验证系统
 import { setIdeaRoots, ensureIdeaRegistry } from '../../composables/useIdeaRegistry'
 import { useGrammarCompletion } from '../../composables/useGrammarCompletion'
 import { rainbowBrackets, rainbowTheme } from './rainbowBrackets'
@@ -37,6 +38,7 @@ const emit = defineEmits<{
 const editorContainer = ref<HTMLDivElement | null>(null)
 let editorView: EditorView | null = null
 let currentCoreExtensions: any[] = []
+let fileVersion = ref(0) // 文件版本号，用于增量验证
 
 // GrammarCompletion 组合式，提供统一的补全项视图
 const { allItems } = useGrammarCompletion()
@@ -223,6 +225,8 @@ async function initEditor() {
       if (update.docChanged) {
         const newContent = update.state.doc.toString()
         emit('update:content', newContent)
+        // 文档变更时增加版本号
+        fileVersion.value++
       }
       
       if (update.selectionSet) {
@@ -302,9 +306,17 @@ async function initEditor() {
         
         // 根据disableErrorHandling属性决定是否添加Linter功能
         if (!props.disableErrorHandling) {
-          newExtensions.push(...createLinter({
-            contextProvider: () => ({ filePath: props.filePath, projectRoot: props.projectRoot, gameDirectory: props.gameDirectory })
-          }))
+          // 使用新的 cwtools 验证系统
+          const cwtoolsLinter = createCWToolsLinter({
+            getFilePath: () => props.filePath,
+            getVersion: () => fileVersion.value,
+            getProjectRoot: () => props.projectRoot,
+            getGameRoot: () => props.gameDirectory,
+            delay: 300,
+            enableErrorLens: true,
+            enableLineDecoration: true
+          })
+          newExtensions.push(...cwtoolsLinter)
         }
         
         // 如果已添加RGB颜色显示扩展，也要包含进去
@@ -337,6 +349,8 @@ watch(() => props.content, (newContent) => {
       changes: { from: 0, to: currentContent.length, insert: newContent }
     })
     editorView.dispatch(transaction)
+    // 外部内容变更时重置版本号
+    fileVersion.value = 0
   }
 })
 
@@ -365,6 +379,7 @@ watch(() => props.fileName, () => {
 // 监听文件路径或项目根变化（刷新 Linter 上下文）
 watch(() => props.filePath, () => {
   if (!editorView) return
+  fileVersion.value = 0 // 重置版本号
   editorView.destroy()
   nextTick(() => {
     initEditor()
@@ -373,6 +388,7 @@ watch(() => props.filePath, () => {
 
 watch(() => props.projectRoot, () => {
   if (!editorView) return
+  fileVersion.value = 0 // 重置版本号
   editorView.destroy()
   nextTick(() => {
     initEditor()
@@ -381,6 +397,7 @@ watch(() => props.projectRoot, () => {
 
 watch(() => props.gameDirectory, () => {
   if (!editorView) return
+  fileVersion.value = 0 // 重置版本号
   editorView.destroy()
   nextTick(() => {
     initEditor()

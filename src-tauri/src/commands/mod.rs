@@ -6,6 +6,7 @@
 // - 调用服务层执行业务逻辑
 // - 返回结果给前端
 
+pub mod cwtools;
 pub mod file;
 pub mod game;
 pub mod gfx;
@@ -13,6 +14,7 @@ pub mod project;
 pub mod settings;
 
 // 重新导出所有命令函数，便于在 lib.rs 中注册
+pub use cwtools::*;
 pub use file::*;
 pub use game::*;
 pub use gfx::*;

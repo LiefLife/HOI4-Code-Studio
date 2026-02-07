@@ -7,6 +7,7 @@ pub mod file_tree_tests;
 pub mod tag_validator_tests;
 pub mod dependency_tests;
 pub mod country_tags_tests;
+pub mod cwtools_compatibility_tests;
 
 #[cfg(test)]
 mod helpers {

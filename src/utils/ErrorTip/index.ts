@@ -3,6 +3,22 @@
  *  - collectErrors(content, ctx?): ErrorItem[]（用于右侧错误列表）
  *  - toDiagnostics(content, ctx?): Diagnostic[]（用于 CodeMirror Lint）
  *  - createLinter({ contextProvider }?): Extension（直接接入编辑器，按实例携带上下文）
+ * 
+ * @deprecated 本模块为旧版简单错误检测系统，建议使用新的 cwtools 语法验证系统。
+ * 新系统提供更准确的 HOI4 语法验证，支持：
+ *  - 完整的 Paradox 脚本解析
+ *  - 基于 .cwt 规则文件的验证
+ *  - 作用域验证
+ *  - 引用检查（国家标签、想法、事件等）
+ *  - 修饰符验证
+ * 
+ * 使用新系统的 Tauri 命令：
+ *  - validate_script: 验证脚本内容
+ *  - validate_script_incremental: 增量验证
+ *  - parse_file: 仅解析脚本
+ *  - format_script_command: 格式化脚本
+ * 
+ * 注意：本模块仍然保留以支持旧代码，但不再推荐使用。
  */
 import type { ErrorItem, RangeItem, Rule, RuleResult, RuleContext, Severity } from './types'
 import { computeLineStarts } from './types'

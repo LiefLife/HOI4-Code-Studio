@@ -5,6 +5,7 @@
 mod bracket_matcher;
 mod commands;
 mod country_tags;
+mod cwtools;
 mod dependency;
 mod file_tree;
 mod focus_localization;
@@ -28,6 +29,7 @@ use bracket_matcher::{
     find_bracket_matches, find_matching_bracket, get_bracket_depth_map, BracketMatchResult,
 };
 
+use commands::cwtools::ValidationServiceState;
 use idea_registry::{load_ideas, reset_idea_cache};
 use tag_validator::validate_tags;
 
@@ -72,6 +74,7 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
             app.manage(map_engine::MapState::default());
+            app.manage(ValidationServiceState::new());
 
             // 允许 asset protocol 访问插件安装目录。
             // 否则 convertFileSrc() 会生成类似 https://asset.localhost/... 的 URL，但 WebView 无法读取
@@ -175,6 +178,19 @@ pub fn run() {
             gui_engine::resolve_gui_resource,
             mio_parser::parse_mio_preview,
             commands::parse_gfx_preview,
+            // cwtools 语法验证命令
+            commands::initialize_validation_service,
+            commands::validate_script,
+            commands::validate_script_incremental,
+            commands::parse_file,
+            commands::format_script_command,
+            commands::reload_rules,
+            commands::clear_validation_cache,
+            commands::invalidate_file_cache,
+            commands::get_cache_stats,
+            commands::get_rule_stats,
+            commands::validate_batch,
+            commands::load_references,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
