@@ -1,4 +1,6 @@
+# -------------------------------------------
 # Logs
+# -------------------------------------------
 logs
 *.log
 npm-debug.log*
@@ -7,14 +9,28 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# -------------------------------------------
+# Dependencies & Build Outputs
+# -------------------------------------------
 node_modules
 dist
 dist-ssr
 *.local
+src-tauri/target/*
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+# -------------------------------------------
+# IDE & Editors
+# -------------------------------------------
+.idea
+.vscode
+.cursor
+.kiro
+.windsurf
+.codebuddy
+.trae/*
+.roo
+.kilocode
+.orchids
 .DS_Store
 *.suo
 *.ntvs*
@@ -22,43 +38,48 @@ dist-ssr
 *.sln
 *.sw?
 
-
-
-# IDE
-.idea
-.vscode
-.cursor
-.kiro
-.windsurf
-.codebuddy
-
-oldT
-oldTH
-
-src-tauri/target/*
-
-prd.md
-todo-list.md
-target/rust-analyzer/flycheck0/stderr
-target/rust-analyzer/flycheck0/stdout
-
-mission.txt
-events
-lifeguard.yaml
-
-move_project
-SOLO.md
-.trae/*
-IFLOW.md
+# -------------------------------------------
+# Test & Coverage
+# -------------------------------------------
 coverage
 test-results
 playwright-report
-.roo
+
+# -------------------------------------------
+# Project Specific
+# -------------------------------------------
+oldT
+oldTH
+move_project
+
+# -------------------------------------------
+# Documentation & Notes
+# -------------------------------------------
+prd.md
+todo-list.md
+mission.txt
+SOLO.md
+IFLOW.md
 AGENTS.md
+CLAUDE.md
+project_rules.md
 openspec
-.kilocode
+
+# -------------------------------------------
+# Other Tool Configs
+# -------------------------------------------
+lifeguard.yaml
 .iflow
 .ask_continue_port
 ask_continue_http.ps1
-project_rules.md
-.orchids
+
+# -------------------------------------------
+# Rust Analyzer
+# -------------------------------------------
+target/rust-analyzer/flycheck0/stderr
+target/rust-analyzer/flycheck0/stdout
+
+# -------------------------------------------
+# Events (project test)
+# -------------------------------------------
+events
